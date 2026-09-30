@@ -3,45 +3,56 @@
     // ============================================================
 
     // ─── Exercise Database ────────────────────────────────────────
+    // Hver redskabsvariant er sin egen post. Grunden er teknisk, ikke kosmetisk:
+    // 20 kg på en EZ-bar og 20 kg i hver hånd er ikke samme belastning, og
+    // progressiv overload sammenligner tal — slås de sammen, bliver forslaget
+    // forkert (fx "læg 2,5 kg på" baseret på en helt anden øvelse).
+    //   equipment: hvilket redskab
+    //   loadNote:  'per hånd' / 'per ben' når vægten angives pr. side, ikke total
     const EXERCISES = {
         upper: [
-            { id: 'bench_press',       name: 'Bench Press',            muscle: 'Bryst',      compound: true  },
-            { id: 'incline_dumbbell',  name: 'Incline Dumbbell Press', muscle: 'Bryst',      compound: true  },
-            { id: 'dumbbell_fly',      name: 'Dumbbell Fly',           muscle: 'Bryst',      compound: false },
-            { id: 'cable_crossover',   name: 'Cable Crossover',        muscle: 'Bryst',      compound: false },
-            { id: 'shoulder_press',    name: 'Shoulder Press',         muscle: 'Skulder',    compound: true  },
-            { id: 'dumbbell_shoulder_press', name: 'Dumbbell Shoulder Press', muscle: 'Skulder', compound: true },
-            { id: 'lateral_raise',     name: 'Lateral Raise',          muscle: 'Skulder',    compound: false },
-            { id: 'front_raise',       name: 'Front Raise',            muscle: 'Skulder',    compound: false },
-            { id: 'reverse_fly',       name: 'Reverse Fly',            muscle: 'Skulder/rug',compound: false },
-            { id: 'pull_up',           name: 'Pull-Up',                muscle: 'Ryg',        compound: true  },
-            { id: 'chin_up',           name: 'Chin-Up',                muscle: 'Ryg/biceps', compound: true  },
-            { id: 'lat_pulldown',      name: 'Lat Pulldown',           muscle: 'Ryg',        compound: true  },
-            { id: 'cable_row',         name: 'Cable Row',              muscle: 'Ryg',        compound: true  },
-            { id: 'barbell_row',       name: 'Barbell Row',            muscle: 'Ryg',        compound: true  },
-            { id: 'face_pull',         name: 'Face Pull',              muscle: 'Skulder/rug',compound: false },
-            { id: 'bicep_curl',        name: 'Bicep Curl',             muscle: 'Biceps',     compound: false },
-            { id: 'hammer_curl',       name: 'Hammer Curl',            muscle: 'Biceps',     compound: false },
-            { id: 'tricep_pushdown',   name: 'Tricep Pushdown',        muscle: 'Triceps',    compound: false },
-            { id: 'skull_crusher',     name: 'Skull Crusher',          muscle: 'Triceps',    compound: false },
-            { id: 'dips',              name: 'Dips',                   muscle: 'Bryst/triceps',compound: true },
+            { id: 'bench_press',       name: 'Bench Press',              muscle: 'Bryst',      compound: true,  equipment: 'Barbell' },
+            { id: 'dumbbell_press',    name: 'Dumbbell Bench Press',     muscle: 'Bryst',      compound: true,  equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'incline_dumbbell',  name: 'Incline Dumbbell Press',   muscle: 'Bryst',      compound: true,  equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'dumbbell_fly',      name: 'Dumbbell Fly',             muscle: 'Bryst',      compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'cable_crossover',   name: 'Cable Crossover',          muscle: 'Bryst',      compound: false, equipment: 'Cable' },
+            { id: 'shoulder_press',    name: 'Shoulder Press',           muscle: 'Skulder',    compound: true,  equipment: 'Barbell' },
+            { id: 'dumbbell_shoulder_press', name: 'Dumbbell Shoulder Press', muscle: 'Skulder', compound: true, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'lateral_raise',     name: 'Lateral Raise',            muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'front_raise',       name: 'Front Raise',              muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'reverse_fly',       name: 'Reverse Fly',              muscle: 'Skulder/rug',compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'pull_up',           name: 'Pull-Up',                  muscle: 'Ryg',        compound: true,  equipment: 'Bodyweight' },
+            { id: 'chin_up',           name: 'Chin-Up',                  muscle: 'Ryg/biceps', compound: true,  equipment: 'Bodyweight' },
+            { id: 'lat_pulldown',      name: 'Lat Pulldown',             muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
+            { id: 'cable_row',         name: 'Seated Cable Row',         muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
+            { id: 'barbell_row',       name: 'Barbell Row',              muscle: 'Ryg',        compound: true,  equipment: 'Barbell' },
+            { id: 'chest_supported_row', name: 'Chest Supported Row',    muscle: 'Ryg',        compound: true,  equipment: 'Machine/Dumbbell' },
+            { id: 'face_pull',         name: 'Face Pull',                muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
+            { id: 'bicep_curl',        name: 'Bicep Curl (Barbell)',     muscle: 'Biceps',     compound: false, equipment: 'Barbell' },
+            { id: 'ez_bar_curl',       name: 'Bicep Curl (EZ-bar)',      muscle: 'Biceps',     compound: false, equipment: 'EZ-bar' },
+            { id: 'dumbbell_curl',     name: 'Bicep Curl (Dumbbell)',    muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'hammer_curl',       name: 'Hammer Curl',              muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'tricep_pushdown',   name: 'Tricep Pushdown',          muscle: 'Triceps',    compound: false, equipment: 'Cable' },
+            { id: 'skull_crusher',     name: 'Skull Crusher',            muscle: 'Triceps',    compound: false, equipment: 'EZ-bar' },
+            { id: 'overhead_tricep',   name: 'Overhead Tricep Extension',muscle: 'Triceps',    compound: false, equipment: 'Cable' },
+            { id: 'dips',              name: 'Dips',                     muscle: 'Bryst/triceps',compound: true, equipment: 'Bodyweight' },
         ],
         lower: [
-            { id: 'squat',             name: 'Squat',                  muscle: 'Lår/rumpe',  compound: true  },
-            { id: 'deadlift',          name: 'Deadlift',               muscle: 'Ryg/hofter', compound: true  },
-            { id: 'front_squat',       name: 'Front Squat',            muscle: 'Lår',        compound: true  },
-            { id: 'leg_press',         name: 'Leg Press',              muscle: 'Lår',        compound: true  },
-            { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',  muscle: 'Lår/rumpe',  compound: true  },
-            { id: 'lunges',            name: 'Lunges',                 muscle: 'Lår/rumpe',  compound: true  },
-            { id: 'romanian_deadlift', name: 'Romanian Deadlift',      muscle: 'Lår/rumpe',  compound: true  },
-            { id: 'leg_curl',          name: 'Leg Curl',               muscle: 'Lår',        compound: false },
-            { id: 'leg_extension',    name: 'Leg Extension',          muscle: 'Lår',        compound: false },
-            { id: 'hip_thrust',        name: 'Hip Thrust',             muscle: 'Rumpe',      compound: true  },
-            { id: 'glute_bridge',      name: 'Glute Bridge',           muscle: 'Rumpe',      compound: false },
-            { id: 'calf_raise',        name: 'Calf Raise',             muscle: 'Kalve',      compound: false },
-            { id: 'plank',             name: 'Plank',                  muscle: 'Mave',       compound: false },
-            { id: 'cable_crunch',      name: 'Cable Crunch',           muscle: 'Mave',       compound: false },
-            { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',      muscle: 'Mave',       compound: false },
+            { id: 'squat',             name: 'Squat',                    muscle: 'Lår/rumpe',  compound: true,  equipment: 'Barbell' },
+            { id: 'deadlift',          name: 'Deadlift',                 muscle: 'Ryg/hofter', compound: true,  equipment: 'Barbell' },
+            { id: 'front_squat',       name: 'Front Squat',              muscle: 'Lår',        compound: true,  equipment: 'Barbell' },
+            { id: 'leg_press',         name: 'Leg Press',                muscle: 'Lår',        compound: true,  equipment: 'Machine' },
+            { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',    muscle: 'Lår/rumpe',  compound: true,  equipment: 'Dumbbell', loadNote: 'per ben' },
+            { id: 'lunges',            name: 'Lunges',                   muscle: 'Lår/rumpe',  compound: true,  equipment: 'Dumbbell', loadNote: 'per ben' },
+            { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Lår/rumpe',  compound: true,  equipment: 'Barbell' },
+            { id: 'leg_curl',          name: 'Leg Curl',                 muscle: 'Lår',        compound: false, equipment: 'Machine' },
+            { id: 'leg_extension',     name: 'Leg Extension',            muscle: 'Lår',        compound: false, equipment: 'Machine' },
+            { id: 'hip_thrust',        name: 'Hip Thrust',               muscle: 'Rumpe',      compound: true,  equipment: 'Barbell' },
+            { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Rumpe',      compound: false, equipment: 'Barbell' },
+            { id: 'calf_raise',        name: 'Calf Raise',               muscle: 'Kalve',      compound: false, equipment: 'Machine' },
+            { id: 'plank',             name: 'Plank',                    muscle: 'Mave',       compound: false, equipment: 'Bodyweight' },
+            { id: 'cable_crunch',      name: 'Cable Crunch',             muscle: 'Mave',       compound: false, equipment: 'Cable' },
+            { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',        muscle: 'Mave',       compound: false, equipment: 'Bodyweight' },
         ]
     };
 
@@ -56,7 +67,7 @@
             { exerciseId: 'cable_row',         sets: 3, reps: 12, weight: 40, note: 'Ryg' },
             { exerciseId: 'lateral_raise',     sets: 3, reps: 12, weight: 7,  note: 'Skulder' },
             { exerciseId: 'tricep_pushdown',   sets: 3, reps: 12, weight: 19, note: 'Triceps' },
-            { exerciseId: 'bicep_curl',        sets: 3, reps: 12, weight: 19, note: 'Biceps' },
+            { exerciseId: 'ez_bar_curl',       sets: 3, reps: 12, weight: 19, note: 'Biceps (EZ-bar)' },
         ],
         upperB: [
             { exerciseId: 'incline_dumbbell',  sets: 3, reps: 8,  weight: 25, note: 'Bryst øverst' },
@@ -311,9 +322,10 @@
             const plan = `${item.sets} × ${item.reps}${item.weight > 0 ? ' @ ' + item.weight + ' kg' : ''}`;
             return `
                 <div class="program-exercise" data-exercise-id="${item.exerciseId}">
-                    <div style="flex:1;">
+                    <div style="flex:1; min-width:0;">
                         <div class="program-ex-name">${ex.name}</div>
-                        <div class="program-ex-meta">${ex.muscle}${item.note ? ' · ' + item.note : ''}</div>
+                        <div class="program-ex-meta">${ex.muscle}${ex.equipment ? ' · ' + ex.equipment : ''}${ex.loadNote ? ' · ' + ex.loadNote : ''}</div>
+                        ${item.note ? `<div class="program-ex-note">${item.note}</div>` : ''}
                     </div>
                     ${added ? '<span class="program-ex-added">✓ Tilføjet</span>' : `<span class="program-ex-planned">${plan}</span>`}
                 </div>
@@ -356,13 +368,15 @@
             return `
                 <div class="exercise-card" data-index="${idx}">
                     <div class="exercise-card-header">
-                        <div>
+                        <div class="exercise-card-main">
                             <div class="exercise-name">${exercise.name}</div>
                             <div class="exercise-meta">
                                 <span class="tag ${exercise.compound ? 'compound' : 'isolation'}">
                                     ${exercise.compound ? '⨯ Sammensat' : '⊕ Isolation'}
                                 </span>
+                                <span class="tag equip">${exercise.equipment || ''}</span>
                                 <span>${exercise.muscle}</span>
+                                ${exercise.loadNote ? `<span class="tag load">${exercise.loadNote}</span>` : ''}
                             </div>
                         </div>
                         <button class="remove-btn" data-index="${idx}" aria-label="Fjern øvelse">✕</button>
@@ -477,8 +491,18 @@
         const currentIds = new Set(state.exercises.map(e => e.exerciseId));
         const available = ALL_EXERCISES[state.currentDay].filter(e => !currentIds.has(e.id));
 
+        // Grupperet efter muskelgruppe — listen vokser med redskabsvarianter
+        const groups = new Map();
+        for (const e of available) {
+            if (!groups.has(e.muscle)) groups.set(e.muscle, []);
+            groups.get(e.muscle).push(e);
+        }
         select.innerHTML = '<option value="">— Vælg øvelse —</option>' +
-            available.map(e => `<option value="${e.id}">${e.name} (${e.muscle})</option>`).join('');
+            [...groups.entries()].map(([muscle, list]) =>
+                `<optgroup label="${muscle}">` +
+                list.map(e => `<option value="${e.id}">${e.name}${e.loadNote ? ' (' + e.loadNote + ')' : ''}</option>`).join('') +
+                '</optgroup>'
+            ).join('');
 
         // Show/hide the whole add section
         const section = document.getElementById('add-exercise-section');
@@ -751,7 +775,7 @@
                                     return `
                                         <div class="history-exercise">
                                             <div class="hist-ex-name">${exercise.name}</div>
-                                            <div class="hist-ex-meta">${exercise.muscle} · ${sets.length} sæt</div>
+                                            <div class="hist-ex-meta">${exercise.muscle}${exercise.equipment ? ' · ' + exercise.equipment : ''}${exercise.loadNote ? ' · ' + exercise.loadNote : ''} · ${sets.length} sæt</div>
                                             <div class="hist-sets">
                                                 ${sets.map((s, i) => `
                                                     <span class="hist-set ${best && s.weight === best.weight && s.reps === best.reps ? 'best' : ''}"
@@ -957,6 +981,8 @@
                 || getExerciseById('lower', exerciseId);
             const exName = exercise ? exercise.name : exerciseId;
             const exMuscle = exercise ? exercise.muscle : '?';
+            const exEquip = exercise && exercise.equipment ? exercise.equipment : '?';
+            const exLoad = exercise && exercise.loadNote ? `, ${exercise.loadNote}` : '';
 
             // Collect all sets for this exercise
             const sets = [];
@@ -978,7 +1004,7 @@
             const recentSet = sets[sets.length - 1];
             const firstSet = sets[0];
 
-            lines.push(`🔹 ${exName} (${exMuscle})`);
+            lines.push(`🔹 ${exName} (${exMuscle}, ${exEquip}${exLoad})`);
             lines.push(`   Første: ${firstSet.weight} kg × ${firstSet.reps} reps (${firstSet.date})`);
             lines.push(`   Sidste: ${recentSet.weight} kg × ${recentSet.reps} reps (${recentSet.date})`);
             if (bestSet && bestSet !== recentSet) {

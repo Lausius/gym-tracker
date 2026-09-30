@@ -179,7 +179,37 @@ const ids = [...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id);
 ok('Ingen dublerede øvelses-IDer', new Set(ids).size === ids.length);
 ok('Hver øvelse har navn, muskel og compound-flag', [...EXERCISES.upper, ...EXERCISES.lower].every(e => e.name && e.muscle && typeof e.compound === 'boolean'));
 
-console.log('\n── 5. Filopdeling (index.html + styles.css + app.js)');
+console.log('\n── 6. Redskabsvarianter');
+const allEx = [...EXERCISES.upper, ...EXERCISES.lower];
+ok('Alle øvelser har et redskab angivet', allEx.every(e => typeof e.equipment === 'string' && e.equipment.length > 0));
+ok('Ingen øvelser deler navn', new Set(allEx.map(e => e.name)).size === allEx.length);
+const curls = allEx.filter(e => e.name.startsWith('Bicep Curl'));
+ok('Bicep Curl findes i tre redskabsvarianter', curls.length === 3, `fik ${curls.length}: ${curls.map(c => c.name).join(', ')}`);
+ok('De tre curl-varianter har hvert sit id', new Set(curls.map(c => c.id)).size === 3);
+ok('Curl-varianterne er stang, EZ-bar og håndvægte',
+    curls.map(c => c.equipment).sort().join(',') === 'Barbell,Dumbbell,EZ-bar', curls.map(c => c.equipment).join(', '));
+ok('Håndvægt-curl er markeret per hånd', curls.find(c => c.equipment === 'Dumbbell').loadNote === 'per hånd');
+ok('Chest Supported Row findes nu', !!allEx.find(e => e.id === 'chest_supported_row'));
+ok('Chest Supported Row er en sammensat rygøvelse',
+    allEx.find(e => e.id === 'chest_supported_row').muscle === 'Ryg' && allEx.find(e => e.id === 'chest_supported_row').compound === true);
+ok('Alle håndvægtøvelser med enkelt-side belastning har loadNote',
+    allEx.filter(e => e.equipment === 'Dumbbell' && /Dumbbell|Hammer|Fly|Raise|Reverse/.test(e.name))
+         .every(e => e.loadNote === 'per hånd'));
+ok('Bulgarian Split Squat og Lunges er markeret per ben',
+    allEx.filter(e => ['bulgarian_split', 'lunges'].includes(e.id)).every(e => e.loadNote === 'per ben'));
+// Varianter skal kunne have hver sin progression — ellers giver forslaget ingen mening
+store['gym_tracker_workouts'] = JSON.stringify([
+    { id: 'w1', date: '2026-09-01', day: 'upper', variant: 'A', exercises: [
+        { exerciseId: 'ez_bar_curl', sets: [{ weight: 19, reps: 12 }] },
+        { exerciseId: 'dumbbell_curl', sets: [{ weight: 12, reps: 12 }] }] },
+]);
+const ez = calculateProgressiveOverload('ez_bar_curl', 'upper');
+const db = calculateProgressiveOverload('dumbbell_curl', 'upper');
+ok('EZ-bar-curl foreslår ud fra EZ-bar-historik (19 → 21,5 kg)', ez.suggestion === '21.5 kg × 12 reps', `fik "${ez.suggestion}"`);
+ok('Håndvægt-curl foreslår ud fra håndvægt-historik (12 → 14,5 kg)', db.suggestion === '14.5 kg × 12 reps', `fik "${db.suggestion}"`);
+ok('De to curl-varianter blander ikke deres historik', ez.suggestion !== db.suggestion);
+
+console.log('\n── 7. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));

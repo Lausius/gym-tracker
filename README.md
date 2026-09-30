@@ -13,6 +13,11 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   (Upper A → Lower A → Upper B → Lower B → forfra). Kan altid overstyres med A/B-knapperne.
 - **Øvelser, vægt, sæt og reps pr. session:** hver øvelse har sine egne sæt med kg × reps,
   og volumen (kg × reps) beregnes pr. sæt og pr. øvelse.
+- **Redskabsvarianter holdes adskilt:** fx `Bicep Curl (Barbell)`, `(EZ-bar)` og `(Dumbbell)` er
+  tre poster med hver sin historik og hver sin progression — 20 kg på en EZ-bar og 20 kg i hver
+  hånd er ikke samme belastning, så et fælles forslag ville være forkert. Håndvægt- og
+  enkeltbensøvelser er markeret "per hånd" / "per ben", og dropdown'en er grupperet pr.
+  muskelgruppe.
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.

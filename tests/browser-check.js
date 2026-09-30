@@ -249,32 +249,26 @@ async function main() {
         return evaluate(`
             const doc = document.documentElement;
             const groups = [
-                ['#progressive-list', '.progressive-item'],
-                ['#program-content', '.program-exercise'],
-                ['#exercise-list', '.exercise-card'],
+                ['#progressive-list', '.progressive-item', '.add-from-prog-btn'],
+                ['#program-content', '.program-exercise', null],
+                ['#exercise-list', '.exercise-card', '.remove-btn'],
             ];
             const report = [];
-            for (const [container, rowSel] of groups) {
+            for (const [container, rowSel, rightSel] of groups) {
                 const rows = [...document.querySelectorAll(container + ' ' + rowSel)];
                 if (!rows.length) { report.push({ container, count: 0 }); continue; }
                 const rects = rows.map(r => r.getBoundingClientRect());
-                // Højre kant af rækkens sidste synlige barn = der hvor ＋/✕/planen skal ligge
-                const edgeOffsets = rows.map((r, i) => {
-                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
-                    const last = kids[kids.length - 1].getBoundingClientRect();
-                    return Math.round(rects[i].right - last.right);
-                });
+                // Højre-elementet: eksplicit knap hvor rækken har en, ellers rækkens sidste barn
+                const rightEls = rows.map(r => rightSel
+                    ? r.querySelector(rightSel)
+                    : [...r.children].filter(c => c.getBoundingClientRect().width > 0).pop());
+                const edgeOffsets = rows.map((r, i) => Math.round(rects[i].right - rightEls[i].getBoundingClientRect().right));
                 const centerOffsets = rows.map((r, i) => {
-                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
-                    const last = kids[kids.length - 1].getBoundingClientRect();
-                    return Math.round(Math.abs((rects[i].top + rects[i].height / 2) - (last.top + last.height / 2)));
+                    const eb = rightEls[i].getBoundingClientRect();
+                    return Math.round(Math.abs((rects[i].top + rects[i].height / 2) - (eb.top + eb.height / 2)));
                 });
                 // Øvelseskortets ✕ sidder bevidst i toppen af kortet, ikke lodret centreret
-                const topOffsets = rows.map((r, i) => {
-                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
-                    const last = kids[kids.length - 1].getBoundingClientRect();
-                    return Math.round(last.top - rects[i].top);
-                });
+                const topOffsets = rows.map((r, i) => Math.round(rightEls[i].getBoundingClientRect().top - rects[i].top));
                 const spill = rows.filter((r, i) => [...r.querySelectorAll('*')].some(el => {
                     const eb = el.getBoundingClientRect();
                     return eb.right > rects[i].right + 1 || eb.left < rects[i].left - 1;
@@ -342,6 +336,72 @@ async function main() {
     await load(URL_UNDER_TEST, '#app');
     await S('Emulation.clearDeviceMetricsOverride');
     await sleep(200);
+
+    // ─── 9. Redskabsvarianter i UI'et ─────────────────────────────
+    console.log('\n── 9. Redskabsvarianter og udstyr i UI\'et');
+    await evaluate('document.querySelector(\'.day-btn[data-day="upper"]\').click(); return true;');
+    await sleep(250);
+
+    ok('Øvelses-dropdown er grupperet i optgroups', (await evaluate('return document.querySelectorAll("#exercise-select optgroup").length')) > 3);
+    ok('Dropdown-labels indeholder ikke længere muskelgruppen i selve teksten', (await evaluate(`
+        return [...document.querySelectorAll("#exercise-select option")]
+            .filter(o => o.value).every(o => !/\\(Bryst\\)|\\(Ryg\\)|\\(Biceps\\)/.test(o.text));
+    `)) === true);
+    const optionTexts = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.value + "|" + o.text);');
+    ok('Bicep Curl findes i tre varianter i dropdown', ['bicep_curl', 'ez_bar_curl', 'dumbbell_curl'].every(id => optionTexts.some(t => t.startsWith(id + '|'))));
+    ok('Håndvægt-curl er mærket "per hånd" i dropdown', optionTexts.some(t => t.startsWith('dumbbell_curl|') && t.includes('per hånd')));
+    ok('Chest Supported Row er valgbar', optionTexts.some(t => t.startsWith('chest_supported_row|')));
+
+    // Vælg EZ-bar-curl via dropdown og tilføj den
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "ez_bar_curl";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(250);
+    ok('EZ-bar-curl kan tilføjes fra dropdown', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Bicep Curl (EZ-bar)")')) === true);
+    ok('Øvelseskortet viser redskabet', (await evaluate(`
+        const card = document.querySelector("#exercise-list .exercise-card");
+        return card.querySelector(".tag.equip").textContent.trim();
+    `)) === 'EZ-bar');
+    ok('Redskabs-tag har egen farve (ikke samme som muskeltekst)', (await evaluate(`
+        const card = document.querySelector("#exercise-list .exercise-card");
+        return getComputedStyle(card.querySelector(".tag.equip")).color;
+    `)) !== (await evaluate('return getComputedStyle(document.querySelector("#exercise-list .exercise-meta span:last-child")).color')));
+
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "dumbbell_curl";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(250);
+    ok('Begge curl-varianter kan være i samme træning', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 2);
+    ok('Håndvægt-curl viser "per hånd" på kortet', (await evaluate(`
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        const db = cards.find(c => c.innerText.includes("Bicep Curl (Dumbbell)"));
+        return db.querySelector(".tag.load").textContent.trim();
+    `)) === 'per hånd');
+    ok('Stang-curl viser ingen "per hånd"-mærkning', (await evaluate(`
+        return document.querySelectorAll("#exercise-list .exercise-card .tag.load").length;
+    `)) === 1);
+
+    // Programmet skal vise redskab + note på hver række
+    await evaluate('document.querySelector(\'.variant-btn[data-variant="A"]\').click(); return true;');
+    await sleep(200);
+    ok('Upper A viser EZ-bar-curl med redskab i programrækken', (await evaluate(`
+        const t = document.getElementById("program-content").innerText;
+        return t.includes("Bicep Curl (EZ-bar)") && t.includes("EZ-bar");
+    `)) === true);
+    ok('Programrækker viser stadig deres note', (await evaluate('return document.getElementById("program-content").innerText.includes("Bryst øverst") || document.getElementById("program-content").innerText.includes("Biceps")')) === true);
+
+    ok('Del-rapporten oplyser redskab pr. øvelse', (await evaluate(`
+        document.getElementById("btn-share").click();
+        const t = document.getElementById("share-text").value;
+        document.getElementById("share-close").click();
+        return t.includes("Biceps") && /EZ-bar|Dumbbell|Barbell/.test(t);
+    `)) === true);
 
     const tapTargets = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
