@@ -1,5 +1,7 @@
 # Gym Tracker
 
+**Live: https://lausius.github.io/gym-tracker/** — åbn den på telefonen og læg den på hjemmeskærmen.
+
 Mobil-først træningsdagbog i **én selvstændig HTML-fil** — ingen backend, ingen build-step.
 Alle data gemmes lokalt i browserens `localStorage`, så appen kan køre fra en telefon, en
 hjemmeside eller bare ved at åbne filen direkte.
