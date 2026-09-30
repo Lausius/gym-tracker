@@ -6,7 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
-const script = html.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1];
+const script = fs.readFileSync(path.join(__dirname, '..', 'app.js'), 'utf8');
 
 // ─── Minimal DOM/localStorage-stub ────────────────────────────────
 function makeEl(id) {
@@ -178,6 +178,26 @@ ok('Deadlift findes i lower (bruges i lowerB)', !!ALL_EXERCISES.lower.find(e => 
 const ids = [...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id);
 ok('Ingen dublerede øvelses-IDer', new Set(ids).size === ids.length);
 ok('Hver øvelse har navn, muskel og compound-flag', [...EXERCISES.upper, ...EXERCISES.lower].every(e => e.name && e.muscle && typeof e.compound === 'boolean'));
+
+console.log('\n── 5. Filopdeling (index.html + styles.css + app.js)');
+const root = path.join(__dirname, '..');
+const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
+ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));
+ok('index.html loader app.js', html.includes('<script src="app.js"></script>'));
+ok('index.html har ingen inline <style>-blok tilbage', !/<style[\s>]/.test(html));
+ok('index.html har ingen inline <script>-kode tilbage', !/<script(?![^>]*src=)[^>]*>[\s\S]*?\S[\s\S]*?<\/script>/.test(html));
+ok('styles.css er ikke tom', css.trim().length > 1000);
+ok('app.js er ikke tom', script.trim().length > 1000);
+ok('CSS-variablerne ligger i styles.css', css.includes(':root') && css.includes('--accent'));
+ok('HTML-strukturen er stadig i index.html', html.includes('id="program-content"') && html.includes('id="exercise-list"'));
+ok('Alle id\'er som app.js bruger findes i index.html', (() => {
+    const used = new Set([...script.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)].map(m => m[1]));
+    return [...used].every(id => html.includes(`id="${id}"`));
+})());
+ok('Alle klasser app.js slår op findes i styles.css eller index.html', (() => {
+    const used = new Set([...script.matchAll(/querySelector(?:All)?\(['"`]\.([a-z-]+)/g)].map(m => m[1]));
+    return [...used].every(c => css.includes('.' + c) || html.includes('class="' + c));
+})());
 
 console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
 process.exit(fail === 0 ? 0 : 1);

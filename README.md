@@ -2,9 +2,9 @@
 
 **Live: https://lausius.github.io/gym-tracker/** — åbn den på telefonen og læg den på hjemmeskærmen.
 
-Mobil-først træningsdagbog i **én selvstændig HTML-fil** — ingen backend, ingen build-step.
+Mobil-først træningsdagbog uden backend og uden build-step: ren HTML, CSS og JavaScript.
 Alle data gemmes lokalt i browserens `localStorage`, så appen kan køre fra en telefon, en
-hjemmeside eller bare ved at åbne filen direkte.
+hjemmeside eller ved at åbne `index.html` direkte fra disken.
 
 ## Funktioner
 
@@ -23,10 +23,10 @@ hjemmeside eller bare ved at åbne filen direkte.
 ## Kør appen
 
 ```bash
-# Åbn direkte
+# Åbn direkte (virker — klassiske <link>/<script src> er ikke ramt af file://-begrænsninger)
 xdg-open index.html
 
-# …eller servér den (anbefalet — file:// begrænser localStorage i nogle browsere)
+# …eller servér den
 python3 -m http.server 8099 --bind 127.0.0.1
 # → http://127.0.0.1:8099/
 ```
@@ -34,10 +34,25 @@ python3 -m http.server 8099 --bind 127.0.0.1
 Alt state ligger i tre `localStorage`-nøgler: `gym_tracker_workouts`,
 `gym_tracker_current_day` og `gym_tracker_settings`.
 
+## Struktur
+
+```
+index.html              markup alene — refererer styles.css og app.js
+styles.css              alt CSS, inkl. :root-variablerne
+app.js                  al applikationslogik (klassisk script, ingen moduler)
+tests/run-tests.js      logik- og struktur-tests (ingen browser)
+tests/browser-check.js  end-to-end test via Chrome DevTools Protocol
+.github/workflows/      CI: syntax-tjek + logik-tests på hvert push
+```
+
+Der er bevidst ingen build-step: filerne serveres som de er, og `app.js` er et klassisk
+script (ikke et ES-modul), så `file://` stadig virker.
+
 ## Test
 
 ```bash
-# 1) Logik uden browser (A/B-rotation, program-integritet, progressiv overload)
+# 1) Logik uden browser: A/B-rotation, program-integritet, progressiv overload,
+#    samt at opdelingen i index.html/styles.css/app.js hænger sammen
 node tests/run-tests.js
 
 # 2) Fuld brugerrejse i headless Chrome (kræver en kørende server på port 8099)
@@ -48,19 +63,14 @@ node tests/browser-check.js
 `tests/browser-check.js` driver Chromium over DevTools Protocol og dækker: indlæsning uden
 JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
 persistens og rotation**, historik, del-modal, regler-modal, intet vandret overflow ved
-mobilbredde.
+mobilbredde. Den kan også køres mod den udgivne side:
+
+```bash
+node tests/browser-check.js https://lausius.github.io/gym-tracker/
+```
 
 Chrome-stien er sat til Playwrights cache; override med miljøvariablen:
 
 ```bash
 CHROME_BIN=/sti/til/chrome node tests/browser-check.js
-```
-
-## Struktur
-
-```
-index.html              hele appen: HTML + CSS + JS i én fil
-tests/run-tests.js      logik-tests (ingen browser)
-tests/browser-check.js  end-to-end test via CDP
-.github/workflows/      CI: kører logik-testene på hvert push
 ```
