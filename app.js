@@ -429,14 +429,18 @@
             const added = state.exercises.some(e => e.exerciseId === ex.id);
             return `
                 <div class="progressive-item ${added ? 'already-added' : ''}" data-exercise-id="${ex.id}">
-                    <div class="progressive-ex-name">
-                        ${ex.name}
-                        ${added ? '<span class="added-badge">✓ Tilføjet</span>' : ''}
-                    </div>
-                    <div class="progressive-ex-meta">${ex.muscle}</div>
-                    <div class="progressive-suggestion">
-                        <div class="suggestion-text">${prog.suggestion}</div>
-                        <div class="suggestion-detail">${prog.detail}</div>
+                    <div class="progressive-main">
+                        <div class="progressive-info">
+                            <div class="progressive-ex-name">
+                                ${ex.name}
+                                ${added ? '<span class="added-badge">✓ Tilføjet</span>' : ''}
+                            </div>
+                            <div class="progressive-ex-meta">${ex.muscle}</div>
+                        </div>
+                        <div class="progressive-suggestion">
+                            <div class="suggestion-text">${prog.suggestion}</div>
+                            <div class="suggestion-detail">${prog.detail}</div>
+                        </div>
                     </div>
                     <button class="add-from-prog-btn" data-exercise-id="${ex.id}" title="Tilføj øvelse">
                         ＋

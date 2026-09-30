@@ -234,11 +234,114 @@ async function main() {
     ok('Efter Lower A → foreslår Lower B', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'B');
     ok('Lower B viser Deadlift', (await evaluate('return document.getElementById("program-content").innerText.includes("Deadlift")')) === true);
 
-    // Mobillayout: intet må stikke ud over viewport-bredden
-    const overflow = await evaluate(`
-        return { scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth };
+    // Mobillayout: gentagne rækker skal have knapper i samme faste position ude i siden,
+    // uanset hvor lang teksten i rækken er (iPhone-bredder).
+    console.log('\n── 8. Mobillayout: fast knappeposition ved varierende tekstlængde');
+
+    // Dags-skiftet ryddede øvelseslisten, så fyld den igen for at teste den gruppe også
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(250);
+    ok('Øvelseslisten er fyldt op til layout-testen', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) > 0);
+
+    async function layoutAt(width) {
+        await S('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 2, mobile: true });
+        await sleep(300);
+        return evaluate(`
+            const doc = document.documentElement;
+            const groups = [
+                ['#progressive-list', '.progressive-item'],
+                ['#program-content', '.program-exercise'],
+                ['#exercise-list', '.exercise-card'],
+            ];
+            const report = [];
+            for (const [container, rowSel] of groups) {
+                const rows = [...document.querySelectorAll(container + ' ' + rowSel)];
+                if (!rows.length) { report.push({ container, count: 0 }); continue; }
+                const rects = rows.map(r => r.getBoundingClientRect());
+                // Højre kant af rækkens sidste synlige barn = der hvor ＋/✕/planen skal ligge
+                const edgeOffsets = rows.map((r, i) => {
+                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
+                    const last = kids[kids.length - 1].getBoundingClientRect();
+                    return Math.round(rects[i].right - last.right);
+                });
+                const centerOffsets = rows.map((r, i) => {
+                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
+                    const last = kids[kids.length - 1].getBoundingClientRect();
+                    return Math.round(Math.abs((rects[i].top + rects[i].height / 2) - (last.top + last.height / 2)));
+                });
+                // Øvelseskortets ✕ sidder bevidst i toppen af kortet, ikke lodret centreret
+                const topOffsets = rows.map((r, i) => {
+                    const kids = [...r.children].filter(c => c.getBoundingClientRect().width > 0);
+                    const last = kids[kids.length - 1].getBoundingClientRect();
+                    return Math.round(last.top - rects[i].top);
+                });
+                const spill = rows.filter((r, i) => [...r.querySelectorAll('*')].some(el => {
+                    const eb = el.getBoundingClientRect();
+                    return eb.right > rects[i].right + 1 || eb.left < rects[i].left - 1;
+                })).length;
+                report.push({
+                    container, count: rows.length,
+                    widths: [...new Set(rects.map(r => Math.round(r.width)))],
+                    edgeOffsets, centerOffsets, topOffsets, spill,
+                });
+            }
+            return { overflow: doc.scrollWidth - doc.clientWidth, report };
+        `);
+    }
+
+    const spread = a => Math.max(...a) - Math.min(...a);
+    const label = { '#progressive-list': 'Progressiv overload', '#program-content': 'Dagens program', '#exercise-list': 'Øvelseslisten' };
+
+    for (const width of [320, 375, 390, 430]) {
+        const { overflow, report } = await layoutAt(width);
+        ok(`[${width}px] intet vandret overflow`, overflow <= 1, `overflow=${overflow}`);
+        for (const g of report) {
+            if (!g.count) { ok(`[${width}px] ${label[g.container]}: rækker fundet`, false); continue; }
+            ok(`[${width}px] ${label[g.container]}: alle ${g.count} rækker lige brede`,
+                g.widths.length === 1, `bredder: ${g.widths.join(', ')}`);
+            ok(`[${width}px] ${label[g.container]}: højre-elementet har samme afstand til kanten i alle rækker`,
+                spread(g.edgeOffsets) <= 1, `afstande: ${[...new Set(g.edgeOffsets)].join(', ')}`);
+            const isCard = g.container === '#exercise-list';
+            const vertical = isCard ? g.topOffsets : g.centerOffsets;
+            ok(`[${width}px] ${label[g.container]}: højre-elementet sidder samme sted lodret i alle rækker (${isCard ? 'top-justeret' : 'centreret'})`,
+                spread(vertical) <= 1, `afvigelse: ${spread(vertical)}px (${[...new Set(vertical)].join(', ')})`);
+            ok(`[${width}px] ${label[g.container]}: intet stikker ud over rækken`,
+                g.spill === 0, `${g.spill} rækker med overløb`);
+        }
+    }
+
+    // Selve regressionen: gør teksten markant længere — knappen må ikke flytte sig
+    await S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+    await sleep(250);
+    const before = await evaluate(`
+        const r = document.querySelector("#progressive-list .progressive-item");
+        const b = r.querySelector(".add-from-prog-btn").getBoundingClientRect();
+        return Math.round(r.getBoundingClientRect().right - b.right);
     `);
-    ok(`Intet vandret overflow ved 390px (scroll ${overflow.scroll} ≤ client ${overflow.client})`, overflow.scroll <= overflow.client + 1);
+    await evaluate(`
+        document.querySelectorAll("#progressive-list .progressive-item").forEach(r => {
+            r.querySelector(".progressive-ex-name").insertAdjacentText("afterbegin",
+                "Incline Dumbbell Press med ekstra langt navn og mere tekst ");
+            r.querySelector(".suggestion-detail").textContent =
+                "Bedst: 112,5 kg × 12 reps (onsdag den 30. september 2026, meget lang detaljetekst)";
+        });
+        return true;
+    `);
+    await sleep(200);
+    const after = await evaluate(`
+        const r = document.querySelector("#progressive-list .progressive-item");
+        const b = r.querySelector(".add-from-prog-btn").getBoundingClientRect();
+        const edges = [...document.querySelectorAll("#progressive-list .progressive-item")].map(row => {
+            const btn = row.querySelector(".add-from-prog-btn").getBoundingClientRect();
+            return Math.round(row.getBoundingClientRect().right - btn.right);
+        });
+        return { offset: Math.round(r.getBoundingClientRect().right - b.right), spread: Math.max(...edges) - Math.min(...edges) };
+    `);
+    ok(`＋-knappen flytter sig ikke ved lang tekst (før ${before}px, efter ${after.offset}px)`, before === after.offset);
+    ok('＋-knapperne holder samme afstand til kanten selv med lang tekst', after.spread <= 1, `spredning ${after.spread}px`);
+    await load(URL_UNDER_TEST, '#app');
+    await S('Emulation.clearDeviceMetricsOverride');
+    await sleep(200);
 
     const tapTargets = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);

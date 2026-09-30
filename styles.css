@@ -825,14 +825,12 @@
         .progressive-item {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 10px;
             padding: 10px 12px;
             background: var(--bg-input);
             border-radius: var(--radius-sm);
             border: 1px solid var(--border);
             transition: all var(--transition);
-            gap: 8px;
-            flex-wrap: wrap;
         }
         .progressive-item:hover { border-color: var(--border-light); }
         .progressive-item.already-added {
@@ -841,13 +839,29 @@
         }
         .progressive-item.already-added:hover { border-color: var(--border); }
 
+        /* Indholdskolonne: får al pladsen, og min-width:0 lader lang tekst ombryde
+           i stedet for at skubbe ＋-knappen ud af position */
+        .progressive-main {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .progressive-info {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
         .progressive-ex-name {
             font-size: 0.85rem;
             font-weight: 600;
             display: flex;
             align-items: center;
             gap: 8px;
-            flex: 1 1 140px;
+            flex-wrap: wrap;
+            min-width: 0;
         }
         .added-badge {
             font-size: 0.65rem;
@@ -856,6 +870,7 @@
             padding: 1px 6px;
             border-radius: 10px;
             font-weight: 700;
+            flex-shrink: 0;
         }
         .progressive-ex-meta {
             font-size: 0.7rem;
@@ -863,9 +878,8 @@
             margin-top: 1px;
         }
         .progressive-suggestion {
-            text-align: right;
-            flex: 1 1 120px;
-            min-width: 100px;
+            text-align: left;
+            min-width: 0;
         }
         .progressive-suggestion .suggestion-text {
             font-size: 0.8rem;
@@ -878,6 +892,10 @@
             margin-top: 2px;
         }
         .add-from-prog-btn {
+            /* fast bredde + ingen vækst: knappen ligger altid samme sted ude i siden,
+               uanset hvor langt øvelsesnavn/forslag er */
+            flex: 0 0 32px;
+            align-self: center;
             width: 32px;
             height: 32px;
             border-radius: 50%;
@@ -890,7 +908,6 @@
             font-size: 1.1rem;
             font-weight: 700;
             cursor: pointer;
-            flex-shrink: 0;
             transition: all var(--transition);
         }
         .add-from-prog-btn:hover {
@@ -899,6 +916,18 @@
             transform: scale(1.05);
         }
         .add-from-prog-btn:active { transform: scale(0.95); }
+
+        /* Bredere skærme: navn til venstre, forslag til højre på samme linje */
+        @media (min-width: 600px) {
+            .progressive-main {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 14px;
+            }
+            .progressive-info { flex: 1 1 auto; }
+            .progressive-suggestion { text-align: right; flex: 0 1 auto; }
+        }
 
         /* ===== TOAST ===== */
         .toast-container {
