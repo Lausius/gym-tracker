@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  logic-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Syntax-tjek af appens script
+        run: |
+          node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');fs.writeFileSync('/tmp/app.js',h.match(/<script[^>]*>([\s\S]*?)<\/script>/)[1]);"
+          node --check /tmp/app.js
+
+      - name: Logik-tests (A/B-rotation, program-integritet, progressiv overload)
+        run: node tests/run-tests.js

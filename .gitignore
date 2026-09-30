@@ -1,0 +1,12 @@
+# macOS / editor
+.DS_Store
+*.swp
+*~
+
+# Backups og midlertidige filer
+*.bak
+*.orig
+*.tmp
+
+# Test-artefakter
+tests/.chrome-profile/
