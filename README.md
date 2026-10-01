@@ -75,6 +75,19 @@ gh pr create --fill
 CI (`.github/workflows/tests.yml`) kører automatisk på pull requests, og
 `logic-tests` er et påkrævet check: PR'en kan ikke merges før testene er grønne.
 
+**Branchen slettes automatisk ved merge.** Repoet har `delete_branch_on_merge` slået til, så
+du ikke skal rydde op efter hver PR:
+
+```sh
+gh api repos/Lausius/gym-tracker --jq '.delete_branch_on_merge'
+```
+
+Efter et merge rydder du den lokale kopi sådan:
+
+```sh
+git switch main && git pull && git fetch --prune && git branch -d feat/min-aendring
+```
+
 ### Beskyttelse i praksis
 
 **På GitHub — den del der reelt håndhæver reglen.** Branch protection på `main` kræver
