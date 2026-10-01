@@ -21,6 +21,11 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
+- **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
+  historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så
+  **Opdater træning**. Datoen, dagen og varianten bevares, og der laves ikke en dublet —
+  også hvis du først retter træningen dagen efter. **Annuller** forlader redigeringen uden
+  at skrive noget.
 - **Del med AI-træner:** genererer en formateret tekst-rapport (overblik, fremgang pr. øvelse,
   seneste træninger) klar til at kopiere.
 - **Programregler** i appen under 📖 Regler.

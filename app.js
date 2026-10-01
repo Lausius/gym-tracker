@@ -124,6 +124,7 @@
         savedWorkouts: [], // loaded from localStorage
         programVariant: null, // null = brug foreslået variant, ellers 'A' | 'B'
         sessionVariant: null, // varianten programmet blev indlæst fra (gemmes med træningen)
+        editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
     };
 
     // ─── Storage ──────────────────────────────────────────────────
@@ -140,6 +141,23 @@
 
     function saveWorkouts(workouts) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
+    }
+
+    // Opdaterer en gemt træning på plads. Dato, dag og variant bevares — kun
+    // øvelserne skiftes — så en træning man kommer tilbage til senere stadig
+    // hører til den dag den blev lavet.
+    function applyWorkoutEdit(workouts, id, exercises) {
+        const idx = workouts.findIndex(w => w.id === id);
+        if (idx < 0) return { ok: false, workouts, added: 0, removed: 0 };
+        const before = workouts[idx].exercises.length;
+        const next = workouts.slice();
+        next[idx] = { ...workouts[idx], exercises };
+        return {
+            ok: true,
+            workouts: next,
+            added: Math.max(0, exercises.length - before),
+            removed: Math.max(0, before - exercises.length),
+        };
     }
 
     function loadCurrentDay() {
@@ -467,6 +485,20 @@
     function renderSaveBar() {
         const info = document.getElementById('save-info');
         const btn = document.getElementById('save-btn');
+        const banner = document.getElementById('edit-banner');
+
+        // Redigeringstilstand: vis hvilken træning der opdateres, og skift knappens tekst
+        if (state.editing) {
+            banner.classList.remove('hidden');
+            document.getElementById('edit-banner-text').textContent =
+                `✏️ Redigerer ${state.editing.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(state.editing.date)}`;
+            btn.textContent = '💾 Opdater træning';
+            document.body.classList.add('editing');
+        } else {
+            banner.classList.add('hidden');
+            btn.textContent = '💾 Gem træning';
+            document.body.classList.remove('editing');
+        }
 
         const exerciseCount = state.exercises.length;
         const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
@@ -552,6 +584,7 @@
     function loadProgramAll() {
         const variant = getCurrentVariant();
         const list = getProgram(state.currentDay, variant);
+        state.editing = null; // Indlæsning af programmet erstatter sessionen
         let added = 0;
         for (const item of list) {
             if (addExerciseWithPlan(item.exerciseId, item.sets, item.reps, item.weight)) added++;
@@ -696,7 +729,47 @@
 
     function saveWorkout() {
         const today = getTodayStr();
-        const workouts = loadWorkouts();
+        let workouts = loadWorkouts();
+
+        const cleanExercises = state.exercises
+            .map(ex => ({
+                exerciseId: ex.exerciseId,
+                sets: ex.sets.filter(s => s.weight > 0 && s.reps > 0).map(s => ({
+                    weight: s.weight,
+                    reps: s.reps,
+                })),
+            }))
+            .filter(ex => ex.sets.length > 0);
+
+        if (cleanExercises.length === 0) {
+            showToast('Ingen sæt at gemme — udfyld vægt og reps', 'info');
+            return;
+        }
+
+        // Redigering af en gemt træning: opdater den i stedet for at oprette en ny
+        if (state.editing) {
+            const res = applyWorkoutEdit(workouts, state.editing.id, cleanExercises);
+            if (!res.ok) {
+                showToast('Træningen findes ikke længere', 'error');
+                state.editing = null;
+                renderAll();
+                return;
+            }
+            saveWorkouts(res.workouts);
+            state.editing = null;
+            state.exercises = [];
+            state.sessionVariant = null;
+            state.programVariant = null;
+            renderAll();
+            if (res.added > 0) {
+                showToast(`Træning opdateret — ${res.added} øvelse${res.added === 1 ? '' : 'r'} tilføjet`, 'success');
+            } else if (res.removed > 0) {
+                showToast(`Træning opdateret — ${res.removed} øvelse${res.removed === 1 ? '' : 'r'} fjernet`, 'success');
+            } else {
+                showToast('Træning opdateret', 'success');
+            }
+            return;
+        }
 
         // Check if there's already a workout for today with this day type
         const existingIdx = workouts.findIndex(w => w.date === today && w.day === state.currentDay);
@@ -706,13 +779,7 @@
             date: today,
             day: state.currentDay,
             variant: state.sessionVariant || getCurrentVariant(),
-            exercises: state.exercises.map(ex => ({
-                exerciseId: ex.exerciseId,
-                sets: ex.sets.filter(s => s.weight > 0 && s.reps > 0).map(s => ({
-                    weight: s.weight,
-                    reps: s.reps,
-                })),
-            })),
+            exercises: cleanExercises,
         };
 
         if (existingIdx >= 0) {
@@ -730,6 +797,60 @@
         renderAll();
     }
 
+    // ─── Redigering af gemte træninger ────────────────────────────
+    function startEditWorkout(id) {
+        const workout = loadWorkouts().find(w => w.id === id);
+        if (!workout) {
+            showToast('Kunne ikke finde træningen', 'error');
+            return;
+        }
+
+        state.currentDay = workout.day;
+        saveCurrentDay(workout.day);
+        state.editing = { id: workout.id, date: workout.date, day: workout.day };
+        state.programVariant = workout.variant;
+        state.sessionVariant = workout.variant;
+
+        // Indlæs øvelserne i editoren. Ukendte id'er (fx en øvelse der er fjernet
+        // fra databasen) springes over, så editoren ikke knækker.
+        const loaded = [];
+        const skipped = [];
+        for (const ex of workout.exercises) {
+            if (!getExerciseById(workout.day, ex.exerciseId)) {
+                skipped.push(ex.exerciseId);
+                continue;
+            }
+            const sets = ex.sets.map(s => ({ weight: s.weight, reps: s.reps }));
+            loaded.push({
+                exerciseId: ex.exerciseId,
+                sets,
+                targetReps: sets.length ? sets[sets.length - 1].reps : 8,
+            });
+        }
+        state.exercises = loaded;
+
+        closeHistory();
+        renderAll();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        const label = `${workout.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(workout.date)}`;
+        if (skipped.length > 0) {
+            showToast(`Redigerer ${label} — ${skipped.length} ukendt øvelse sprunget over`, 'info');
+        } else {
+            showToast(`Redigerer ${label}`, 'info');
+        }
+    }
+
+    function cancelEdit() {
+        if (!state.editing) return;
+        state.editing = null;
+        state.exercises = [];
+        state.sessionVariant = null;
+        state.programVariant = null;
+        renderAll();
+        showToast('Redigering annulleret — træningen er uændret', 'info');
+    }
+
     function showHistory() {
         const workouts = loadWorkouts();
         const content = document.getElementById('history-content');
@@ -745,51 +866,61 @@
                 </div>
             `;
         } else {
-            // Group by date
-            const grouped = {};
+            // Grupper pr. dato, og inden for datoen pr. træning (upper/lower) —
+            // så hver gemt træning har sin egen blok med sin egen Rediger-knap
+            const grouped = new Map();
             for (const w of workouts) {
-                if (!grouped[w.date]) grouped[w.date] = [];
-                grouped[w.date].push(w);
+                if (!grouped.has(w.date)) grouped.set(w.date, []);
+                grouped.get(w.date).push(w);
             }
 
-            const sortedDates = Object.keys(grouped).sort().reverse();
+            const sortedDates = [...grouped.keys()].sort().reverse();
 
             content.innerHTML = sortedDates.map(date => {
-                const dayWorkouts = grouped[date];
+                const dayWorkouts = grouped.get(date).slice()
+                    .sort((a, b) => a.day.localeCompare(b.day));
+
                 return `
                     <div class="history-day">
                         <div class="history-day-header">
                             <span class="history-day-date">${formatDate(date)}</span>
-                            <span class="history-day-type ${dayWorkouts[0].day}">
-                                ${dayWorkouts[0].day === 'upper' ? 'Upper' : 'Lower'}
-                            </span>
                         </div>
-                        ${dayWorkouts.map(w => `
-                            <div style="padding:0 14px;">
-                                ${w.exercises.map(ex => {
-                                    const exercise = getExerciseById(w.day, ex.exerciseId);
-                                    if (!exercise) return '';
-                                    const sets = ex.sets;
-                                    const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-                                    const best = sets.reduce((b, s) => (!b || s.weight > b.weight) ? s : b, null);
-                                    return `
-                                        <div class="history-exercise">
-                                            <div class="hist-ex-name">${exercise.name}</div>
-                                            <div class="hist-ex-meta">${exercise.muscle}${exercise.equipment ? ' · ' + exercise.equipment : ''}${exercise.loadNote ? ' · ' + exercise.loadNote : ''} · ${sets.length} sæt</div>
-                                            <div class="hist-sets">
-                                                ${sets.map((s, i) => `
-                                                    <span class="hist-set ${best && s.weight === best.weight && s.reps === best.reps ? 'best' : ''}"
-                                                          title="${i + 1}. sæt">
-                                                        ${s.weight} kg × ${s.reps} reps
-                                                    </span>
-                                                `).join('')}
+                        ${dayWorkouts.map(w => {
+                            const exCount = w.exercises.length;
+                            const totalVol = w.exercises.reduce((sum, ex) =>
+                                sum + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0);
+                            return `
+                                <div class="history-workout">
+                                    <div class="history-workout-header">
+                                        <span class="history-day-type ${w.day}">${w.day === 'upper' ? 'Upper' : 'Lower'}</span>
+                                        <span class="history-workout-meta">${exCount} øvelse${exCount === 1 ? '' : 'r'} · ${totalVol.toFixed(0)} kg totalt</span>
+                                        <button class="history-edit-btn" data-workout-id="${w.id}">✏️ Rediger</button>
+                                    </div>
+                                    ${w.exercises.map(ex => {
+                                        const exercise = getExerciseById(w.day, ex.exerciseId);
+                                        if (!exercise) return '';
+                                        const sets = ex.sets;
+                                        const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+                                        const best = sets.reduce((b, s) => (!b || s.weight > b.weight) ? s : b, null);
+                                        return `
+                                            <div class="history-exercise">
+                                                <div class="hist-ex-name">${exercise.name}</div>
+                                                <div class="hist-ex-meta">${exercise.muscle}${exercise.equipment ? ' · ' + exercise.equipment : ''}${exercise.loadNote ? ' · ' + exercise.loadNote : ''} · ${sets.length} sæt</div>
+                                                <div class="hist-sets">
+                                                    ${sets.map((s, i) => `
+                                                        <span class="hist-set ${best && s.weight === best.weight && s.reps === best.reps ? 'best' : ''}"
+                                                              title="${i + 1}. sæt">
+                                                            ${s.weight} kg × ${s.reps} reps
+                                                        </span>
+                                                    `).join('')}
+                                                </div>
+                                                <div class="hist-volume">${totalVol.toFixed(0)} kg totalt</div>
                                             </div>
-                                            <div class="hist-volume">${totalVol.toFixed(0)} kg totalt</div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        `).join('')}
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 `;
             }).join('');
@@ -822,6 +953,7 @@
                 state.exercises = []; // Clear exercises when switching day
                 state.programVariant = null; // Følg forslået A/B-variant for den nye dag
                 state.sessionVariant = null;
+                state.editing = null; // En anden dags træning kan ikke redigeres herfra
                 renderAll();
             });
         });
@@ -908,6 +1040,14 @@
 
         // Event: Save
         document.getElementById('save-btn').addEventListener('click', saveWorkout);
+        document.getElementById('edit-cancel').addEventListener('click', cancelEdit);
+
+        // Rediger en gemt træning direkte fra historikken
+        document.getElementById('history-content').addEventListener('click', (e) => {
+            const btn = e.target.closest('.history-edit-btn');
+            if (!btn) return;
+            startEditWorkout(btn.dataset.workoutId);
+        });
 
         // Event: History
         document.getElementById('btn-history').addEventListener('click', showHistory);

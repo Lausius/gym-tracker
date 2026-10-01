@@ -403,11 +403,113 @@ async function main() {
         return t.includes("Biceps") && /EZ-bar|Dumbbell|Barbell/.test(t);
     `)) === true);
 
-    const tapTargets = await evaluate(`
-        const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
-        return btns.filter(b => b.getBoundingClientRect().height < 28).length;
+    // ─── 10. Rediger en gemt træning ──────────────────────────────
+    console.log('\n── 10. Rediger en gemt træning (øvelse glemt og tilføjet bagefter)');
+
+    // Start forfra med rene data og gem en frisk Upper A-træning
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate('document.querySelector(\'.day-btn[data-day="upper"]\').click(); return true;');
+    await sleep(200);
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(300);
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(300);
+
+    const readWorkouts = `const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");`;
+    const afterSave = await evaluate(`
+        ${readWorkouts}
+        return { count: w.length, id: w[0] && w[0].id, date: w[0] && w[0].date, ex: w[0] ? w[0].exercises.length : 0, day: w[0] && w[0].day, variant: w[0] && w[0].variant };
     `);
-    ok(`Alle synlige knapper er mindst 28px høje (${tapTargets} for små)`, tapTargets === 0);
+    ok('Træningen blev gemt (1 træning, 7 øvelser)', afterSave.count === 1 && afterSave.ex === 7, JSON.stringify(afterSave));
+    ok('Sessionen tømmes efter gem', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 0);
+
+    // Historikken: én træning, med Rediger-knap
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(250);
+    ok('Historikken viser én træning med Rediger-knap', (await evaluate('return document.querySelectorAll("#history-content .history-edit-btn").length')) === 1);
+    ok('Historik-blokken viser antal øvelser og volumen', (await evaluate(`
+        const m = document.querySelector("#history-content .history-workout-meta").textContent;
+        return /7 øvelser/.test(m) && /kg totalt/.test(m);
+    `)) === true);
+
+    // Gå i redigeringstilstand
+    await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
+    await sleep(350);
+    ok('Redigering indlæser træningens 7 øvelser i editoren', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 7);
+    ok('Historik-panelet lukkes når redigeringen starter', (await evaluate('return document.getElementById("history-panel").classList.contains("open")')) === false);
+    ok('Banneret viser hvilken træning der redigeres', (await evaluate(`
+        const b = document.getElementById("edit-banner");
+        return !b.classList.contains("hidden") && b.textContent.includes("Redigerer Upper");
+    `)) === true);
+    ok('Knappen skifter til "Opdater træning"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Opdater træning")')) === true);
+    ok('Dagen følger træningen der redigeres', (await evaluate('return document.querySelector(".day-btn.active").dataset.day')) === 'upper');
+    ok('Sættene er indlæst med vægt og reps', (await evaluate(`
+        const inputs = [...document.querySelectorAll("#exercise-list input[type=number]")];
+        return inputs.length > 0 && inputs.every(i => Number(i.value) > 0);
+    `)) === true);
+    ok('Indholdet skubbes fri af det højere gem-panel', (await evaluate(`
+        return getComputedStyle(document.querySelector(".app-container")).paddingBottom;
+    `)) === '156px');
+
+    // Tilføj den glemte øvelse og opdater træningen
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "chest_supported_row";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(250);
+    ok('Den glemte øvelse er nu i editoren (8 øvelser)', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 8);
+
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(350);
+
+    const afterEdit = await evaluate(`
+        ${readWorkouts}
+        return { count: w.length, id: w[0] && w[0].id, date: w[0] && w[0].date, ex: w[0] ? w[0].exercises.length : 0,
+                 hasNew: w[0] ? w[0].exercises.some(e => e.exerciseId === "chest_supported_row") : false,
+                 day: w[0] && w[0].day, variant: w[0] && w[0].variant };
+    `);
+    ok('Der er stadig kun én træning — ingen dublet', afterEdit.count === 1, JSON.stringify(afterEdit));
+    ok('Id er uændret efter redigering', afterEdit.id === afterSave.id);
+    ok('Datoen er uændret efter redigering', afterEdit.date === afterSave.date);
+    ok('Træningen har nu 8 øvelser', afterEdit.ex === 8, `fik ${afterEdit.ex}`);
+    ok('Den glemte øvelse ligger i den gemte træning', afterEdit.hasNew === true);
+    ok('Dag og variant er bevaret', afterEdit.day === 'upper' && afterEdit.variant === afterSave.variant);
+    ok('Redigeringstilstanden er forladt', (await evaluate('return document.getElementById("edit-banner").classList.contains("hidden")')) === true);
+    ok('Knappen er tilbage til "Gem træning"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Gem træning")')) === true);
+    ok('Siden skubbes tilbage til normal afstand', (await evaluate('return getComputedStyle(document.querySelector(".app-container")).paddingBottom')) === '100px');
+
+    // Historikken afspejler den opdaterede træning
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(250);
+    ok('Historikken viser den tilføjede øvelse', (await evaluate('return document.getElementById("history-content").innerText.includes("Chest Supported Row")')) === true);
+    ok('Historikken viser nu 8 øvelser', (await evaluate('return /8 øvelser/.test(document.querySelector("#history-content .history-workout-meta").textContent)')) === true);
+
+    // Annuller må ikke skrive noget
+    await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
+    await sleep(300);
+    await evaluate('document.querySelector("#exercise-list .remove-btn").click(); return true;');
+    await sleep(250);
+    ok('En øvelse kan fjernes under redigering', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 7);
+    await evaluate('document.getElementById("edit-cancel").click(); return true;');
+    await sleep(300);
+    const afterCancel = await evaluate(`
+        ${readWorkouts}
+        return { count: w.length, ex: w[0] ? w[0].exercises.length : 0 };
+    `);
+    ok('Annuller efterlader træningen uændret (8 øvelser)', afterCancel.ex === 8 && afterCancel.count === 1, JSON.stringify(afterCancel));
+    ok('Annuller tømmer editoren', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 0);
+    ok('Annuller skjuler banneret', (await evaluate('return document.getElementById("edit-banner").classList.contains("hidden")')) === true);
+    ok('Gem-knappen er disabled igen efter annullering', (await evaluate('return document.getElementById("save-btn").disabled')) === true);
+
+    const smallBtns = await evaluate(`
+        const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
+        return btns.filter(b => b.getBoundingClientRect().height < 28)
+                   .map(b => (b.id || b.className) + "=" + Math.round(b.getBoundingClientRect().height) + "px");
+    `);
+    ok(`Alle synlige knapper er mindst 28px høje (${smallBtns.length} for små)`, smallBtns.length === 0, smallBtns.join(', '));
 
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 

@@ -95,6 +95,11 @@
                 <li>Det er med vilje — 20 kg på en EZ-bar og 20 kg i hver hånd er ikke samme belastning, så et fælles forslag ville være forkert.</li>
                 <li>"per hånd" / "per ben" betyder at du skriver vægten for én side, ikke den samlede vægt.</li>
             </ul>
+            <h3>Glemte du en øvelse?</h3>
+            <ul>
+                <li>Åbn historikken og tryk <strong>✏️ Rediger</strong> på træningen. Øvelserne indlæses igen, og du kan tilføje, rette eller fjerne.</li>
+                <li>Knappen hedder så <strong>Opdater træning</strong>, og datoen på træningen ændrer sig ikke — heller ikke hvis du først retter den dagen efter.</li>
+            </ul>
             <button class="rules-close-btn" id="rules-close">Forstået</button>
         </div>
 
@@ -170,12 +175,18 @@
 
     <!-- Save Bar -->
     <div class="save-bar" id="save-bar">
-        <div class="save-info" id="save-info">
-            Ingen øvelser tilføjet
+        <div class="edit-banner hidden" id="edit-banner">
+            <span class="edit-banner-text" id="edit-banner-text"></span>
+            <button class="edit-cancel-btn" id="edit-cancel">Annuller</button>
         </div>
-        <button class="save-btn" id="save-btn" disabled>
-            💾 Gem træning
-        </button>
+        <div class="save-bar-row">
+            <div class="save-info" id="save-info">
+                Ingen øvelser tilføjet
+            </div>
+            <button class="save-btn" id="save-btn" disabled>
+                💾 Gem træning
+            </button>
+        </div>
     </div>
 
     <!-- History Panel -->
