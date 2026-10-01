@@ -444,12 +444,48 @@
             padding: 14px 16px;
             padding-bottom: max(14px, env(safe-area-inset-bottom));
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
             z-index: 200;
             backdrop-filter: blur(10px);
         }
+        .save-bar-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        /* Redigering af en gemt træning: vis hvilken træning der opdateres */
+        .edit-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--accent);
+            border-radius: var(--radius);
+            padding: 8px 12px;
+        }
+        .edit-banner.hidden { display: none; }
+        .edit-banner-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--accent);
+            min-width: 0;
+        }
+        .edit-cancel-btn {
+            flex: 0 0 auto;
+            font-size: 0.75rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+        .edit-cancel-btn:hover { color: var(--text); }
+        /* Banneret gør baren højere — skub indholdet fri af den */
+        body.editing .app-container { padding-bottom: 156px; }
         .save-info {
             font-size: 0.8rem;
             color: var(--text-dim);
@@ -571,6 +607,30 @@
             color: var(--text-dim);
             text-transform: capitalize;
         }
+        .history-workout { padding: 0 14px; }
+        .history-workout-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0 6px;
+        }
+        .history-workout-meta {
+            flex: 1 1 auto;
+            min-width: 0;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+        }
+        .history-edit-btn {
+            flex: 0 0 auto;
+            font-size: 0.75rem;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            white-space: nowrap;
+        }
+        .history-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
         .history-day-type.upper { color: var(--accent); background: var(--accent-glow); }
         .history-day-type.lower { color: var(--secondary); background: rgba(255,107,107,0.1); }
 

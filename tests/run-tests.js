@@ -46,14 +46,15 @@ vm.createContext(ctx);
 vm.runInContext(
     script + `
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
-        getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts };
+        getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
+        applyWorkoutEdit };
     `,
     ctx
 );
 
 const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
-    calculateProgressiveOverload, programKey,
+    calculateProgressiveOverload, programKey, applyWorkoutEdit,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -209,7 +210,57 @@ ok('EZ-bar-curl foreslår ud fra EZ-bar-historik (19 → 21,5 kg)', ez.suggestio
 ok('Håndvægt-curl foreslår ud fra håndvægt-historik (12 → 14,5 kg)', db.suggestion === '14.5 kg × 12 reps', `fik "${db.suggestion}"`);
 ok('De to curl-varianter blander ikke deres historik', ez.suggestion !== db.suggestion);
 
-console.log('\n── 7. Filopdeling (index.html + styles.css + app.js)');
+console.log('\n── 7. Redigering af en gemt træning');
+const savedList = () => ([
+    { id: 'w1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [
+        { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] },
+        { exerciseId: 'cable_row', sets: [{ weight: 40, reps: 12 }] }] },
+    { id: 'w2', date: '2026-09-29', day: 'lower', variant: 'A', exercises: [
+        { exerciseId: 'squat', sets: [{ weight: 80, reps: 8 }] }] },
+]);
+
+const addOne = applyWorkoutEdit(savedList(), 'w1', [
+    { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] },
+    { exerciseId: 'cable_row', sets: [{ weight: 40, reps: 12 }] },
+    { exerciseId: 'ez_bar_curl', sets: [{ weight: 19, reps: 12 }] },
+]);
+ok('Redigering finder træningen', addOne.ok === true);
+ok('Redigering opdaterer i stedet for at oprette', addOne.workouts.length === 2);
+ok('Den redigerede træning har fået den nye øvelse', addOne.workouts[0].exercises.length === 3);
+ok('Den nye øvelse er den rigtige', addOne.workouts[0].exercises[2].exerciseId === 'ez_bar_curl');
+ok('Datoen er uændret efter redigering', addOne.workouts[0].date === '2026-09-28');
+ok('Dag og variant er uændret', addOne.workouts[0].day === 'upper' && addOne.workouts[0].variant === 'A');
+ok('Id er uændret, så historikken ikke får en dublet', addOne.workouts[0].id === 'w1');
+ok('Andre træninger er urørte', addOne.workouts[1].id === 'w2' && addOne.workouts[1].exercises.length === 1);
+ok('Antal tilføjede øvelser rapporteres', addOne.added === 1 && addOne.removed === 0);
+
+const removeOne = applyWorkoutEdit(savedList(), 'w1', [
+    { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] }]);
+ok('Fjernelse af en øvelse rapporteres', removeOne.removed === 1 && removeOne.added === 0);
+ok('Fjernelse giver ikke en ny træning', removeOne.workouts.length === 2);
+
+const reorder = applyWorkoutEdit(savedList(), 'w1', [
+    { exerciseId: 'cable_row', sets: [{ weight: 40, reps: 12 }] },
+    { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] }]);
+ok('Kun ombytning giver hverken tilføjet eller fjernet', reorder.added === 0 && reorder.removed === 0);
+ok('Rækkefølgen følger redigeringen', reorder.workouts[0].exercises[0].exerciseId === 'cable_row');
+
+const missing = applyWorkoutEdit(savedList(), 'findes-ikke', []);
+ok('Ukendt id fejler i stedet for at oprette en træning', missing.ok === false && missing.workouts.length === 2);
+
+const untouched = savedList();
+applyWorkoutEdit(untouched, 'w1', [{ exerciseId: 'bench_press', sets: [{ weight: 99, reps: 1 }] }]);
+ok('Original-listen muteres ikke (ingen utilsigtet sidereffekt)', untouched[0].exercises[1].exerciseId === 'cable_row');
+
+// Redigering må ikke smitte af på nabo-træningens historik i progressionsforslaget
+const overloadWorkouts = addOne.workouts;
+store['gym_tracker_workouts'] = JSON.stringify(overloadWorkouts);
+const curlAfterEdit = calculateProgressiveOverload('ez_bar_curl', 'upper');
+ok('Progressionsforslaget bruger den redigerede træning (19 kg → 21,5 kg)', curlAfterEdit.suggestion === '21.5 kg × 12 reps', `fik "${curlAfterEdit.suggestion}"`);
+const squatUnaffected = calculateProgressiveOverload('squat', 'lower');
+ok('Andre øvelsers forslag er upåvirket af redigeringen', squatUnaffected.suggestion.startsWith('82.5 kg'), `fik "${squatUnaffected.suggestion}"`);
+
+console.log('\n── 8. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));
