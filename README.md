@@ -53,26 +53,87 @@ tests/browser-check.js  end-to-end test via Chrome DevTools Protocol
 Der er bevidst ingen build-step: filerne serveres som de er, og `app.js` er et klassisk
 script (ikke et ES-modul), så `file://` stadig virker.
 
-## Test
+## Arbejdsgang: ændringer kommer som PR
+
+`main` er beskyttet og må ikke pushes direkte til. Alle ændringer — også små —
+går igennem en branch og en pull request, så de kan reviewes før merge.
+
+```sh
+git switch -c feat/min-aendring
+# ... ret koden, kør tests ...
+node tests/run-tests.js && node tests/browser-check.js
+git commit -am "feat: ..."
+git push -u origin feat/min-aendring
+gh pr create --fill
+```
+
+CI (`.github/workflows/tests.yml`) kører automatisk på pull requests, og
+`logic-tests` er et påkrævet check: PR'en kan ikke merges før testene er grønne.
+
+### Beskyttelse i praksis
+
+**På GitHub — den del der reelt håndhæver reglen.** Branch protection på `main` kræver
+en pull request, `logic-tests` skal være grønt, og force-push/sletning er slået fra.
+`enforce_admins` er slået **til**, så reglen også gælder repo-ejeren: et push til `main`
+afvises af serveren uanset hvilke credentials der bruges.
+
+```
+remote: error: GH006: Protected branch update failed for refs/heads/main.
+remote: - Changes must be made through a pull request.
+remote: - Required status check "logic-tests" is expected.
+```
+
+Der er ikke krav om godkendelse fra en anden konto (repoet har kun én), så du kan selv
+mergie PR'en, når checket er grønt. Skal du en sjælden gang pushe direkte til `main`,
+slås admin-reglen midlertidigt fra og til igen:
+
+```sh
+gh api -X DELETE repos/Lausius/gym-tracker/branches/main/protection/enforce_admins
+# ... push ...
+gh api -X PUT repos/Lausius/gym-tracker/branches/main/protection --input - <<'JSON'
+{ "required_status_checks": { "strict": false, "contexts": ["logic-tests"] },
+  "enforce_admins": true,
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
+  "restrictions": null, "allow_force_pushes": false, "allow_deletions": false }
+JSON
+```
+
+**Lokalt — kun bekvemmelighed.** `scripts/hooks/pre-push` giver en hurtigere og pænere
+fejlbesked: den fanger fejlen før netværksrunden og virker offline. Serveren ovenfor er
+den, der garanterer reglen, så hooket er valgfrit. Aktiveres én gang pr. klon:
+
+```sh
+git config core.hooksPath scripts/hooks
+```
+
+Bevidst override, når man virkelig mener det:
+
+```sh
+ALLOW_MAIN_PUSH=1 git push origin main
+```
+
+## Tests
+
+Køres sådan:
 
 ```bash
 # 1) Logik uden browser: A/B-rotation, program-integritet, progressiv overload,
-#    samt at opdelingen i index.html/styles.css/app.js hænger sammen
+#    redskabsvarianter, samt at opdelingen i index.html/styles.css/app.js hænger sammen
 node tests/run-tests.js
 
 # 2) Fuld brugerrejse i headless Chrome (kræver en kørende server på port 8099)
 python3 -m http.server 8099 --bind 127.0.0.1 &
 node tests/browser-check.js
+
+# ... eller mod den udgivne side
+node tests/browser-check.js https://lausius.github.io/gym-tracker/
 ```
 
 `tests/browser-check.js` driver Chromium over DevTools Protocol og dækker: indlæsning uden
 JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
-persistens og rotation**, historik, del-modal, regler-modal, intet vandret overflow ved
-mobilbredde. Den kan også køres mod den udgivne side:
-
-```bash
-node tests/browser-check.js https://lausius.github.io/gym-tracker/
-```
+persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i UI'et,
+og mobillayout ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten
+bliver længere, og at intet flyder ud over kanten).
 
 Chrome-stien er sat til Playwrights cache; override med miljøvariablen:
 

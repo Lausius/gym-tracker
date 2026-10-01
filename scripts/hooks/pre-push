@@ -1,0 +1,33 @@
+#!/bin/sh
+# Afviser direkte push til main. Ændringer skal igennem en branch + PR, så
+# de kan reviewes før de lander på main.
+#
+# Aktiveres i en klon med:  git config core.hooksPath scripts/hooks
+#
+# Bevidst override (kun når man virkelig mener det):
+#   ALLOW_MAIN_PUSH=1 git push origin main
+
+protected="refs/heads/main"
+
+if [ "${ALLOW_MAIN_PUSH:-0}" = "1" ]; then
+    exit 0
+fi
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$remote_ref" = "$protected" ]; then
+        echo "" >&2
+        echo "  ✗ push afvist: main er beskyttet." >&2
+        echo "" >&2
+        echo "    Lav en branch og en PR i stedet:" >&2
+        echo "      git switch -c feat/min-aendring" >&2
+        echo "      git commit -am \"...\"" >&2
+        echo "      git push -u origin feat/min-aendring" >&2
+        echo "      gh pr create --fill" >&2
+        echo "" >&2
+        echo "    (bevidst override: ALLOW_MAIN_PUSH=1 git push origin main)" >&2
+        echo "" >&2
+        exit 1
+    fi
+done
+
+exit 0
