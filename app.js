@@ -771,7 +771,9 @@
             return;
         }
 
-        // Check if there's already a workout for today with this day type
+        // Bevidst adfærd: gemmer man igen samme dag og dagstype, overskrives den
+        // gemte træning frem for at der laves en ny. Det er bekræftet ønsket —
+        // ret det ikke uden at spørge.
         const existingIdx = workouts.findIndex(w => w.date === today && w.day === state.currentDay);
 
         const workoutData = {

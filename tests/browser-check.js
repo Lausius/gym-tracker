@@ -504,6 +504,29 @@ async function main() {
     ok('Annuller skjuler banneret', (await evaluate('return document.getElementById("edit-banner").classList.contains("hidden")')) === true);
     ok('Gem-knappen er disabled igen efter annullering', (await evaluate('return document.getElementById("save-btn").disabled')) === true);
 
+    // ─── 11. Bevidst overskrivning (bekræftet ønsket) ─────────────
+    // Gemmer man igen samme dag og dagstype, skal den gemte træning overskrives
+    // frem for at der laves en ny. Bemærk at appen samtidig roterer til næste
+    // A/B-variant, så den overskrevne træning får det program man indlæste.
+    console.log('\n── 11. Gem igen samme dag overskriver i stedet for at dublere');
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(300);
+    const variantNow = await evaluate('return document.querySelector(".variant-btn.active").dataset.variant');
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(300);
+    const afterResave = await evaluate(`
+        ${readWorkouts}
+        return { count: w.length, id: w[0] && w[0].id, date: w[0] && w[0].date,
+                 ex: w[0] ? w[0].exercises.length : 0, variant: w[0] && w[0].variant };
+    `);
+    ok('Gem igen samme dag giver stadig kun én træning', afterResave.count === 1, JSON.stringify(afterResave));
+    ok('Den overskrevne træning beholder id og dato', afterResave.id === afterSave.id && afterResave.date === afterSave.date);
+    ok('Den overskrevne træning indeholder den netop gemte session', afterResave.ex > 0 && afterResave.variant === variantNow, `variant=${afterResave.variant} forventet=${variantNow}`);
+    ok('Ingen dublet på samme dato og dagstype', (await evaluate(`
+        ${readWorkouts}
+        return w.filter(x => x.date === "${afterSave.date}" && x.day === "upper").length;
+    `)) === 1);
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)
