@@ -47,7 +47,8 @@ vm.runInContext(
     script + `
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
-        applyWorkoutEdit };
+        applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
+    markShareScopeAsShared, CHAR_LIMIT };
     `,
     ctx
 );
@@ -55,6 +56,7 @@ vm.runInContext(
 const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
+    isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -260,7 +262,94 @@ ok('Progressionsforslaget bruger den redigerede træning (19 kg → 21,5 kg)', c
 const squatUnaffected = calculateProgressiveOverload('squat', 'lower');
 ok('Andre øvelsers forslag er upåvirket af redigeringen', squatUnaffected.suggestion.startsWith('82.5 kg'), `fik "${squatUnaffected.suggestion}"`);
 
-console.log('\n── 8. Filopdeling (index.html + styles.css + app.js)');
+console.log('\n── 8. Uge-opdelt deling med tegnbudget');
+// ISO-ugenumre er verificeret mod python3 datetime.date.isocalendar() — ikke
+// mod min egen implementering — inkl. årsskifterne.
+ok('ISO-uge: 2026-09-28 (mandag) er uge 40', isoWeekKey('2026-09-28') === '2026-W40');
+ok('ISO-uge: 2026-10-04 (søndag) er samme uge som mandagen', isoWeekKey('2026-10-04') === '2026-W40');
+ok('ISO-uge: 2026-10-05 (næste mandag) er uge 41', isoWeekKey('2026-10-05') === '2026-W41');
+ok('ISO-uge: 2026-01-01 (torsdag) er uge 1', isoWeekKey('2026-01-01') === '2026-W01');
+ok('ISO-uge: 2025-12-29 hører til uge 1 i 2026', isoWeekKey('2025-12-29') === '2026-W01');
+ok('ISO-uge: 2026-12-31 er uge 53', isoWeekKey('2026-12-31') === '2026-W53');
+ok('ISO-uge: 2027-01-01 hører til uge 53 i 2026', isoWeekKey('2027-01-01') === '2026-W53');
+ok('Ugelabel viser interval med dansk datoformat', weekLabel('2026-W40') === 'Uge 40 (28.9–4.10)', weekLabel('2026-W40'));
+
+const weekFixture = (weekOffset, day, variant, shared) => {
+    const base = new Date(2026, 8, 28); // mandag i uge 40
+    base.setDate(base.getDate() + weekOffset * 7 + (day === 'lower' ? 1 : 0));
+    const date = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-${String(base.getDate()).padStart(2, '0')}`;
+    const w = {
+        id: `w${weekOffset}${day}`,
+        date, day, variant,
+        exercises: getProgram(day, variant).map((item, idx) => ({
+            exerciseId: item.exerciseId,
+            sets: [0, 1, 2].map(() => ({ weight: 60 + idx * 5, reps: 8 })),
+        })),
+    };
+    if (shared) w.sharedAt = '2026-10-01T08:00:00.000Z';
+    return w;
+};
+
+const week40 = [weekFixture(0, 'upper', 'A'), weekFixture(0, 'lower', 'A')];
+const week41 = [weekFixture(1, 'upper', 'B'), weekFixture(1, 'lower', 'B')];
+
+const grouped = groupByWeek([...week41, ...week40]);
+ok('Uger grupperes, nyeste først', grouped.length === 2 && grouped[0].key === '2026-W41', JSON.stringify(grouped.map(g => g.key)));
+ok('Mandag og lørdag i samme uge lægges sammen', grouped[1].workouts.length === 2);
+ok('Ugen markeres som delt når alle dens træninger er delt', groupByWeek(week40.map(w => ({ ...w, sharedAt: 'x' })))[0].shared === true);
+ok('Ugen markeres ikke som delt når kun én er delt', groupByWeek([{ ...week40[0], sharedAt: 'x' }, week40[1]])[0].shared === false);
+
+ok('Ens sæt komprimeres til ×3', formatSets([{ weight: 60, reps: 8 }, { weight: 60, reps: 8 }, { weight: 60, reps: 8 }]) === '60×8 ×3', formatSets([{ weight: 60, reps: 8 }, { weight: 60, reps: 8 }, { weight: 60, reps: 8 }]));
+ok('Forskellige sæt komprimeres ikke', formatSets([{ weight: 60, reps: 8 }, { weight: 62.5, reps: 7 }]) === '60×8 62.5×7');
+ok('To ens efterfulgt af et tredje forskelligt', formatSets([{ weight: 60, reps: 8 }, { weight: 60, reps: 8 }, { weight: 62.5, reps: 7 }]) === '60×8 ×2 62.5×7');
+
+store['gym_tracker_workouts'] = JSON.stringify([...week40, ...week41]);
+
+const text40 = generateShareText('week:2026-W40');
+ok('En uge-eksport nævner kun den uge', text40.includes('UGE 40') && !text40.includes('UGE 41'), text40.split('\n')[0]);
+ok('En uge-eksport indeholder ugens træninger', text40.includes('28.9 UPPER A') && text40.includes('29.9 LOWER A'));
+ok('En uge-eksport udelader andre ugers træninger', !text40.includes('5.10'));
+ok('Eksporten har uge-overskrift med antal og volumen', /2 træninger · 1 Upper · 1 Lower/.test(text40), text40.split('\n')[1]);
+
+const text41 = generateShareText('week:2026-W41');
+ok('En anden uge giver en anden eksport', text41 !== text40 && text41.includes('UGE 41'));
+ok('All-time-bedste følger med i en uge-eksport (trenden bevares)', text40.includes('🏆 Bedste nogensinde'));
+ok('All-time-bedste dækker også øvelser uden for den viste uge', text40.includes('Squat') && text40.includes('Bench Press'));
+ok('Fremgang vises som headline, ikke én linje pr. øvelse', /📈 Fremgang: \d+ op/.test(text40), text40.match(/📈 Fremgang:.*/)?.[0]);
+
+// Det vigtigste krav: en uge skal kunne sendes som ÉN Discord-besked (2.000 tegn).
+const heavyWeek = [weekFixture(0, 'upper', 'A'), weekFixture(0, 'lower', 'A'), weekFixture(0, 'upper', 'B'), weekFixture(0, 'lower', 'B')];
+store['gym_tracker_workouts'] = JSON.stringify(heavyWeek);
+const heavyText = generateShareText('week:2026-W40');
+ok('En uge med 4 træninger (begge varianter) passer i én Discord-besked', heavyText.length <= 2000, `${heavyText.length} tegn`);
+ok('Tegnbudgettet holder sig under CHAR_LIMIT', heavyText.length <= CHAR_LIMIT, `${heavyText.length} > ${CHAR_LIMIT}`);
+
+// Og eksporten må ikke vokse med hvor lang historikken er — kun med ugens indhold.
+store['gym_tracker_workouts'] = JSON.stringify([...heavyWeek, ...week41]);
+const heavyWithHistory = generateShareText('week:2026-W40');
+ok('Historikkens længde påvirker ikke ugens eksport', Math.abs(heavyWithHistory.length - heavyText.length) < 30, `${heavyText.length} vs ${heavyWithHistory.length}`);
+
+// 'new' = kun det der ikke er delt endnu
+store['gym_tracker_workouts'] = JSON.stringify([...week40, ...week41]);
+const textNew = generateShareText('new');
+ok('"Kun nyt" tager ikke-delte træninger med', textNew.includes('28.9 UPPER A') && textNew.includes('5.10 UPPER B'));
+ok('"Kun nyt" viser antallet i overskriften', textNew.includes('NYT SIDEN SIDST (4)'), textNew.split('\n')[0]);
+
+const marked = markShareScopeAsShared('week:2026-W40');
+ok('Deling markerer ugens træninger som delt', marked === 2, `markerede ${marked}`);
+ok('Markeringen gemmes i localStorage', JSON.parse(store['gym_tracker_workouts']).filter(w => w.sharedAt).length === 2);
+ok('En allerede delt træning markeres ikke igen', markShareScopeAsShared('week:2026-W40') === 0);
+
+const textNewAfter = generateShareText('new');
+ok('"Kun nyt" indeholder kun det endnu ikke delte', !textNewAfter.includes('28.9 UPPER A') && textNewAfter.includes('5.10 UPPER B'));
+ok('"Kun nyt" fortæller hvor mange der mangler', textNewAfter.includes('NYT SIDEN SIDST (2)'), textNewAfter.split('\n')[0]);
+
+store['gym_tracker_workouts'] = JSON.stringify([{ ...week40[0], sharedAt: 'x' }, week40[1]]);
+ok('En tom visning giver en forklarende tekst', generateShareText('week:2026-W99').includes('Ingen træninger i det valgte tidsrum'));
+store['gym_tracker_workouts'] = JSON.stringify([]);
+ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('Ingen træninger gemt endnu'));
+
+console.log('\n── 9. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));

@@ -98,6 +98,10 @@ async function main() {
 
     // ─── 1. Indlæsning ────────────────────────────────────────────
     console.log('── 1. Indlæsning og initial visning');
+    // Start altid fra rene data: browserens localStorage overlever mellem kørsler,
+    // så en suite der ikke selv rydder op arver state fra sidste kørsel.
+    await load(URL_UNDER_TEST);
+    await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
     ok('Siden indlæses uden JS-fejl', pageErrors.length === 0, JSON.stringify(pageErrors));
     ok('Titel er Gym Tracker', (await evaluate('return document.title')) === 'Gym Tracker');
@@ -195,8 +199,9 @@ async function main() {
     await evaluate('document.getElementById("btn-share").click(); return true;');
     await sleep(200);
     const shareText = await evaluate('return document.getElementById("share-text").value;');
-    ok('Del-modal genererer tekst med overblik', shareText.includes('TRÆNINGSOVERBLIK') && shareText.includes('65×8'));
-    ok('Del-teksten indeholder fremgang pr. øvelse', shareText.includes('FREMGANGSHISTORIK PER ØVELSE'));
+    ok('Del-modal genererer tekst med uge-overskrift og sæt', shareText.includes('NYT SIDEN SIDST') && shareText.includes('65×8'), shareText.split('\n')[0]);
+    ok('Del-teksten har all-time-bedste og fremgangs-headline', shareText.includes('🏆 Bedste nogensinde') && shareText.includes('📈 Fremgang:'));
+    ok('Del-teksten viser hvilken uge træningen hører til', /NYT SIDEN SIDST \(\d+\) · UGE \d+/.test(shareText), shareText.split('\n')[0]);
     await evaluate('document.getElementById("share-close").click(); return true;');
 
     await evaluate('document.getElementById("program-rules").click(); return true;');
@@ -396,11 +401,14 @@ async function main() {
     `)) === true);
     ok('Programrækker viser stadig deres note', (await evaluate('return document.getElementById("program-content").innerText.includes("Bryst øverst") || document.getElementById("program-content").innerText.includes("Biceps")')) === true);
 
-    ok('Del-rapporten oplyser redskab pr. øvelse', (await evaluate(`
+    ok('Del-rapporten oplyser "per hånd"/"per ben" for de øvelser der kræver det', (await evaluate(`
         document.getElementById("btn-share").click();
+        const sel = document.getElementById("share-scope");
+        sel.value = "all";
+        sel.dispatchEvent(new Event("change"));
         const t = document.getElementById("share-text").value;
         document.getElementById("share-close").click();
-        return t.includes("Biceps") && /EZ-bar|Dumbbell|Barbell/.test(t);
+        return /ℹ️ (per hånd|per ben) = kg pr\\. side: \\S/.test(t);
     `)) === true);
 
     // ─── 10. Rediger en gemt træning ──────────────────────────────
@@ -526,6 +534,114 @@ async function main() {
         ${readWorkouts}
         return w.filter(x => x.date === "${afterSave.date}" && x.day === "upper").length;
     `)) === 1);
+
+    // ─── 12. Uge-opdelt deling ───────────────────────────────────
+    console.log('\n── 12. Uge-opdelt deling med tegnbudget');
+
+    ok('Appens funktioner er globale i browseren (som i test-harnesset)', (await evaluate('return typeof getProgram')) === 'function');
+
+    // Fixture bygget af appens egne programmer, så øvelses-id'er ikke kan drive
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`
+        const mk = (id, date, day, variant) => ({
+            id, date, day, variant,
+            exercises: getProgram(day, variant).map((item, idx) => ({
+                exerciseId: item.exerciseId,
+                sets: [0, 1, 2].map(n => ({ weight: 40 + idx * 5 + n * 2.5, reps: 8 })),
+            })),
+        });
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([
+            mk("u40a", "2026-09-28", "upper", "A"),
+            mk("l40a", "2026-09-30", "lower", "A"),
+            mk("u41b", "2026-10-05", "upper", "B"),
+            mk("l41b", "2026-10-07", "lower", "B"),
+        ]));
+        return true;
+    `);
+    await load(URL_UNDER_TEST);
+
+    await evaluate('document.getElementById("btn-share").click(); return true;');
+    await sleep(300);
+
+    const shareOpts = await evaluate(`
+        const sel = document.getElementById("share-scope");
+        return [...sel.options].map(o => ({ v: o.value, t: o.textContent }));
+    `);
+    ok('Delingsvinduet har en visnings-vælger', shareOpts.length === 4, JSON.stringify(shareOpts.map(o => o.v)));
+    ok('Vælgeren tilbyder "kun nyt" når intet er delt', shareOpts[0].v === 'new' && /nyt siden sidst \(4 træninger\)/.test(shareOpts[0].t), shareOpts[0] && shareOpts[0].t);
+    ok('Vælgeren tilbyder begge uger', shareOpts.filter(o => o.v.startsWith('week:')).length === 2);
+    ok('Vælgeren tilbyder alle uger', shareOpts[shareOpts.length - 1].v === 'all');
+    const w40label = (shareOpts.find(o => o.v === 'week:2026-W40') || {}).t || '';
+    ok('Uge-label viser interval og antal træninger', /Uge 40 \(\d+\.\d+–\d+\.\d+\) · 2 træninger/.test(w40label), w40label);
+    ok('Standardvisningen er "kun nyt siden sidst"', (await evaluate('return document.getElementById("share-scope").value')) === 'new');
+    ok('Eksporten er under Discords 2.000 tegn', (await evaluate('return document.getElementById("share-text").value.length')) <= 2000);
+    const sizeNew = await evaluate('return document.getElementById("share-size").textContent');
+    ok('Tælleren bekræfter at den passer i én besked', /passer i én besked/.test(sizeNew), sizeNew);
+
+    // Vælg en bestemt uge
+    await evaluate(`
+        const sel = document.getElementById("share-scope");
+        sel.value = "week:2026-W41";
+        sel.dispatchEvent(new Event("change"));
+        return true;
+    `);
+    await sleep(250);
+    const weekText = await evaluate('return document.getElementById("share-text").value');
+    ok('Valg af en uge viser kun den uge', weekText.includes('UGE 41') && !weekText.includes('UGE 40'));
+    ok('Ugens træninger står i loggen', weekText.includes('5.10 UPPER B') && weekText.includes('7.10 LOWER B'), weekText.split('\n').slice(3, 5).join(' / '));
+    ok('All-time-bedste følger med, så trenden ikke går tabt', weekText.includes('🏆 Bedste nogensinde'));
+    ok('Ugens eksport passer i én besked', weekText.length <= 2000, `${weekText.length} tegn`);
+    ok('Tælleren viser tallet for den valgte uge', (await evaluate('return document.getElementById("share-size").textContent')).includes(String(weekText.length)));
+
+    // Kopiér → automatisk markering af netop den viste uge
+    await evaluate('document.getElementById("share-copy").click(); return true;');
+    await sleep(400);
+    const sharedState = await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+        return {
+            total: w.length,
+            shared: w.filter(x => x.sharedAt).length,
+            onlyWeek41: w.filter(x => x.sharedAt).every(x => x.date >= "2026-10-05"),
+        };
+    `);
+    ok('Kopiering markerer ugens 2 træninger som delt', sharedState.shared === 2, JSON.stringify(sharedState));
+    ok('Kun den valgte uges træninger markeres', sharedState.onlyWeek41 === true);
+    ok('Markeringen vises i vælgeren', (await evaluate(`
+        const sel = document.getElementById("share-scope");
+        return [...sel.options].find(o => o.value === "week:2026-W41").textContent;
+    `)).includes('✓ delt'));
+
+    // Genåbn: "kun nyt" tilbyder nu kun det resterende
+    await evaluate('document.getElementById("share-modal-close").click(); return true;');
+    await sleep(200);
+    await evaluate('document.getElementById("btn-share").click(); return true;');
+    await sleep(300);
+    ok('Efter deling tilbyder "kun nyt" kun de resterende 2', /nyt siden sidst \(2 træninger\)/.test(await evaluate(`
+        const sel = document.getElementById("share-scope");
+        return [...sel.options].map(o => o.textContent).join(" | ");
+    `)));
+
+    await evaluate('document.getElementById("share-copy").click(); return true;');
+    await sleep(400);
+    const afterAll = await evaluate(`
+        const sel = document.getElementById("share-scope");
+        return { values: [...sel.options].map(o => o.value), value: sel.value };
+    `);
+    ok('Når alt er delt, forsvinder "kun nyt" fra listen', !afterAll.values.includes('new'), JSON.stringify(afterAll.values));
+    ok('Vælgeren falder tilbage til en uge i stedet for en tom visning', afterAll.value.startsWith('week:') || afterAll.value === 'all', afterAll.value);
+    ok('Alle 4 træninger er nu markeret som delt', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+        return w.filter(x => x.sharedAt).length;
+    `)) === 4);
+
+    // Historikken viser markeringen
+    await evaluate('document.getElementById("share-modal-close").click(); return true;');
+    await sleep(200);
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(300);
+    ok('Historikken viser at træningerne er delt', (await evaluate('return document.querySelectorAll("#history-content .shared-badge").length')) === 4);
+    await evaluate('document.getElementById("close-history").click(); return true;');
+    await sleep(200);
 
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
