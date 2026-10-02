@@ -45,6 +45,44 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   for lang eksport opdages før man prøver at sende den.
 - **Programregler** i appen under 📖 Regler.
 
+## Deling: hvor ofte og hvorfor
+
+**Del én gang om ugen, efter ugens sidste træning.** Delingsvinduets `Kun nyt siden sidst`
+er bygget til netop den rytme.
+
+Hvorfor ugentligt og ikke oftere:
+
+- **En uge = én fuld A/B-cyklus.** Så har hver øvelse været forbi præcis én gang. Deler du
+  midt i ugen, har halvdelen af programmet ingen ny sammenligning at holde op mod.
+- **En uge er én besked.** Worst case — 4 træninger dækkende begge varianter — ligger på
+  ~1.850 tegn mod Discords 2.000. Se tegntælleren i delingsvinduet.
+- **Appens stagnation-regel tæller unikke datoer med samme vægt og slår til ved 3.** I et
+  A/B-split kommer hver øvelse forbi én gang om ugen, altså **3 uger**. Deler du ugentligt,
+  kan en stagnation fanges i uge 2 — en uge før appen selv flagger den.
+- **Ikke oftere:** hver øvelse kommer kun forbi én gang om ugen, så en midt-uge-deling
+  indeholder de samme tal uden et nyt sammenligningspunkt.
+
+Del med det samme — vent ikke til ugen er slut — hvis noget gør ondt, eller hvis en løft
+pludselig føles forkert.
+
+Springer du en uge over, er intet tabt: `Kun nyt siden sidst` samler det op næste gang.
+
+**Hvad du kan forvente af feedbacken:**
+
+- **Ugentligt:** virker dobbelt-progressionen, falder reps når vægten stiger, bliver en
+  øvelse sprunget over, hvordan bevæger volumen sig.
+- **Hver 4.–6. uge:** det større blik — om en løft reelt er stagneret eller bare havde en
+  dårlig uge, og om upper/lower-balancen er skæv. Det kan man ikke sige noget rigtigt om ud
+  fra én uge alene.
+
+**Én begrænsning i appens egen regel, værd at kende:** stagnation-reglen kigger kun på
+**vægten**, ikke på reps. Går du 80×8 → 80×10 → 80×12, tæller det som "3 sammenhænge med
+80 kg", og appen foreslår rep-fokus som om du stod stille — mens du i virkeligheden har øget
+reps hver gang. Derfor er de faktiske sæt i rapporten vigtigere end appens forslag alene.
+
+Den første deling er den største, fordi den tager hele historikken. Derefter er det én uge ad
+gangen. Der ligger en påmindelse **søndag kl. 21** i `#codeslop`.
+
 ## Kør appen
 
 ```bash
@@ -165,8 +203,13 @@ node tests/browser-check.js https://lausius.github.io/gym-tracker/
 `tests/browser-check.js` driver Chromium over DevTools Protocol og dækker: indlæsning uden
 JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
 persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i UI'et,
-og mobillayout ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten
-bliver længere, og at intet flyder ud over kanten).
+**redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
+**uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt), og mobillayout
+ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten bliver længere, og
+at intet flyder ud over kanten).
+
+Testene rydder `localStorage` ved start, så en kørsel ikke arver state fra den forrige — de
+kan køres vilkårligt mange gange i træk med samme resultat.
 
 Chrome-stien er sat til Playwrights cache; override med miljøvariablen:
 
