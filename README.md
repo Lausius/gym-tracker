@@ -26,8 +26,23 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   **Opdater træning**. Datoen, dagen og varianten bevares, og der laves ikke en dublet —
   også hvis du først retter træningen dagen efter. **Annuller** forlader redigeringen uden
   at skrive noget.
-- **Del med AI-træner:** genererer en formateret tekst-rapport (overblik, fremgang pr. øvelse,
-  seneste træninger) klar til at kopiere.
+- **Del med AI-træner:** genererer en tekst-rapport klar til at kopiere. Du vælger selv
+  tidsrummet i delingsvinduet:
+
+  - `Kun nyt siden sidst` — kun de træninger du ikke har sendt før (markeres automatisk
+    når du kopierer, så du slipper for at kopiere det hele hver gang)
+  - en bestemt uge, fx `Uge 40 (28.9–4.10) · 3 træninger ✓ delt`
+  - `Alle uger`
+
+  Uger følger ISO-kalenderen (mandag–søndag), så `uge 40` er den samme uge som i din
+  kalender. Rapporten viser uge-overskrift, træningslog, en fremgangs-headline og en
+  kompakt liste med bedste sæt nogensinde pr. øvelse — den sidste er med vilje altid med,
+  så trenden ikke går tabt når man kun deler én uge.
+
+  **Tegnbudgettet er styrende:** Discord tillader 2.000 tegn pr. besked, og den gamle
+  eksport ramte ~8.000 tegn og kunne slet ikke sendes. En uge ligger nu på ~1.000–1.850
+  tegn og passer i én besked. Delingsvinduet viser hele tiden `1.365 / 2.000 tegn`, så en
+  for lang eksport opdages før man prøver at sende den.
 - **Programregler** i appen under 📖 Regler.
 
 ## Kør appen

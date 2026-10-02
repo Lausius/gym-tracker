@@ -895,7 +895,7 @@
                                 <div class="history-workout">
                                     <div class="history-workout-header">
                                         <span class="history-day-type ${w.day}">${w.day === 'upper' ? 'Upper' : 'Lower'}</span>
-                                        <span class="history-workout-meta">${exCount} øvelse${exCount === 1 ? '' : 'r'} · ${totalVol.toFixed(0)} kg totalt</span>
+                                        <span class="history-workout-meta">${exCount} øvelse${exCount === 1 ? '' : 'r'} · ${totalVol.toFixed(0)} kg totalt${w.sharedAt ? ' · <span class="shared-badge">delt</span>' : ''}</span>
                                         <button class="history-edit-btn" data-workout-id="${w.id}">✏️ Rediger</button>
                                     </div>
                                     ${w.exercises.map(ex => {
@@ -1062,6 +1062,7 @@
         document.getElementById('share-overlay').addEventListener('click', closeShareModal);
         document.getElementById('share-close').addEventListener('click', closeShareModal);
         document.getElementById('share-copy').addEventListener('click', copyShareText);
+        document.getElementById('share-scope').addEventListener('change', (e) => updateSharePreview(e.target.value));
 
         // Keyboard shortcut: Escape to close modals
         document.addEventListener('keydown', (e) => {
@@ -1076,120 +1077,279 @@
         renderAll();
     }
 
-    // ─── Share with trainer ────────────────────────────────────────
-    function generateShareText() {
+    // ─── Del med AI-træner ─────────────────────────────────────────
+    // Discords grænse er 2000 tegn pr. besked, og den gamle eksport ramte
+    // ~8.000 tegn. Teksten bygges derfor uge for uge og holdes under CHAR_LIMIT,
+    // så én uge altid kan deles i én besked. All-time-bedste-sæt følger altid
+    // med i kompakt form, så trenden ikke går tabt når man kun deler én uge.
+    const CHAR_LIMIT = 2000;
+
+    const WEEKDAYS = ['man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn'];
+
+    function isoDate(d) {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // ISO-uge: mandag-søndag, samme ugenummer som i kalenderen.
+    function isoWeekInfo(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        const offset = (d.getDay() + 6) % 7; // 0 = mandag
+        const thursday = new Date(d);
+        thursday.setDate(d.getDate() - offset + 3);
+        const year = thursday.getFullYear();
+        const jan4 = new Date(year, 0, 4);
+        const week1Monday = new Date(year, 0, 4 - ((jan4.getDay() + 6) % 7));
+        const week = Math.round((thursday - week1Monday) / 604800000) + 1;
+        return { year, week };
+    }
+
+    function isoWeekKey(dateStr) {
+        const { year, week } = isoWeekInfo(dateStr);
+        return `${year}-W${String(week).padStart(2, '0')}`;
+    }
+
+    function weekMonday(key) {
+        const [year, w] = key.split('-W').map(Number);
+        const jan4 = new Date(year, 0, 4);
+        const monday = new Date(year, 0, 4 - ((jan4.getDay() + 6) % 7));
+        monday.setDate(monday.getDate() + (w - 1) * 7);
+        return monday;
+    }
+
+    function shortDate(dateStr) {
+        const [, m, d] = dateStr.split('-').map(Number);
+        return `${d}.${m}`;
+    }
+
+    function weekdayOf(dateStr) {
+        return WEEKDAYS[(new Date(dateStr + 'T00:00:00').getDay() + 6) % 7];
+    }
+
+    function weekLabel(key) {
+        const mon = weekMonday(key);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        return `Uge ${Number(key.split('-W')[1])} (${shortDate(isoDate(mon))}–${shortDate(isoDate(sun))})`;
+    }
+
+    // Grupperer træninger i ISO-uger, nyeste uge først.
+    function groupByWeek(workouts) {
+        const map = new Map();
+        for (const w of workouts) {
+            const key = isoWeekKey(w.date);
+            if (!map.has(key)) map.set(key, []);
+            map.get(key).push(w);
+        }
+        return [...map.entries()]
+            .map(([key, list]) => ({
+                key,
+                workouts: list.slice().sort((a, b) => a.date.localeCompare(b.date)),
+                shared: list.every(w => w.sharedAt),
+            }))
+            .sort((a, b) => b.key.localeCompare(a.key));
+    }
+
+    // Komprimerer gentagne sæt: "37.5×8 37.5×8 37.5×8" → "37.5×8 ×3".
+    // Tegnbudgettet er stramt, og ens sæt er meget almindelige.
+    function formatSets(sets) {
+        const out = [];
+        for (const s of sets) {
+            const label = `${s.weight}×${s.reps}`;
+            const prev = out[out.length - 1];
+            if (prev && prev.label === label) prev.n++;
+            else out.push({ label, n: 1 });
+        }
+        return out.map(o => (o.n > 1 ? `${o.label} ×${o.n}` : o.label)).join(' ');
+    }
+
+    // Alle sæt pr. øvelse i perioden, ældste først.
+    function collectExerciseSets(workouts) {
+        const map = new Map();
+        for (const w of workouts) {
+            for (const ex of (w.exercises || [])) {
+                if (!map.has(ex.exerciseId)) map.set(ex.exerciseId, { day: w.day, sets: [] });
+                for (const s of ex.sets) {
+                    map.get(ex.exerciseId).sets.push({ weight: s.weight, reps: s.reps, date: w.date, week: isoWeekKey(w.date) });
+                }
+            }
+        }
+        for (const v of map.values()) v.sets.sort((a, b) => a.date.localeCompare(b.date));
+        return map;
+    }
+
+    function exerciseName(day, exerciseId) {
+        const info = getExerciseById(day, exerciseId) || getExerciseById('upper', exerciseId) || getExerciseById('lower', exerciseId);
+        return info ? info.name : exerciseId;
+    }
+
+    // Hvilke træninger dækker den valgte visning? 'new' = ikke delt endnu.
+    function shareScopeWorkouts(scope, workouts, weeks) {
+        if (scope === 'all') return workouts.slice();
+        if (scope && scope.startsWith('week:')) {
+            const wk = weeks.find(w => w.key === scope.slice(5));
+            return wk ? wk.workouts.slice() : [];
+        }
+        return workouts.filter(w => !w.sharedAt);
+    }
+
+    function shareScopeTitle(scope, selected) {
+        if (scope === 'all') return 'ALLE UGER';
+        if (scope && scope.startsWith('week:')) return weekLabel(scope.slice(5)).toUpperCase();
+        // "Kun nyt" kan dække flere uger, så ugerne nævnes i titlen — ellers
+        // fremgår det ikke af eksporten hvilket tidsrum den dækker.
+        const keys = groupByWeek(selected).map(w => w.key).sort();
+        if (keys.length === 0) return `NYT SIDEN SIDST (${selected.length})`;
+        const first = Number(keys[0].split('-W')[1]);
+        const last = Number(keys[keys.length - 1].split('-W')[1]);
+        const span = first === last ? `UGE ${first}` : `UGE ${first}–${last}`;
+        return `NYT SIDEN SIDST (${selected.length}) · ${span}`;
+    }
+
+    function generateShareText(scope) {
         const workouts = loadWorkouts();
         if (workouts.length === 0) {
             return '📋 Ingen træninger gemt endnu.\n\nKopier denne tekst og send den til mig når du har nogle træninger — så kan jeg hjælpe med feedback!';
         }
 
-        const lines = [];
-        lines.push('═══════════════════════════════════════');
-        lines.push('🏋️  GYM TRACKER — TRÆNINGSOVERBLIK');
-        lines.push('═══════════════════════════════════════');
-        lines.push('');
+        const weeks = groupByWeek(workouts);
+        const selected = shareScopeWorkouts(scope, workouts, weeks).sort((a, b) => a.date.localeCompare(b.date));
 
-        // Stats
-        const totalWorkouts = workouts.length;
-        const upperCount = workouts.filter(w => w.day === 'upper').length;
-        const lowerCount = workouts.filter(w => w.day === 'lower').length;
-        const totalSets = workouts.reduce((sum, w) =>
-            sum + (w.exercises?.reduce((s, e) => s + e.sets.length, 0) || 0), 0);
-        const totalVolume = workouts.reduce((sum, w) =>
-            sum + (w.exercises?.reduce((s, e) => s + e.sets.reduce((sv, set) => sv + (set.weight * set.reps), 0), 0) || 0), 0);
-
-        lines.push(`📊 OVERBLIK`);
-        lines.push(`   Totalt: ${totalWorkouts} træninger`);
-        lines.push(`   Upper: ${upperCount}  |  Lower: ${lowerCount}`);
-        lines.push(`   Sæt: ${totalSets}  |  Volumen: ${totalVolume.toFixed(0)} kg`);
-        lines.push('');
-
-        // Per exercise history
-        const allExerciseIds = new Set();
-        for (const w of workouts) {
-            for (const ex of (w.exercises || [])) {
-                allExerciseIds.add(ex.exerciseId);
-            }
+        if (selected.length === 0) {
+            return '📋 Ingen træninger i det valgte tidsrum.\n\nVælg en anden uge i listen ovenfor.';
         }
 
-        lines.push(`═══════════════════════════════════════`);
-        lines.push(`📈 FREMGANGSHISTORIK PER ØVELSE`);
-        lines.push('═══════════════════════════════════════');
+        const lines = [];
+        const upper = selected.filter(w => w.day === 'upper').length;
+        const lower = selected.filter(w => w.day === 'lower').length;
+        const sets = selected.reduce((n, w) => n + (w.exercises || []).reduce((s, e) => s + e.sets.length, 0), 0);
+        const volume = selected.reduce((n, w) => n + (w.exercises || []).reduce((s, e) =>
+            s + e.sets.reduce((sv, set) => sv + (set.weight * set.reps), 0), 0), 0);
+
+        lines.push(`🏋️ GYM TRACKER — ${shareScopeTitle(scope, selected)}`);
+        lines.push(`${selected.length} træning${selected.length === 1 ? '' : 'er'} · ${upper} Upper · ${lower} Lower · ${sets} sæt · ${volume.toFixed(0)} kg`);
         lines.push('');
 
-        for (const exerciseId of allExerciseIds) {
-            const exercise = getExerciseById(workouts[0]?.day === 'upper' ? 'upper' : 'lower', exerciseId)
-                || getExerciseById('upper', exerciseId)
-                || getExerciseById('lower', exerciseId);
-            const exName = exercise ? exercise.name : exerciseId;
-            const exMuscle = exercise ? exercise.muscle : '?';
-            const exEquip = exercise && exercise.equipment ? exercise.equipment : '?';
-            const exLoad = exercise && exercise.loadNote ? `, ${exercise.loadNote}` : '';
-
-            // Collect all sets for this exercise
-            const sets = [];
-            for (const w of workouts) {
-                for (const ex of (w.exercises || [])) {
-                    if (ex.exerciseId === exerciseId) {
-                        for (const set of ex.sets) {
-                            sets.push({ weight: set.weight, reps: set.reps, date: w.date, day: w.day });
-                        }
-                    }
+        // "per hånd"/"per ben" er afgørende for at læse tallene rigtigt: 20 kg
+        // pr. hånd er ikke 20 kg totalt. Noten står kun for de øvelser der er med.
+        const loadNotes = new Map();
+        for (const w of selected) {
+            for (const ex of (w.exercises || [])) {
+                const info = getExerciseById(w.day, ex.exerciseId);
+                if (info && info.loadNote) {
+                    if (!loadNotes.has(info.loadNote)) loadNotes.set(info.loadNote, new Set());
+                    loadNotes.get(info.loadNote).add(info.name);
                 }
             }
+        }
+        for (const [note, names] of loadNotes) {
+            lines.push(`ℹ️ ${note} = kg pr. side: ${[...names].join(', ')}`);
+        }
 
-            if (sets.length === 0) continue;
-
-            sets.sort((a, b) => a.date.localeCompare(b.date));
-
-            const bestSet = sets.reduce((b, s) => (!b || s.weight > b.weight) ? s : b, sets[0]);
-            const recentSet = sets[sets.length - 1];
-            const firstSet = sets[0];
-
-            lines.push(`🔹 ${exName} (${exMuscle}, ${exEquip}${exLoad})`);
-            lines.push(`   Første: ${firstSet.weight} kg × ${firstSet.reps} reps (${firstSet.date})`);
-            lines.push(`   Sidste: ${recentSet.weight} kg × ${recentSet.reps} reps (${recentSet.date})`);
-            if (bestSet && bestSet !== recentSet) {
-                lines.push(`   🏆 PR: ${bestSet.weight} kg × ${bestSet.reps} reps (${bestSet.date})`);
+        // Træningslog, uge for uge
+        const selectedWeeks = groupByWeek(selected).sort((a, b) => a.key.localeCompare(b.key));
+        for (const wk of selectedWeeks) {
+            if (selectedWeeks.length > 1) lines.push(`── ${weekLabel(wk.key).toUpperCase()} ──`);
+            for (const w of wk.workouts) {
+                lines.push(`${weekdayOf(w.date)} ${shortDate(w.date)} ${w.day === 'upper' ? 'UPPER' : 'LOWER'} ${w.variant}`);
+                for (const ex of (w.exercises || [])) {
+                    lines.push(`  ${exerciseName(w.day, ex.exerciseId)}: ${formatSets(ex.sets)}`);
+                }
             }
-            lines.push(`   Sæt i alt: ${sets.length}`);
+        }
+
+        // Kort headline i stedet for en linje pr. øvelse: loggen ovenfor indeholder
+        // tallene, så fremgangen pr. øvelse kan regnes ud af den. En fuld liste
+        // ville duplikere loggen og koste ~400 tegn af budgettet.
+        const inScope = collectExerciseSets(selected);
+        if (inScope.size > 0) {
+            let up = 0, down = 0, flat = 0;
+            for (const v of inScope.values()) {
+                const delta = v.sets[v.sets.length - 1].weight - v.sets[0].weight;
+                if (delta > 0) up++; else if (delta < 0) down++; else flat++;
+            }
+            const parts = [`${up} op`];
+            if (flat > 0) parts.push(`${flat} uændret`);
+            if (down > 0) parts.push(`${down} ned`);
             lines.push('');
+            lines.push(`📈 Fremgang: ${parts.join(' · ')} (af ${inScope.size} øvelser)`);
         }
 
-        // Workout log
-        lines.push('═══════════════════════════════════════');
-        lines.push(`📋 TRÆNINGSLOG (seneste → ældste)`);
-        lines.push('═══════════════════════════════════════');
-
-        const sorted = [...workouts].sort((a, b) => b.date.localeCompare(a.date));
-        const recentWorkouts = sorted.slice(0, 10);
-
-        for (const w of recentWorkouts) {
-            const dayLabel = w.day === 'upper' ? 'UPPER' : 'LOWER';
-            lines.push(``);
-            lines.push(`${w.date} — ${dayLabel}`);
-            for (const ex of (w.exercises || [])) {
-                const exData = getExerciseById(w.day, ex.exerciseId);
-                const name = exData ? exData.name : ex.exerciseId;
-                const setsStr = ex.sets.map(s => `${s.weight}×${s.reps}`).join(' | ');
-                lines.push(`   ${name}: ${setsStr}`);
-            }
+        // All-time bedste sæt i kompakt form på så få linjer som muligt: uden
+        // den ville en uge-eksport ikke kunne vise hvor man er henne over tid.
+        const allTime = collectExerciseSets(workouts);
+        const bests = [];
+        for (const [id, v] of allTime) {
+            const best = v.sets.reduce((b, s) => (s.weight > b.weight ? s : b), v.sets[0]);
+            bests.push(`${exerciseName(v.day, id)} ${best.weight}×${best.reps}`);
         }
-
-        if (sorted.length > 10) {
-            lines.push(`   ... og ${sorted.length - 10} flere træninger`);
+        if (bests.length > 0) {
+            lines.push('');
+            lines.push('🏆 Bedste nogensinde (kg×reps)');
+            lines.push(`  ${bests.join(' · ')}`);
         }
 
         lines.push('');
-        lines.push('═══════════════════════════════════════');
-        lines.push('📤 Sending til Binky (AI-træner)');
+        lines.push('📤 Send til Binky (AI-træner)');
 
         return lines.join('\n');
     }
 
-    function showShareModal() {
-        const text = generateShareText();
+    // Den mest brugbare visning når vinduet åbnes: nyt hvis der er noget,
+    // ellers indeværende uge, ellers den nyeste uge med træninger.
+    function defaultShareScope(workouts, weeks) {
+        if (workouts.some(w => !w.sharedAt)) return 'new';
+        const current = isoWeekKey(isoDate(new Date()));
+        if (weeks.some(w => w.key === current)) return `week:${current}`;
+        return weeks.length > 0 ? `week:${weeks[0].key}` : 'all';
+    }
+
+    function renderShareScopeOptions(scope) {
+        const workouts = loadWorkouts();
+        const weeks = groupByWeek(workouts);
+        const unshared = workouts.filter(w => !w.sharedAt);
+        const current = isoWeekKey(isoDate(new Date()));
+        const opts = [];
+
+        if (unshared.length > 0) {
+            opts.push({ value: 'new', label: `Kun nyt siden sidst (${unshared.length} træning${unshared.length === 1 ? '' : 'er'})` });
+        }
+        for (const wk of weeks) {
+            const mark = wk.shared ? ' ✓ delt' : '';
+            const tag = wk.key === current ? ' ← denne uge' : '';
+            opts.push({
+                value: `week:${wk.key}`,
+                label: `${weekLabel(wk.key)} · ${wk.workouts.length} træning${wk.workouts.length === 1 ? '' : 'er'}${mark}${tag}`,
+            });
+        }
+        if (workouts.length > 0) opts.push({ value: 'all', label: `Alle uger (${workouts.length} træninger)` });
+
+        const sel = document.getElementById('share-scope');
+        sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+        sel.value = opts.some(o => o.value === scope) ? scope : (opts[0] ? opts[0].value : 'all');
+        return sel.value;
+    }
+
+    // Tegnbudgettet vises for brugeren: Discords grænse er 2.000 tegn, så en
+    // eksport der er for lang opdages her og ikke først når beskeden afvises.
+    function updateSharePreview(scope) {
+        const text = generateShareText(scope);
         document.getElementById('share-text').value = text;
+
+        const size = document.getElementById('share-size');
+        const len = text.length;
+        const over = len > CHAR_LIMIT;
+        size.className = 'share-size' + (over ? ' over' : '');
+        size.textContent = over
+            ? `⚠️ ${len} tegn — del i 2 beskeder (Discords grænse er 2.000)`
+            : `${len} / 2.000 tegn — passer i én besked ✓`;
+        return text;
+    }
+
+    function showShareModal() {
+        const workouts = loadWorkouts();
+        const weeks = groupByWeek(workouts);
+        const scope = renderShareScopeOptions(defaultShareScope(workouts, weeks));
+        updateSharePreview(scope);
         document.getElementById('share-overlay').classList.remove('hidden');
         document.getElementById('share-modal').classList.remove('hidden');
     }
@@ -1199,21 +1359,45 @@
         document.getElementById('share-modal').classList.add('hidden');
     }
 
+    // Markerer de viste træninger som delt, så "Kun nyt siden sidst" ved hvad
+    // der er sendt. Markeringen er ufarlig: man kan altid vælge ugen igen.
+    function markShareScopeAsShared(scope) {
+        const workouts = loadWorkouts();
+        const weeks = groupByWeek(workouts);
+        const ids = new Set(shareScopeWorkouts(scope, workouts, weeks).map(w => w.id));
+        if (ids.size === 0) return 0;
+
+        const now = new Date().toISOString();
+        let n = 0;
+        for (const w of workouts) {
+            if (ids.has(w.id) && !w.sharedAt) { w.sharedAt = now; n++; }
+        }
+        if (n > 0) saveWorkouts(workouts);
+        return n;
+    }
+
     function copyShareText() {
         const textarea = document.getElementById('share-text');
+        const scope = document.getElementById('share-scope').value;
+        const copied = () => showToast('Kopieret til udklipsholderen!', 'success');
+
         textarea.select();
         textarea.setSelectionRange(0, 99999);
         try {
-            navigator.clipboard.writeText(textarea.value).then(() => {
-                showToast('Kopieret til udklipsholderen!', 'success');
-            }).catch(() => {
+            navigator.clipboard.writeText(textarea.value).then(copied).catch(() => {
                 document.execCommand('copy');
-                showToast('Kopieret!', 'success');
+                copied();
             });
         } catch {
             document.execCommand('copy');
-            showToast('Kopieret!', 'success');
+            copied();
         }
+
+        // Marker først når teksten er kopieret, og fortæl hvad der skete
+        const n = markShareScopeAsShared(scope);
+        const next = renderShareScopeOptions(scope);
+        if (next !== scope) updateSharePreview(next);
+        if (n > 0) showToast(`${n} træning${n === 1 ? '' : 'er'} markeret som delt`, 'success');
     }
 
     // ─── Start ────────────────────────────────────────────────────

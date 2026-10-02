@@ -59,7 +59,12 @@
                 <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;">
                     Kopier teksten nedenfor og send den til mig — så kan jeg gennemgå din fremgang og give dig personlige råd.
                 </p>
+                <div class="share-scope-row">
+                    <label for="share-scope">Vis:</label>
+                    <select id="share-scope"></select>
+                </div>
                 <textarea id="share-text" readonly></textarea>
+                <div class="share-size" id="share-size"></div>
                 <div class="share-modal-actions">
                     <button class="share-copy-btn" id="share-copy">📋 Kopier</button>
                     <button class="share-close-btn" id="share-close">Annuller</button>
@@ -99,6 +104,13 @@
             <ul>
                 <li>Åbn historikken og tryk <strong>✏️ Rediger</strong> på træningen. Øvelserne indlæses igen, og du kan tilføje, rette eller fjerne.</li>
                 <li>Knappen hedder så <strong>Opdater træning</strong>, og datoen på træningen ændrer sig ikke — heller ikke hvis du først retter den dagen efter.</li>
+            </ul>
+            <h3>Del med AI-træneren</h3>
+            <ul>
+                <li>Vælg tidsrum i delingsvinduet: <strong>Kun nyt siden sidst</strong>, en enkelt uge, eller alle uger.</li>
+                <li><strong>Kun nyt siden sidst</strong> tager kun de træninger du ikke har sendt før. De markeres automatisk som delt når du kopierer, så du slipper for at sende det hele hver gang.</li>
+                <li>Har du kopieret en træning uden at sende den, er den ikke tabt — vælg bare ugen i listen, så kommer den igen.</li>
+                <li>Discord tillader 2.000 tegn pr. besked. Tælleren under teksten viser hvor tæt du er, så en for lang eksport opdages i god tid.</li>
             </ul>
             <button class="rules-close-btn" id="rules-close">Forstået</button>
         </div>

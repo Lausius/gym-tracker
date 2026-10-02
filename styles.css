@@ -631,6 +631,13 @@
             white-space: nowrap;
         }
         .history-edit-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        /* Markerer at træningen er sendt til AI-træneren */
+        .shared-badge {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
         .history-day-type.upper { color: var(--accent); background: var(--accent-glow); }
         .history-day-type.lower { color: var(--secondary); background: rgba(255,107,107,0.1); }
 
@@ -1130,6 +1137,39 @@
             tab-size: 2;
         }
         .share-modal-body textarea:focus { outline: none; border-color: var(--accent); }
+
+        .share-scope-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .share-scope-row label {
+            flex: 0 0 auto;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+        .share-scope-row select {
+            flex: 1 1 auto;
+            min-width: 0;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+        }
+        .share-size {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            flex: 0 0 auto;
+        }
+        .share-size.over {
+            color: var(--warning);
+            font-weight: 700;
+        }
 
         .share-modal-actions {
             display: flex;
