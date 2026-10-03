@@ -696,27 +696,19 @@
             color: var(--text);
         }
         .program-title svg { color: var(--accent); }
-        .program-refresh-btn {
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            color: var(--text-dim);
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all var(--transition);
-        }
-        .program-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
 
         .header-actions {
             display: flex;
             align-items: center;
             gap: 8px;
             flex-shrink: 0;
+        }
+        /* Fortæller at programmet nedenfor er din egen sidste træning og ikke
+           skabelonen. Bevidst dæmpet — det er en forklaring, ikke en handling. */
+        .program-memory {
+            font-size: 0.72rem;
+            color: var(--text-dim);
+            margin: -6px 0 10px;
         }
         /* Diskret knap der henter de filtrerede øvelser frem igen. Teksten sættes i
            JS, og knappen skjules helt når der ikke er noget skjult. min-height

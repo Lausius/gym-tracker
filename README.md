@@ -24,22 +24,27 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
     `Cable Row (Per hånd)` er den eneste af dem der er markeret "per hånd".
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
-- **Kun øvelser du faktisk laver:** "Næste uge" og "Dagens program" viser kun øvelser du har
-  udført mindst én gang. En øvelse tæller som udført, når den står med mindst ét sæt i en
-  gemt træning for den dag — nogensinde, ikke kun for nylig. Det holder listerne korte i
-  stedet for at fylde dem med hele øvelsesdatabasen, hvor det meste bare ville sige "Ingen
-  historik endnu".
+- **Kun øvelser du faktisk laver:** "Næste uge" viser kun øvelser du har udført mindst én gang.
+  En øvelse tæller som udført, når den står med mindst ét sæt i en gemt træning for den dag —
+  nogensinde, ikke kun for nylig. Det holder listen kort i stedet for at fylde den med hele
+  øvelsesdatabasen, hvor det meste bare ville sige "Ingen historik endnu".
   - Knappen **Vis alle (n)** henter de skjulte frem — fx når du vil begynde på en ny øvelse.
     Vælgeren "＋ Tilføj øvelse" har altid hele listen.
-  - **Tilføj alle til dagens træning** lægger kun de synlige øvelser ind, så de skjulte ikke
-    kommer med bagvejen.
-  - Uden historik for dagen filtreres der ikke, og en variant du aldrig har kørt vises i fuld
-    længde — ellers ville Lower B stå tom, bare fordi du hidtil kun har kørt Lower A.
+  - Uden historik for dagen filtreres der ikke, så en ny bruger ikke står med tomme lister.
   - Kropsvægtøvelser (Plank, Pull-up) filtreres **aldrig** væk: der gemmes kun sæt med vægt
     over 0, så de kan ikke føre vægthistorik. Uden den undtagelse ville de forsvinde fra
-    programmet efter det første gem — for bestandigt.
-  - En **helt ny** øvelse er derfor ikke i listerne, før du har udført den én gang. Den kan
+    listen efter det første gem — for bestandigt.
+  - En **helt ny** øvelse er derfor ikke i listen, før du har udført den én gang. Den kan
     altid vælges med **＋ Tilføj øvelse**, og dukker op af sig selv bagefter.
+- **Dagens program husker din sidste træning:** har du kørt fx Lower B før, viser
+  "Dagens program" **den** træning — samme øvelser i samme rækkefølge og med vægten fra det
+  bedste sæt sidste gang — så du kan gentage den med ét tryk på **Tilføj alle**. Skabelonen
+  bruges kun, når der ikke er noget at huske endnu (første gang du kører varianten).
+  - En linje under overskriften fortæller hvilken træning der huskes, og fra hvilken dato.
+  - Øvelser du selv har lagt ind (fx en cable-øvelse der ikke står i skabelonen) huskes også.
+  - **Vis alle (n)** henter skabelonens øvrige øvelser frem, hvis du vil tilføje noget nyt.
+  - Der er bevidst **ingen ↻-knap** i program-headeren: A/B skiftes med variant-knapperne
+    nedenfor, og ↻ kunne kun gøre det samme.
 - **Eksempeldata til test:** på forsiden (kun synlig når loggen er tom) kan du fylde tre ugers
   A/B-historik ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger
   data. Den rører **aldrig** dine egne træninger: blokken vises kun når loggen er tom eller
@@ -302,12 +307,14 @@ node tests/browser-check.js https://lausius.github.io/gym-tracker/
 
 `tests/browser-check.js` driver Chromium over DevTools Protocol og dækker: indlæsning uden
 JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
-persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i UI'et,
+persistens og rotation**, historik, del-modal, redskabsvarianter i UI'et,
 **redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
 **uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt),
-**filtrering af øvelser uden historik** (Vis alle-knappen, "Tilføj alle" der kun tager de
-synlige, at en variant man aldrig har kørt ikke bliver tømt, og at kropsvægtøvelser overlever
-et gem), **eksempeldata** (fyld, ryd, og at knappen ikke kan bruges når der ligger rigtige
+**filtrering af øvelser uden historik i "Næste uge"** (Vis alle-knappen, at en ny bruger ikke
+står med tomme lister, og at kropsvægtøvelser ikke forsvinder), **"Dagens program" der husker
+sidste træning** (kør en variant, ret den, gem, og se at programmet kan gentage den — inkl.
+"Husker"-linjen, at "Tilføj alle" lægger den huskede træning ind med samme vægt, at skabelonen
+stadig kan hentes frem med "Vis alle", og at ↻-knappen er væk), **eksempeldata** (fyld, ryd, og at knappen ikke kan bruges når der ligger rigtige
 træninger), **de nye cable-øvelser** (kan vælges, er grupperet rigtigt, kun row-varianten bærer
 "per hånd", og de ligger ikke i programmerne), og mobillayout ved 320/375/390/430px (bl.a. at
 ＋/✕-knapper ikke flytter sig når teksten bliver længere, og at intet flyder ud over kanten).
