@@ -48,7 +48,8 @@ vm.runInContext(
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
-    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory };
+    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory,
+        isBodyweightExercise };
     `,
     ctx
 );
@@ -57,7 +58,7 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
-    getTrainedExerciseIds, filterTrained, hasVariantHistory,
+    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -387,10 +388,13 @@ store['gym_tracker_workouts'] = asDone([
     { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
 ]);
 const filtered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-ok('Udførte øvelser bliver synlige', filtered.visible.length === 2);
-ok('Resten af databasen skjules', filtered.hidden.length === ALL_EXERCISES.upper.length - 2, `${ALL_EXERCISES.upper.length} i databasen`);
-ok('Synlige og skjulte udgør tilsammen hele listen', filtered.visible.length + filtered.hidden.length === ALL_EXERCISES.upper.length);
-ok('En aldrig udført øvelse er ikke i den synlige liste', !filtered.visible.some(e => e.id === 'shoulder_press'));
+const filteredIds = filtered.visible.map(e => e.id);
+ok('Udførte øvelser bliver synlige', filteredIds.includes('bench_press') && filteredIds.includes('lat_pulldown'));
+ok('En aldrig udført øvelse er ikke i den synlige liste', !filteredIds.includes('shoulder_press'));
+// Relation frem for hardcodede tal: de synlige er de udførte PLUS kropsvægtøvelserne,
+// og synlige + skjulte skal tilsammen give hele listen.
+ok('Resten af databasen skjules', filtered.hidden.length === ALL_EXERCISES.upper.length - filteredIds.length, `${filteredIds.length} synlige, ${filtered.hidden.length} skjulte af ${ALL_EXERCISES.upper.length}`);
+ok('Synlige og skjulte udgør tilsammen hele listen', filteredIds.length + filtered.hidden.length === ALL_EXERCISES.upper.length);
 ok('Resultatet markeres som filtreret', filtered.filtered === true);
 
 const shownAll = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, true);
@@ -398,22 +402,51 @@ ok('"Vis alle" viser hele listen', shownAll.visible.length === ALL_EXERCISES.upp
 ok('"Vis alle" er ikke længere filtreret', shownAll.filtered === false);
 // Hvis den skjulte mængde blev tømt her, ville knappen skjule sig selv i det øjeblik
 // man trykkede på den — og der var ingen vej tilbage til den filtrerede visning.
-ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === ALL_EXERCISES.upper.length - 2, `${shownAll.hidden.length} skjulte`);
+ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === filtered.hidden.length, `${shownAll.hidden.length} skjulte`);
 ok('Den skjulte mængde er den samme som da filtret var slået til', shownAll.hidden.length === filtered.hidden.length);
 
 // Kernen i vagten: man må ikke kunne tømme en variant man bare ikke har kørt endnu
 const untouchedVariant = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'B'));
 ok('En variant uden historik vises i fuld længde', untouchedVariant.visible.length === ALL_EXERCISES.upper.length);
 ok('Derfor skjules intet i den variant', untouchedVariant.hidden.length === 0);
-ok('En variant MED historik filtreres stadig', filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'A')).visible.length === 2);
+ok('En variant MED historik filtreres stadig', filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'A')).visible.length === filteredIds.length);
+
+// Kropsvægtøvelser kan slet ikke føre vægthistorik: saveWorkout gemmer kun sæt med
+// vægt > 0, så plank og pull-up optræder aldrig i en gemt træning. Uden denne
+// undtagelse ville de forsvinde fra programmet for bestandigt efter første gem.
+ok('Plank er kropsvægtøvelse', isBodyweightExercise('lower', 'plank') === true);
+ok('Pull-up er kropsvægtøvelse', isBodyweightExercise('upper', 'pull_up') === true);
+ok('En øvelse med vægt er ikke kropsvægt', isBodyweightExercise('lower', 'squat') === false);
+ok('Opslaget er afgrænset til den rigtige dag', isBodyweightExercise('upper', 'plank') === false);
+
+store['gym_tracker_workouts'] = asDone([
+    { id: 'l1', date: '2026-09-29', day: 'lower', variant: 'A',
+      exercises: ['squat', 'romanian_deadlift', 'leg_press', 'hip_thrust', 'leg_curl'].map(id => ex(id)) },
+]);
+const lowerSaved = filterTrained(getProgram('lower', 'A'), 'lower', i => i.exerciseId, false);
+ok('Plank overlever i programmet trods ingen historik', lowerSaved.visible.some(i => i.exerciseId === 'plank'), JSON.stringify(lowerSaved.visible.map(i => i.exerciseId)));
+ok('Plank tælles ikke som skjult', !lowerSaved.hidden.some(i => i.exerciseId === 'plank'));
+const lowerDb = filterTrained(ALL_EXERCISES.lower, 'lower', e => e.id, false);
+ok('Plank er også synlig i Næste uge-listen', lowerDb.visible.some(e => e.id === 'plank'));
+ok('Øvelser uden historik og med vægt filtreres stadig', !lowerDb.visible.some(e => e.id === 'leg_extension'));
 
 // Programmet filtreres efter samme regel som databasen
+store['gym_tracker_workouts'] = asDone([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
+]);
 const progA = getProgram('upper', 'A');
 const progFiltered = filterTrained(progA, 'upper', i => i.exerciseId, false);
 ok('Programmet filtreres (7 skabelon-øvelser → 2)', progA.length === 7 && progFiltered.visible.length === 2, `${progFiltered.visible.length} af ${progA.length}`);
 ok('Netop de udførte programøvelser står tilbage', progFiltered.visible.every(i => ['bench_press', 'lat_pulldown'].includes(i.exerciseId)));
 ok('shoulder_press er skjult i programmet', !progFiltered.visible.some(i => i.exerciseId === 'shoulder_press'));
 ok('De skjulte er dem man ikke laver', progFiltered.hidden.length === 5 && progFiltered.hidden.some(i => i.exerciseId === 'shoulder_press'));
+
+// Upper B er et stærkt tilfælde: ingen af øvelserne er udført, men pull-up skal
+// alligevel overleve, fordi den ikke kan føre vægthistorik.
+const progB = getProgram('upper', 'B');
+const progBFiltered = filterTrained(progB, 'upper', i => i.exerciseId, false);
+ok('Upper B indeholder pull-up', progB.some(i => i.exerciseId === 'pull_up'));
+ok('Pull-up overlever i et program hvor intet er udført', progBFiltered.visible.length === 1 && progBFiltered.visible[0].exerciseId === 'pull_up', JSON.stringify(progBFiltered.visible.map(i => i.exerciseId)));
 
 store['gym_tracker_workouts'] = asDone([]);
 

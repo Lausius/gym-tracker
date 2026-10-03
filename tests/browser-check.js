@@ -686,16 +686,19 @@ async function main() {
 
     // Næste uge-listen: samme regel, og det var ønsket #1
     const progItems = await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId)');
-    ok('Næste-uge-listen viser kun øvelser med historik', progItems.length === 2 && progItems.includes('bench_press') && progItems.includes('lat_pulldown'), JSON.stringify(progItems));
+    ok('Næste-uge-listen viser kun øvelser med historik', progItems.includes('bench_press') && progItems.includes('lat_pulldown'), JSON.stringify(progItems));
     ok('Lange lister af aldrig-udførte øvelser er væk', !progItems.includes('shoulder_press') && !progItems.includes('cable_row'), JSON.stringify(progItems));
-    ok(`Listen er gået fra ${upperDb} til 2 poster`, progItems.length < upperDb);
+    // pull_up er kropsvægt: den kan ikke føre vægthistorik, så den må ikke filtreres
+    // væk selvom den aldrig er udført.
+    ok('Kropsvægtøvelser filtreres ikke væk (pull-up)', progItems.includes('pull_up'), JSON.stringify(progItems));
+    ok(`Listen er gået fra ${upperDb} til ${progItems.length} poster`, progItems.length < upperDb);
     ok('Knappen tilbyder de skjulte i Næste uge', /Vis alle \(\d+\)/.test(await evaluate('return document.getElementById("progressive-toggle").textContent')), await evaluate('return document.getElementById("progressive-toggle").textContent'));
     await evaluate('document.getElementById("progressive-toggle").click(); return true;');
     await sleep(250);
     ok('"Vis alle" i Næste uge viser hele databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === upperDb);
     await evaluate('document.getElementById("progressive-toggle").click(); return true;');
     await sleep(250);
-    ok('Filtret slås til igen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === 2);
+    ok('Filtret slås til igen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === progItems.length);
 
     // "Tilføj alle" må ikke lægge de skjulte øvelser ind i sessionen
     await evaluate('document.getElementById("program-load").click(); return true;');
@@ -764,6 +767,31 @@ async function main() {
         ok(`[${w}px] Intet indhold flyder over kanten`, fits.spill.length === 0, fits.spill.join(', '));
         ok(`[${w}px] "Vis alle"-knappen er et gyldigt tap-target`, fits.btnHeight >= 28, `${fits.btnHeight}px`);
     }
+
+    // Kropsvægtøvelser må ikke forsvinde. saveWorkout gemmer kun sæt med vægt > 0, så
+    // plank optræder aldrig i en gemt træning — og uden undtagelsen i filterTrained
+    // ville plank blive skjult fra programmet efter det første gem, for bestandigt.
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
+    await sleep(300);
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(300);
+    ok('Lower A er indlæst med Plank', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Plank")')) === true);
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(450);
+    ok('Den gemte træning indeholder ikke plank (vægt 0 gemmes ikke)', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"))[0];
+        return w.exercises.length > 0 && !w.exercises.some(e => e.exerciseId === "plank");
+    `)) === true);
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
+    await sleep(300);
+    const lowerAfter = await evaluate('return [...document.querySelectorAll("#program-content .program-exercise")].map(r => r.dataset.exerciseId)');
+    ok('Plank står stadig i programmet efter et gem', lowerAfter.includes('plank'), JSON.stringify(lowerAfter));
+    ok('De udførte lower-øvelser er stadig med', lowerAfter.includes('squat') && lowerAfter.includes('leg_curl'), JSON.stringify(lowerAfter));
+    ok('Lower-øvelser uden historik er filtreret væk', !lowerAfter.includes('leg_extension'), JSON.stringify(lowerAfter));
+    ok('Plank er også med i Næste uge-listen', (await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId).includes("plank")')) === true);
 
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);

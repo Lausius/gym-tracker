@@ -31,6 +31,9 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
     kommer med bagvejen.
   - Uden historik for dagen filtreres der ikke, og en variant du aldrig har kørt vises i fuld
     længde — ellers ville Lower B stå tom, bare fordi du hidtil kun har kørt Lower A.
+  - Kropsvægtøvelser (Plank, Pull-up) filtreres **aldrig** væk: der gemmes kun sæt med vægt
+    over 0, så de kan ikke føre vægthistorik. Uden den undtagelse ville de forsvinde fra
+    programmet efter det første gem — for bestandigt.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
 - **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
   historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så

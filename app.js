@@ -333,6 +333,17 @@
         return ids;
     }
 
+    // Kropsvægtøvelser (fx plank og pull-up) kan ikke føre vægthistorik: saveWorkout
+    // gemmer kun sæt med vægt > 0, så de optræder aldrig i en gemt træning. De må
+    // derfor ikke filtreres væk på "har du udført den før" — det ville skjule dem
+    // permanent, selv om de står i programmet. Tjekker alle varianter for dagen, så
+    // det er dataen der afgør det og ikke en hardcoded liste.
+    function isBodyweightExercise(day, id) {
+        return Object.keys(PROGRAMS).some(key =>
+            key.startsWith(day) && PROGRAMS[key].some(item => item.exerciseId === id && !(item.weight > 0))
+        );
+    }
+
     // Er netop denne variant nogensinde trænet? Uden historik for varianten er der
     // intet at filtrere efter, så vi viser hele skabelonen. Ellers ville Lower B
     // stå helt tom fordi man hidtil kun har kørt Lower A — filtreringen skal skjule
@@ -349,6 +360,8 @@
     // 2. Er varianten aldrig trænet, filtreres der heller ikke (se hasVariantHistory).
     // 3. Øvelser der allerede er i dagens session holdes synlige, også uden historik,
     //    så man ikke mister dem af syne midt i en træning.
+    // 4. Kropsvægtøvelser holdes altid synlige: de kan ikke føre vægthistorik (se
+    //    isBodyweightExercise), så et historikfilter ville skjule dem for bestandigt.
     //
     // `hidden` udregnes også når filtreringen er slået fra. Ellers ville "Vis alle"
     // give en tom skjult-mængde, knappen ville skjule sig selv i samme øjeblik man
@@ -360,7 +373,11 @@
             return { visible: list, hidden: [], trained, canFilter: false, filtered: false };
         }
         const inSession = new Set(state.exercises.map(e => e.exerciseId));
-        const hidden = list.filter(item => !(trained.has(getId(item)) || inSession.has(getId(item))));
+        const hidden = list.filter(item => {
+            const id = getId(item);
+            if (trained.has(id) || inSession.has(id)) return false;
+            return !isBodyweightExercise(day, id);
+        });
         if (showAll) {
             return { visible: list, hidden, trained, canFilter: true, filtered: false };
         }
