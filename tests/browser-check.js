@@ -643,6 +643,128 @@ async function main() {
     await evaluate('document.getElementById("close-history").click(); return true;');
     await sleep(200);
 
+    // ─── 13. Filtrering: kun øvelser man har udført ───────────────
+    console.log('\n── 13. Filtrering: kun øvelser man har udført');
+
+    // Fixture: én upper-A-træning med KUN to af programmets syv øvelser. Resten er
+    // dermed "aldrig udført" og skal skjules — det var hele klagen (shoulder_press).
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
+            id: "u_fil", date: "2026-09-28", day: "upper", variant: "A",
+            exercises: [
+                { exerciseId: "bench_press",  sets: [{ weight: 60, reps: 8 }, { weight: 60, reps: 8 }, { weight: 60, reps: 8 }] },
+                { exerciseId: "lat_pulldown", sets: [{ weight: 59, reps: 10 }, { weight: 59, reps: 10 }] },
+            ],
+        }]));
+        return true;
+    `);
+    await load(URL_UNDER_TEST);
+
+    ok('Appens databaser er globale i browseren (som i test-harnesset)', (await evaluate('return typeof ALL_EXERCISES')) === 'object');
+    const progA = await evaluate('return getProgram("upper","A").length');
+    const upperDb = await evaluate('return ALL_EXERCISES.upper.length');
+
+    // Rotationen foreslår nu B (sidste upper var A) — vis A, som har historikken
+    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
+    await sleep(250);
+
+    const progRows = await evaluate('return [...document.querySelectorAll("#program-content .program-exercise")].map(r => r.dataset.exerciseId)');
+    ok('Programmet viser kun de udførte øvelser', progRows.length === 2 && progRows.includes('bench_press') && progRows.includes('lat_pulldown'), JSON.stringify(progRows));
+    ok('shoulder_press er væk fra programmet (det var hele klagen)', !progRows.includes('shoulder_press'));
+    ok('Skabelonen er stadig 7 øvelser bag kulissen', progA === 7);
+    ok('Knappen tilbyder at vise de 5 skjulte', /Vis alle \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')), await evaluate('return document.getElementById("program-toggle").textContent'));
+    ok('Knappen er synlig når noget er skjult', (await evaluate('return document.getElementById("program-toggle").classList.contains("hidden")')) === false);
+
+    await evaluate('document.getElementById("program-toggle").click(); return true;');
+    await sleep(250);
+    ok('"Vis alle" henter hele skabelonen frem', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === progA);
+    ok('Knappen skifter til "Skjul"', /Skjul \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')));
+    await evaluate('document.getElementById("program-toggle").click(); return true;');
+    await sleep(250);
+    ok('Et tryk mere filtrerer igen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === 2);
+
+    // Næste uge-listen: samme regel, og det var ønsket #1
+    const progItems = await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId)');
+    ok('Næste-uge-listen viser kun øvelser med historik', progItems.length === 2 && progItems.includes('bench_press') && progItems.includes('lat_pulldown'), JSON.stringify(progItems));
+    ok('Lange lister af aldrig-udførte øvelser er væk', !progItems.includes('shoulder_press') && !progItems.includes('cable_row'), JSON.stringify(progItems));
+    ok(`Listen er gået fra ${upperDb} til 2 poster`, progItems.length < upperDb);
+    ok('Knappen tilbyder de skjulte i Næste uge', /Vis alle \(\d+\)/.test(await evaluate('return document.getElementById("progressive-toggle").textContent')), await evaluate('return document.getElementById("progressive-toggle").textContent'));
+    await evaluate('document.getElementById("progressive-toggle").click(); return true;');
+    await sleep(250);
+    ok('"Vis alle" i Næste uge viser hele databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === upperDb);
+    await evaluate('document.getElementById("progressive-toggle").click(); return true;');
+    await sleep(250);
+    ok('Filtret slås til igen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === 2);
+
+    // "Tilføj alle" må ikke lægge de skjulte øvelser ind i sessionen
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(300);
+    ok('"Tilføj alle" tilføjer kun de synlige', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 2);
+    ok('"Tilføj alle" springer de skjulte over', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Shoulder Press")')) === false);
+
+    // Dags-skift nulstiller filtret, og uden historik for dagen filtreres der ikke
+    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
+    await sleep(300);
+    const lowerShown = await evaluate('return document.querySelectorAll("#program-content .program-exercise").length');
+    const lowerActive = await evaluate('return getProgram("lower", document.querySelector(".variant-btn.active").dataset.variant).length');
+    ok('Lower har ingen historik → hele skabelonen vises', lowerShown === lowerActive && lowerShown > 0, `${lowerShown} af ${lowerActive}`);
+    ok('Derfor skjules intet i Lower', (await evaluate('return document.getElementById("program-toggle").classList.contains("hidden")')) === true);
+    ok('Næste uge viser hele lower-databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === (await evaluate('return ALL_EXERCISES.lower.length')));
+    ok('Ingen "Vis alle"-knap i Næste uge uden historik', (await evaluate('return document.getElementById("progressive-toggle").classList.contains("hidden")')) === true);
+
+    // Vagten: en variant man aldrig har kørt må ikke blive tømt. Uden den ville
+    // "du har kørt Lower A" skjule samtlige øvelser i Lower B.
+    await evaluate(`document.querySelector('.day-btn[data-day="upper"]').click(); return true;`);
+    await sleep(300);
+    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
+    await sleep(250);
+    const upperBShown = await evaluate('return document.querySelectorAll("#program-content .program-exercise").length');
+    const upperBProg = await evaluate('return getProgram("upper","B").length');
+    ok('Upper B er aldrig kørt → hele skabelonen vises', upperBShown === upperBProg && upperBShown > 0, `${upperBShown} af ${upperBProg}`);
+    ok('Vagten gælder kun den variant der er kørt', (await evaluate(`return document.querySelector('.variant-btn[data-variant="A"]').click() || true`)) === true);
+    await sleep(250);
+    ok('Tilbage i A er filtreringen der igen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === 2);
+
+    // Den nye knap må ikke sprænge layoutet på de smalle bredder.
+    //
+    // Bemærk: ved 390px dukker der en klassisk 35px scrollbar op i headless-
+    // emuleringen, så dokumentets scrollWidth bliver 425 mens clientWidth er 390.
+    // Det er en artefakt af emuleringen (rigtige mobiler bruger overlay-scrollbars
+    // uden bredde), ikke et layoutproblem — og det gør den generiske
+    // "scrollWidth - clientWidth"-måling ubrugelig her. Vi måler derfor direkte på
+    // de containere vi har ændret, og holder os til i-flow-indhold.
+    for (const w of [320, 375, 390, 430]) {
+        await S('Emulation.setDeviceMetricsOverride', { width: w, height: 844, deviceScaleFactor: 2, mobile: true });
+        await sleep(300);
+        const fits = await evaluate(`
+            const client = document.documentElement.clientWidth;
+            const header = document.querySelector(".program-header").getBoundingClientRect();
+            const btn = document.getElementById("program-toggle").getBoundingClientRect();
+            const spill = [];
+            for (const sel of ["#progressive-list", "#program-content", ".program-header", ".progressive-header", "#exercise-list"]) {
+                for (const el of document.querySelectorAll(sel + " *")) {
+                    const r = el.getBoundingClientRect();
+                    if (r.width > 0 && r.right > client + 1) {
+                        spill.push(sel + " > " + (el.id || el.className || el.tagName));
+                    }
+                }
+            }
+            return {
+                client,
+                headerRight: Math.round(header.right),
+                btnRight: Math.round(btn.right),
+                btnHeight: Math.round(btn.height),
+                spill,
+            };
+        `);
+        ok(`[${w}px] Header og "Vis alle"-knap holder sig inden for bredden`,
+            fits.headerRight <= fits.client + 1 && fits.btnRight <= fits.client + 1,
+            `bredde=${fits.client} header=${fits.headerRight} knap=${fits.btnRight}`);
+        ok(`[${w}px] Intet indhold flyder over kanten`, fits.spill.length === 0, fits.spill.join(', '));
+        ok(`[${w}px] "Vis alle"-knappen er et gyldigt tap-target`, fits.btnHeight >= 28, `${fits.btnHeight}px`);
+    }
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)

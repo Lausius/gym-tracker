@@ -712,6 +712,44 @@
         }
         .program-refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        /* Diskret knap der henter de filtrerede øvelser frem igen. Teksten sættes i
+           JS, og knappen skjules helt når der ikke er noget skjult. min-height
+           holder tap-target på 28px uanset skriftstørrelsen. */
+        .filter-toggle-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 28px;
+            padding: 0 10px;
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .filter-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+        /* Sektionshovedet er uppercase med spærret skrift — det skal knappen ikke arve */
+        .progressive-header .filter-toggle-btn {
+            margin-left: auto;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        .list-empty-note {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.4;
+        }
+
         .program-content {
             display: flex;
             flex-direction: column;

@@ -48,7 +48,7 @@ vm.runInContext(
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
-    markShareScopeAsShared, CHAR_LIMIT };
+    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory };
     `,
     ctx
 );
@@ -57,6 +57,7 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
+    getTrainedExerciseIds, filterTrained, hasVariantHistory,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -349,7 +350,74 @@ ok('En tom visning giver en forklarende tekst', generateShareText('week:2026-W99
 store['gym_tracker_workouts'] = JSON.stringify([]);
 ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('Ingen træninger gemt endnu'));
 
-console.log('\n── 9. Filopdeling (index.html + styles.css + app.js)');
+// ─── 9. Filtrering: kun øvelser man har udført ────────────────────
+// Formålet er at listerne ikke skal fyldes med øvelser man aldrig laver. Reglen er
+// "nogensinde udført for den dag", og filtreringen slår kun til når der ER noget at
+// filtrere efter — ellers ville en ny bruger stå med tomme lister.
+console.log('\n── 9. Filtrering: kun øvelser man har udført');
+
+const ex = (id, sets = 3) => ({ exerciseId: id, sets: Array.from({ length: sets }, () => ({ weight: 60, reps: 8 })) });
+const asDone = list => JSON.stringify(list);
+
+store['gym_tracker_workouts'] = asDone([]);
+const noHistory = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Uden historik er ingen øvelser markeret som udført', getTrainedExerciseIds('upper').size === 0);
+ok('Uden historik filtreres der ikke', noHistory.visible.length === ALL_EXERCISES.upper.length);
+ok('Uden historik skjules intet', noHistory.hidden.length === 0);
+ok('Uden historik markeres resultatet som ufiltreret', noHistory.filtered === false);
+ok('Uden historik kan der slet ikke filtreres', noHistory.canFilter === false);
+
+store['gym_tracker_workouts'] = asDone([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
+]);
+ok('Kun de udførte øvelser tælles med', getTrainedExerciseIds('upper').size === 2);
+ok('En udført øvelse er med', getTrainedExerciseIds('upper').has('bench_press'));
+ok('En øvelse man aldrig har lavet er ikke med', !getTrainedExerciseIds('upper').has('shoulder_press'));
+ok('Historik for lower smitter ikke af på upper', getTrainedExerciseIds('lower').size === 0);
+ok('Varianten med historik kendes', hasVariantHistory('upper', 'A') === true);
+ok('Den anden variant tæller ikke som kendt', hasVariantHistory('upper', 'B') === false);
+
+// En øvelse man tilføjede men aldrig førte tal ind i, er ikke "udført"
+store['gym_tracker_workouts'] = asDone([
+    { id: 'u2', date: '2026-09-29', day: 'upper', variant: 'A', exercises: [ex('bench_press', 0)] },
+]);
+ok('Tom sæt-liste tæller ikke som udført', getTrainedExerciseIds('upper').size === 0);
+
+store['gym_tracker_workouts'] = asDone([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
+]);
+const filtered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Udførte øvelser bliver synlige', filtered.visible.length === 2);
+ok('Resten af databasen skjules', filtered.hidden.length === ALL_EXERCISES.upper.length - 2, `${ALL_EXERCISES.upper.length} i databasen`);
+ok('Synlige og skjulte udgør tilsammen hele listen', filtered.visible.length + filtered.hidden.length === ALL_EXERCISES.upper.length);
+ok('En aldrig udført øvelse er ikke i den synlige liste', !filtered.visible.some(e => e.id === 'shoulder_press'));
+ok('Resultatet markeres som filtreret', filtered.filtered === true);
+
+const shownAll = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, true);
+ok('"Vis alle" viser hele listen', shownAll.visible.length === ALL_EXERCISES.upper.length);
+ok('"Vis alle" er ikke længere filtreret', shownAll.filtered === false);
+// Hvis den skjulte mængde blev tømt her, ville knappen skjule sig selv i det øjeblik
+// man trykkede på den — og der var ingen vej tilbage til den filtrerede visning.
+ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === ALL_EXERCISES.upper.length - 2, `${shownAll.hidden.length} skjulte`);
+ok('Den skjulte mængde er den samme som da filtret var slået til', shownAll.hidden.length === filtered.hidden.length);
+
+// Kernen i vagten: man må ikke kunne tømme en variant man bare ikke har kørt endnu
+const untouchedVariant = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'B'));
+ok('En variant uden historik vises i fuld længde', untouchedVariant.visible.length === ALL_EXERCISES.upper.length);
+ok('Derfor skjules intet i den variant', untouchedVariant.hidden.length === 0);
+ok('En variant MED historik filtreres stadig', filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'A')).visible.length === 2);
+
+// Programmet filtreres efter samme regel som databasen
+const progA = getProgram('upper', 'A');
+const progFiltered = filterTrained(progA, 'upper', i => i.exerciseId, false);
+ok('Programmet filtreres (7 skabelon-øvelser → 2)', progA.length === 7 && progFiltered.visible.length === 2, `${progFiltered.visible.length} af ${progA.length}`);
+ok('Netop de udførte programøvelser står tilbage', progFiltered.visible.every(i => ['bench_press', 'lat_pulldown'].includes(i.exerciseId)));
+ok('shoulder_press er skjult i programmet', !progFiltered.visible.some(i => i.exerciseId === 'shoulder_press'));
+ok('De skjulte er dem man ikke laver', progFiltered.hidden.length === 5 && progFiltered.hidden.some(i => i.exerciseId === 'shoulder_press'));
+
+store['gym_tracker_workouts'] = asDone([]);
+
+console.log('\n── 10. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));

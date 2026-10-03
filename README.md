@@ -20,6 +20,17 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   muskelgruppe.
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
+- **Kun øvelser du faktisk laver:** "Næste uge" og "Dagens program" viser kun øvelser du har
+  udført mindst én gang. En øvelse tæller som udført, når den står med mindst ét sæt i en
+  gemt træning for den dag — nogensinde, ikke kun for nylig. Det holder listerne korte i
+  stedet for at fylde dem med hele øvelsesdatabasen, hvor det meste bare ville sige "Ingen
+  historik endnu".
+  - Knappen **Vis alle (n)** henter de skjulte frem — fx når du vil begynde på en ny øvelse.
+    Vælgeren "＋ Tilføj øvelse" har altid hele listen.
+  - **Tilføj alle til dagens træning** lægger kun de synlige øvelser ind, så de skjulte ikke
+    kommer med bagvejen.
+  - Uden historik for dagen filtreres der ikke, og en variant du aldrig har kørt vises i fuld
+    længde — ellers ville Lower B stå tom, bare fordi du hidtil kun har kørt Lower A.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
 - **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
   historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så
@@ -204,8 +215,10 @@ node tests/browser-check.js https://lausius.github.io/gym-tracker/
 JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
 persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i UI'et,
 **redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
-**uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt), og mobillayout
-ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten bliver længere, og
+**uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt),
+**filtrering af øvelser uden historik** (Vis alle-knappen, "Tilføj alle" der kun tager de
+synlige, og at en variant man aldrig har kørt ikke bliver tømt), og mobillayout ved
+320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten bliver længere, og
 at intet flyder ud over kanten).
 
 Testene rydder `localStorage` ved start, så en kørsel ikke arver state fra den forrige — de
