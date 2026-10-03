@@ -28,7 +28,7 @@
             { id: 'lat_pulldown',      name: 'Lat Pulldown',             muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
             { id: 'lat_extension',     name: 'Lat Extension',            muscle: 'Ryg',        compound: false, equipment: 'Cable' },
             { id: 'cable_row',         name: 'Seated Cable Row',         muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
-            { id: 'cable_row_per_hand', name: 'Cable Row (Per hånd)',    muscle: 'Ryg',        compound: true,  equipment: 'Cable', loadNote: 'per hånd' },
+            { id: 'cable_row_per_hand', name: 'Cable Row',              muscle: 'Ryg',        compound: true,  equipment: 'Cable', loadNote: 'per hånd' },
             { id: 'barbell_row',       name: 'Barbell Row',              muscle: 'Ryg',        compound: true,  equipment: 'Barbell' },
             { id: 'chest_supported_row', name: 'Chest Supported Row',    muscle: 'Ryg',        compound: true,  equipment: 'Machine/Dumbbell' },
             { id: 'face_pull',         name: 'Face Pull',                muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
@@ -467,34 +467,31 @@
     }
 
     function renderSampleControls() {
+        const section = document.getElementById('sample-section');
         const btn = document.getElementById('sample-btn');
         const note = document.getElementById('sample-note');
-        if (!btn) return;
+        if (!section || !btn) return;
 
         const workouts = loadWorkouts();
-        const real = realWorkouts(workouts);
 
-        if (real.length > 0) {
-            // Der ligger rigtige træninger: knappen fjernes helt, så den ikke kan
-            // rammes ved et uheld. Det er hele sikkerheden i funktionen.
-            btn.classList.add('hidden');
+        // Hele blokken vises KUN når loggen er tom eller udelukkende indeholder
+        // eksempeldata. Så snart der ligger én rigtig træning, forsvinder den —
+        // ikke bare knappen. Ellers stod overskriften og teksten tilbage uden
+        // nogen knap, og så ser det ud som om noget mangler.
+        if (realWorkouts(workouts).length > 0) {
+            section.classList.add('hidden');
             btn.disabled = true;
-            if (note) {
-                note.textContent = `Ikke tilgængelig: der ligger ${real.length} ` +
-                    `rigtig${real.length === 1 ? '' : 'e'} træning${real.length === 1 ? '' : 'er'}. ` +
-                    'Funktionen rører aldrig dine egne data.';
-            }
             return;
         }
 
-        btn.classList.remove('hidden');
+        section.classList.remove('hidden');
         btn.disabled = false;
         if (workouts.length > 0) {
-            btn.textContent = `🧪 Ryd eksempeldata (${workouts.length} træninger)`;
+            btn.textContent = `Ryd eksempeldata (${workouts.length} træninger)`;
             if (note) note.textContent = 'Loggen indeholder kun eksempeldata — de kan fjernes igen her.';
         } else {
-            btn.textContent = '🧪 Fyld med eksempeldata';
-            if (note) note.textContent = 'Skriver 3 ugers A/B-historik, så alt kan prøves med det samme.';
+            btn.textContent = 'Fyld med eksempeldata';
+            if (note) note.textContent = 'Skriver tre ugers A/B-historik, så rotation, forslag, filtrering og deling kan prøves med det samme.';
         }
     }
 
@@ -834,17 +831,6 @@
         state.programVariant = getCurrentVariant() === 'A' ? 'B' : 'A';
         renderProgram();
         showToast(`Viser ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${state.programVariant}`, 'info');
-    }
-
-    function openRules() {
-        renderSampleControls(); // afhænger af om loggen indeholder rigtige træninger
-        document.getElementById('rules-overlay').classList.remove('hidden');
-        document.getElementById('rules-modal').classList.remove('hidden');
-    }
-
-    function closeRules() {
-        document.getElementById('rules-overlay').classList.add('hidden');
-        document.getElementById('rules-modal').classList.add('hidden');
     }
 
     // ─── Actions ──────────────────────────────────────────────────
@@ -1224,10 +1210,7 @@
                 showToast('Øvelsen er allerede tilføjet', 'info');
             }
         });
-        document.getElementById('program-rules').addEventListener('click', openRules);
         document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
-        document.getElementById('rules-close').addEventListener('click', closeRules);
-        document.getElementById('rules-overlay').addEventListener('click', closeRules);
 
         // Event: Add exercise
         document.getElementById('add-exercise-btn').addEventListener('click', () => {
@@ -1311,7 +1294,6 @@
             if (e.key === 'Escape') {
                 closeHistory();
                 closeShareModal();
-                closeRules();
             }
         });
 

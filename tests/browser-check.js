@@ -204,12 +204,8 @@ async function main() {
     ok('Del-teksten viser hvilken uge træningen hører til', /NYT SIDEN SIDST \(\d+\) · UGE \d+/.test(shareText), shareText.split('\n')[0]);
     await evaluate('document.getElementById("share-close").click(); return true;');
 
-    await evaluate('document.getElementById("program-rules").click(); return true;');
-    await sleep(150);
-    ok('Regler-modalen åbner', (await evaluate('return !document.getElementById("rules-modal").classList.contains("hidden")')) === true);
-    await evaluate('document.getElementById("rules-close").click(); return true;');
-    await sleep(150);
-    ok('Regler-modalen lukker', (await evaluate('return document.getElementById("rules-modal").classList.contains("hidden")')) === true);
+    ok('Regler-knappen er væk (reglerne ligger i README)', (await evaluate('return document.getElementById("program-rules")')) === null);
+    ok('Regler-modalen er væk', (await evaluate('return document.getElementById("rules-modal")')) === null);
 
     // ─── 7. Lower day + mobillayout ───────────────────────────────
     console.log('\n── 7. Lower day og mobillayout');
@@ -798,13 +794,27 @@ async function main() {
 
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate('document.getElementById("program-rules").click(); return true;');
-    await sleep(300);
 
     ok('Knappen tilbyder at fylde eksempeldata ind', /Fyld med eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
-    ok('Knappen er synlig når loggen er tom', (await evaluate('return document.getElementById("sample-btn").classList.contains("hidden")')) === false);
+    ok('Blokken er synlig når loggen er tom', (await evaluate('return document.getElementById("sample-section").classList.contains("hidden")')) === false);
     ok('Noten forklarer hvad der sker', (await evaluate('return document.getElementById("sample-note").textContent')).length > 0);
     ok('Den er et gyldigt tap-target', (await evaluate('return Math.round(document.getElementById("sample-btn").getBoundingClientRect().height)')) >= 28);
+
+    // Regression: knappen lå først 1746px nede i regler-modalen (som nu er væk), så
+    // man skulle scrolle forbi otte afsnit for at finde den. Den ligger nu på
+    // forsiden og skal være synlig uden at scrolle overhovedet.
+    const sampleVisible = await evaluate(`
+        const btn = document.getElementById("sample-btn");
+        const br = btn.getBoundingClientRect();
+        return {
+            synligIViewport: br.height > 0 && br.top >= 0 && br.bottom <= window.innerHeight,
+            afstandFraTop: Math.round(br.top),
+            viewportHoejde: window.innerHeight,
+            ingenModal: !document.getElementById("rules-modal"),
+        };
+    `);
+    ok('Knappen er synlig på forsiden uden at scrolle', sampleVisible.synligIViewport === true, JSON.stringify(sampleVisible));
+    ok('Der er ingen modal at gemme sig i', sampleVisible.ingenModal === true);
 
     await evaluate('document.getElementById("sample-btn").click(); return true;');
     await sleep(450);
@@ -816,12 +826,9 @@ async function main() {
     ok('Alle er markeret som eksempeldata', seeded.allSample === true);
     ok('Begge dage får historik', seeded.days === 'lower,upper', seeded.days);
     ok('Knappen skifter til at kunne rydde igen', /Ryd eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
-    ok('Modalen bliver ikke lukket af at trykke', (await evaluate('return document.getElementById("rules-modal").classList.contains("hidden")')) === false);
 
     // Pointen med funktionen: filtreringen kan nu ses i en frisk browser, hvor der
     // ellers ikke ville være noget at filtrere på.
-    await evaluate('document.getElementById("rules-close").click(); return true;');
-    await sleep(300);
     const seededList = await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length');
     const upperDbSize = await evaluate('return ALL_EXERCISES.upper.length');
     ok('Næste-uge-listen er filtreret med eksempeldata', seededList > 0 && seededList < upperDbSize, `${seededList} af ${upperDbSize}`);
@@ -836,26 +843,21 @@ async function main() {
         return true;
     `);
     await load(URL_UNDER_TEST);
-    await evaluate('document.getElementById("program-rules").click(); return true;');
-    await sleep(300);
-    ok('Med en rigtig træning skjules knappen', (await evaluate('return document.getElementById("sample-btn").classList.contains("hidden")')) === true);
+    ok('Med en rigtig træning skjules hele blokken', (await evaluate('return document.getElementById("sample-section").classList.contains("hidden")')) === true);
     ok('Knappen er deaktiveret', (await evaluate('return document.getElementById("sample-btn").disabled')) === true);
-    ok('Noten forklarer hvorfor', /Ikke tilgængelig/.test(await evaluate('return document.getElementById("sample-note").textContent')), await evaluate('return document.getElementById("sample-note").textContent'));
+    ok('Blokken fylder intet i den daglige visning', (await evaluate('return Math.round(document.getElementById("sample-section").getBoundingClientRect().height)')) === 0);
     await evaluate('document.getElementById("sample-btn").click(); return true;');
     await sleep(300);
     ok('Et klik ændrer ikke de rigtige data', (await evaluate(`
         const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
         return w.length === 1 && w[0].id === "rigtig_1" && !w[0].sample;
     `)) === true);
-    await evaluate('document.getElementById("rules-close").click(); return true;');
-    await sleep(200);
-
     // ─── 15. De fem nye cable-øvelser ─────────────────────────────
     console.log('\n── 15. Nye cable-øvelser i vælgeren');
 
     const NEW_CABLE_UI = [
         ['cable_lateral_raise', 'Cable Lateral Raise'],
-        ['cable_row_per_hand', 'Cable Row (Per hånd)'],
+        ['cable_row_per_hand', 'Cable Row (per hånd)'],
         ['dual_bicep_cable_curl', 'Dual Bicep Cable Curl'],
         ['lat_extension', 'Lat Extension'],
         ['cable_reverse_fly', 'Cable Reverse Fly'],
@@ -866,7 +868,11 @@ async function main() {
         ok(`"${name}" kan vælges i ＋ Tilføj øvelse`, optionValues.includes(id) && optionText.includes(name), `id=${optionValues.includes(id)} navn=${optionText.includes(name)}`);
     }
     ok('Row-varianten vises med "per hånd" så vægten ikke læses som total',
-        optionText.includes('Cable Row (Per hånd) (per hånd)'),
+        optionText.includes('Cable Row (per hånd)'),
+        optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
+    // Navnet må ikke gentage det noten allerede siger: "Cable Row (per hånd) (per hånd)".
+    ok('"per hånd" står kun én gang på row-varianten',
+        !optionText.includes('Cable Row (per hånd) (per hånd)') && !optionText.includes('(Per hånd)'),
         optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
 
     // Præcis én af de nye skal bære "per hånd" — ellers ville de andre blive læst
@@ -877,7 +883,7 @@ async function main() {
     `);
     const withNote = newOptionTexts.filter(t => t.includes('per hånd'));
     ok('Præcis én af de fem vises med "per hånd"', withNote.length === 1, newOptionTexts.join(' | '));
-    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (Per hånd)'), withNote.join(' | '));
+    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (per hånd)'), withNote.join(' | '));
 
     // Grupperingen er det man navigerer efter i vælgeren
     const grouped = await evaluate(`

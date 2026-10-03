@@ -40,10 +40,10 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
     programmet efter det første gem — for bestandigt.
   - En **helt ny** øvelse er derfor ikke i listerne, før du har udført den én gang. Den kan
     altid vælges med **＋ Tilføj øvelse**, og dukker op af sig selv bagefter.
-- **Eksempeldata til test:** nederst i reglerne (📖 Regler) kan du fylde tre ugers A/B-historik
-  ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger data. Den
-  rører **aldrig** dine egne træninger: knappen tilbydes kun når loggen er tom eller kun
-  indeholder eksempeldata, og den skjules helt så snart der ligger en rigtig træning.
+- **Eksempeldata til test:** på forsiden (kun synlig når loggen er tom) kan du fylde tre ugers
+  A/B-historik ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger
+  data. Den rører **aldrig** dine egne træninger: blokken vises kun når loggen er tom eller
+  udelukkende indeholder eksempeldata, og den skjules helt så snart der ligger en rigtig træning.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
 - **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
   historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så
@@ -67,7 +67,8 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   eksport ramte ~8.000 tegn og kunne slet ikke sendes. En uge ligger nu på ~1.000–1.850
   tegn og passer i én besked. Delingsvinduet viser hele tiden `1.365 / 2.000 tegn`, så en
   for lang eksport opdages før man prøver at sende den.
-- **Programregler** i appen under 📖 Regler.
+- **Programregler** ligger i README (Progressive overload, sæt og pauser, hvorfor
+  redskabsvarianter holdes adskilt). Der er bevidst ingen regler-knap i appen.
 
 ## Deling: hvor ofte og hvorfor
 
@@ -199,7 +200,7 @@ træningslog.
 
 Konsekvensen er at data-afhængige ting ikke viser noget på en tom preview — fx viser
 filtreringen hele listen, netop fordi reglen er "vis alt når der ingen historik er". Derfor
-findes **🧪 Fyld med eksempeldata** i reglerne (📖 Regler → nederst): den skriver tre ugers
+findes **Fyld med eksempeldata** på forsiden (kun synlig når loggen er tom): den skriver tre ugers
 A/B-historik med samme form som rigtige data, så filtrering, rotation, forslag og uge-deling
 kan prøves med det samme.
 

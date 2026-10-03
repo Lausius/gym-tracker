@@ -189,7 +189,7 @@ console.log('\n── 5. De fem nye cable-øvelser');
 // er markeret "per hånd" — de øvrige skal læses som én samlet belastning.
 const NEW_CABLE = {
     cable_lateral_raise:   { name: 'Cable Lateral Raise',   muscle: 'Skulder',     compound: false },
-    cable_row_per_hand:    { name: 'Cable Row (Per hånd)',  muscle: 'Ryg',         compound: true },
+    cable_row_per_hand:    { name: 'Cable Row',            muscle: 'Ryg',         compound: true },
     dual_bicep_cable_curl: { name: 'Dual Bicep Cable Curl', muscle: 'Biceps',      compound: false },
     lat_extension:         { name: 'Lat Extension',         muscle: 'Ryg',         compound: false },
     cable_reverse_fly:     { name: 'Cable Reverse Fly',     muscle: 'Skulder/rug', compound: false },
