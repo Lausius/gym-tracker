@@ -133,9 +133,10 @@ async function main() {
     ok('Hint skifter til "valgt"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'valgt');
     ok('Upper B viser Incline Dumbbell Press', (await evaluate('return document.getElementById("program-content").innerText.includes("Incline Dumbbell Press")')) === true);
     ok('Upper B viser ikke Bench Press', (await evaluate('return document.getElementById("program-content").innerText.includes("Bench Press")')) === false);
-    await evaluate('document.getElementById("program-refresh").click(); return true;');
+    ok('↻-knappen er fjernet (A/B skiftes med knapperne)', (await evaluate('return document.getElementById("program-refresh")')) === null);
+    await evaluate('document.querySelector(\'.variant-btn[data-variant="A"]\').click(); return true;');
     await sleep(150);
-    ok('↻ skifter tilbage til A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
+    ok('A-knappen skifter tilbage til A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
     ok('Dagens øvelser er urørt af variantskift (stadig 7)', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 7);
 
     // ─── 4. Rediger sæt og gem ────────────────────────────────────
@@ -914,6 +915,69 @@ async function main() {
     await sleep(300);
     ok('En ny øvelse kan tilføjes til dagens træning', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Cable Lateral Raise")')) === true);
     ok('Den er ikke i programmet, så den vises ikke som "Tilføjet" der', (await evaluate('return [...document.querySelectorAll("#program-content .program-ex-added")].length')) === 0);
+
+    // ─── 16. Dagens program husker sidste træning ─────────────────
+    console.log('\n── 16. Dagens program husker sidste træning');
+
+    // Hele rejsen gennem den rigtige UI: kør en træning, ret den, gem, og se om
+    // programmet kan gentage den bagefter.
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
+    await sleep(300);
+    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
+    await sleep(300);
+
+    ok('Uden historik vises skabelonen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === (await evaluate('return getProgram("lower","B").length')));
+    ok('Uden historik er der ingen "husker"-linje', (await evaluate('return document.getElementById("program-memory").classList.contains("hidden")')) === true);
+
+    // Læg skabelonen ind, fjern den sidste øvelse og sæt en anden vægt — et realistisk
+    // tilfælde hvor man tilpasser programmet til sig selv.
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(350);
+    const templateCount = await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length');
+    await evaluate(`
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        cards[cards.length - 1].querySelector(".remove-btn").click();
+        const first = document.querySelectorAll("#exercise-list .exercise-card")[0];
+        const w = first.querySelector(".set-weight");
+        w.value = "99";
+        w.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+    `);
+    await sleep(300);
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(450);
+    ok('Træningen er gemt med én øvelse færre', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+        return w.length === 1 && w[0].variant === "B" && w[0].exercises.length === ${templateCount - 1};
+    `)) === true);
+
+    // Nu skal programmet kunne gentage præcis den træning
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
+    await sleep(350);
+    const rememberedRows = await evaluate('return [...document.querySelectorAll("#program-content .program-exercise")].map(r => r.dataset.exerciseId)');
+    ok('Programmet husker den gemte træning, ikke skabelonen', rememberedRows.length === templateCount - 1, `${rememberedRows.length} vs skabelon ${templateCount}`);
+    ok('Den fjernede øvelse er ikke med mere', (await evaluate('return document.getElementById("program-content").innerText.includes("Cable Crunch")')) === false, JSON.stringify(rememberedRows));
+    ok('"Husker"-linjen vises nu', (await evaluate('return document.getElementById("program-memory").classList.contains("hidden")')) === false);
+    ok('Og den siger hvilken træning og hvilken dag', /Husker din Lower B fra/.test(await evaluate('return document.getElementById("program-memory").textContent')), await evaluate('return document.getElementById("program-memory").textContent'));
+    ok('Den husker den rettede vægt (99 kg)', (await evaluate('return document.getElementById("program-content").innerText.includes("99 kg")')) === true, await evaluate('return document.getElementById("program-content").innerText'));
+
+    // "Tilføj alle" lægger nu den huskede træning ind — klar til at gentage
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(350);
+    ok('"Tilføj alle" lægger den huskede træning ind, ikke skabelonen', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === templateCount - 1);
+    ok('Med den huskede vægt', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card")[0].querySelector(".set-weight").value')) === '99');
+
+    // Skabelonen er stadig tilgængelig bag "Vis alle"
+    await evaluate('document.getElementById("program-load").click(); return true;');
+    await sleep(200);
+    const hiddenInProgram = await evaluate('return getProgram("lower", "B").length - ' + `document.querySelectorAll('#program-content .program-exercise').length`);
+    ok('Skabelonens øvrige øvelser kan hentes frem', (await evaluate('return document.getElementById("program-toggle").classList.contains("hidden")')) === false, `skjulte=${hiddenInProgram}`);
+    await evaluate('document.getElementById("program-toggle").click(); return true;');
+    await sleep(300);
+    ok('"Vis alle" viser hele skabelonen igen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === (await evaluate('return getProgram("lower","B").length')));
 
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);

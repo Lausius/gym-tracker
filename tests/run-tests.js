@@ -48,8 +48,9 @@ vm.runInContext(
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
-    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory,
-        isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf };
+    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
+        isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
+        programView, lastWorkoutFor, rememberedItems };
     `,
     ctx
 );
@@ -58,7 +59,8 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
-    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
+    getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
+    programView, lastWorkoutFor, rememberedItems,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -426,8 +428,8 @@ ok('Kun de udførte øvelser tælles med', getTrainedExerciseIds('upper').size =
 ok('En udført øvelse er med', getTrainedExerciseIds('upper').has('bench_press'));
 ok('En øvelse man aldrig har lavet er ikke med', !getTrainedExerciseIds('upper').has('shoulder_press'));
 ok('Historik for lower smitter ikke af på upper', getTrainedExerciseIds('lower').size === 0);
-ok('Varianten med historik kendes', hasVariantHistory('upper', 'A') === true);
-ok('Den anden variant tæller ikke som kendt', hasVariantHistory('upper', 'B') === false);
+ok('Sidste træning for varianten kan findes', (lastWorkoutFor('upper', 'A') || {}).id === 'u1');
+ok('En variant uden træninger giver ingen sidste træning', lastWorkoutFor('upper', 'B') === null);
 
 // En øvelse man tilføjede men aldrig førte tal ind i, er ikke "udført"
 store['gym_tracker_workouts'] = asDone([
@@ -456,11 +458,14 @@ ok('"Vis alle" er ikke længere filtreret', shownAll.filtered === false);
 ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === filtered.hidden.length, `${shownAll.hidden.length} skjulte`);
 ok('Den skjulte mængde er den samme som da filtret var slået til', shownAll.hidden.length === filtered.hidden.length);
 
-// Kernen i vagten: man må ikke kunne tømme en variant man bare ikke har kørt endnu
-const untouchedVariant = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'B'));
-ok('En variant uden historik vises i fuld længde', untouchedVariant.visible.length === ALL_EXERCISES.upper.length);
-ok('Derfor skjules intet i den variant', untouchedVariant.hidden.length === 0);
-ok('En variant MED historik filtreres stadig', filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false, hasVariantHistory('upper', 'A')).visible.length === filteredIds.length);
+// En variant man aldrig har kørt må ikke blive tømt. Det er nu "Dagens program"
+// der står for den regel: uden en gemt træning at huske falder den tilbage til
+// skabelonen, så Lower B ikke forsvinder bare fordi man hidtil kun har kørt Lower A.
+const untouchedProgram = programView('lower', 'B', false);
+ok('En variant uden historik viser hele skabelonen',
+    untouchedProgram.last === null && untouchedProgram.shown.length === getProgram('lower', 'B').length,
+    `${untouchedProgram.shown.length} af ${getProgram('lower', 'B').length}`);
+ok('Derfor skjules intet i den variant', untouchedProgram.hiddenCount === 0);
 
 // Kropsvægtøvelser kan slet ikke føre vægthistorik: saveWorkout gemmer kun sæt med
 // vægt > 0, så plank og pull-up optræder aldrig i en gemt træning. Uden denne
@@ -560,7 +565,82 @@ ok('Filtreringen har noget at filtrere på med eksempeldata', sampleFiltered.fil
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
 
-console.log('\n── 11. Filopdeling (index.html + styles.css + app.js)');
+// ─── 11. Dagens program husker sidste træning ────────────────────
+// Kernen i ønsket: har man kørt fx Lower B før, skal "Dagens program" vise DEN
+// træning — samme øvelser og vægte — så man kan gentage den uden at bygge den op.
+// Skabelonen er kun et udgangspunkt når der ikke er noget at huske.
+console.log('\n── 11. Dagens program husker sidste træning');
+
+const progWorkout = (id, date, day, variant, exs) => ({ id, date, day, variant, exercises: exs.map(e => ({ exerciseId: e[0], sets: e[1] })) });
+const set = (w, r) => Array.from({ length: 3 }, () => ({ weight: w, reps: r }));
+
+// Ingen historik for lower B -> skabelonen
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('la', '2026-09-20', 'lower', 'A', [['squat', set(60, 8)], ['leg_curl', set(40, 12)]]),
+]);
+const vBefore = programView('lower', 'B', false);
+ok('Uden historik for varianten vises skabelonen', vBefore.last === null && vBefore.shown.length === getProgram('lower', 'B').length);
+ok('Skabelonen har ingen "husker"-markør', vBefore.hiddenCount === 0);
+
+// Nu en gemt Lower B med et ØNSKET udvalg: kun to øvelser, hvoraf den ene ikke er i skabelonen
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('la', '2026-09-20', 'lower', 'A', [['squat', set(60, 8)]]),
+    progWorkout('lb1', '2026-09-22', 'lower', 'B', [['deadlift', set(70, 6)], ['cable_lateral_raise', set(7, 12)]]),
+]);
+const v1 = programView('lower', 'B', false);
+ok('Med historik vises den gemte træning, ikke skabelonen', v1.last !== null && v1.last.id === 'lb1');
+ok('Den husker øvelserne i samme rækkefølge',
+    v1.shown.map(i => i.exerciseId).join(',') === 'deadlift,cable_lateral_raise',
+    v1.shown.map(i => i.exerciseId).join(','));
+ok('Den husker vægten fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').weight === 70);
+ok('Den husker reps fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').reps === 6);
+ok('Den husker antal sæt fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').sets === 3);
+ok('En øvelse der ikke står i skabelonen huskes også', v1.shown.some(i => i.exerciseId === 'cable_lateral_raise'));
+ok('De skabelon-øvelser man ikke havde med tælles som skjulte',
+    v1.hiddenCount === getProgram('lower', 'B').length - 1 && v1.hiddenCount === 5,
+    `${v1.hiddenCount} skjulte (deadlift er den ene skabelon-øvelse der blev husket)`);
+const v1All = programView('lower', 'B', true);
+ok('"Vis alle" lægger skabelonen oveni uden at fjerne noget', v1All.shown.some(i => i.exerciseId === 'deadlift') && v1All.shown.some(i => i.exerciseId === 'front_squat'));
+ok('"Vis alle" skjuler intet', programView('lower', 'B', true).hiddenCount === v1.hiddenCount, 'antallet skal være det samme, ellers skjuler knappen sig selv');
+
+// Den NYESTE træning for varianten vinder, ikke den ældste
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('lb1', '2026-09-22', 'lower', 'B', [['deadlift', set(70, 6)]]),
+    progWorkout('lb2', '2026-09-29', 'lower', 'B', [['front_squat', set(42, 8)]]),
+]);
+const v2 = programView('lower', 'B', false);
+ok('Den nyeste træning for varianten bruges', v2.last.id === 'lb2' && v2.shown[0].exerciseId === 'front_squat',
+    `${v2.last.id}: ${v2.shown.map(i => i.exerciseId).join(',')}`);
+
+// En variant man har kørt KUN for den anden dag må ikke smitte af
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('uB', '2026-09-23', 'upper', 'B', [['cable_row', set(40, 12)]]),
+]);
+ok('Historik for upper smitter ikke af på lower', lastWorkoutFor('lower', 'B') === null);
+ok('Og omvendt findes upper B', lastWorkoutFor('upper', 'B').id === 'uB');
+
+// Kropsvægt kan ikke huskes (saveWorkout gemmer ikke sæt med vægt 0), så plank skal
+// lægges tilbage fra skabelonen — ellers ville den forsvinde fra programmet for altid.
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('laNoPlank', '2026-09-21', 'lower', 'A', [['squat', set(60, 8)], ['leg_curl', set(40, 12)]]),
+]);
+const vA = programView('lower', 'A', false);
+ok('Plank er ikke i loggen (som i virkeligheden)', vA.last.exercises.every(e => e.exerciseId !== 'plank'));
+ok('Plank lægges alligevel tilbage fra skabelonen', vA.shown.some(i => i.exerciseId === 'plank'),
+    vA.shown.map(i => i.exerciseId).join(','));
+
+// Sæt med vægt 0 må ikke give et misvisende forslag — vi tager det bedste sæt
+store['gym_tracker_workouts'] = JSON.stringify([
+    progWorkout('mix', '2026-09-30', 'lower', 'B', [['deadlift', [{ weight: 60, reps: 8 }, { weight: 75, reps: 5 }, { weight: 75, reps: 6 }]]]),
+]);
+const v3 = programView('lower', 'B', false);
+ok('Det bedste sæt fra sidst bruges som udgangspunkt', v3.shown[0].weight === 75 && v3.shown[0].reps === 6,
+    `${v3.shown[0].weight} kg × ${v3.shown[0].reps}`);
+ok('Antal sæt er antallet der blev løftet', v3.shown[0].sets === 3);
+
+store['gym_tracker_workouts'] = JSON.stringify([]);
+
+console.log('\n── 12. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));
