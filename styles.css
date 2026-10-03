@@ -928,6 +928,31 @@
             cursor: pointer;
         }
 
+        /* Eksempeldata: bevidst nedtonet — det er et testværktøj, ikke en del af den
+           daglige brug. Skjules helt når der ligger rigtige træninger. */
+        .sample-btn {
+            width: 100%;
+            margin-top: 10px;
+            min-height: 32px;
+            padding: 8px 10px;
+            background: none;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .sample-note {
+            margin: 6px 0 0;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            color: var(--text-dim);
+        }
+
         /* ===== PROGRESSIVE OVERLOAD ===== */
         .progressive-section {
             margin-top: 20px;

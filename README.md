@@ -34,6 +34,10 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   - Kropsvægtøvelser (Plank, Pull-up) filtreres **aldrig** væk: der gemmes kun sæt med vægt
     over 0, så de kan ikke føre vægthistorik. Uden den undtagelse ville de forsvinde fra
     programmet efter det første gem — for bestandigt.
+- **Eksempeldata til test:** nederst i reglerne (📖 Regler) kan du fylde tre ugers A/B-historik
+  ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger data. Den
+  rører **aldrig** dine egne træninger: knappen tilbydes kun når loggen er tom eller kun
+  indeholder eksempeldata, og den skjules helt så snart der ligger en rigtig træning.
 - **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
 - **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
   historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så
@@ -124,6 +128,46 @@ tests/browser-check.js  end-to-end test via Chrome DevTools Protocol
 
 Der er bevidst ingen build-step: filerne serveres som de er, og `app.js` er et klassisk
 script (ikke et ES-modul), så `file://` stadig virker.
+
+## Preview af en PR (test fra telefonen)
+
+Produktionssiden kommer fra `main` via GitHub Pages, så den kan man først se **efter** merge.
+For at kunne teste en PR på telefonen **inden** den merges, kobles repoet til **Netlify**, som
+giver hver pull request sin egen URL af formen
+`https://deploy-preview-<PR-nummer>--<site>.netlify.app` — fx `deploy-preview-6--...` for PR #6.
+URL'en opdateres automatisk hver gang der pushes nye commits til branchen, og Netlify skriver
+også et link i PR'ens checks.
+
+### Opsætning (gøres én gang)
+
+1. Opret en gratis konto på [app.netlify.com](https://app.netlify.com/signup).
+2. Vælg **Add new site → Import an existing project → GitHub** og giv Netlify adgang til
+   `Lausius/gym-tracker`.
+3. Sæt **Build command** til at være **tom**, og **Publish directory** til `/` (repoets rod).
+   Der er ingen build-step — filerne ligger klar i repoet.
+4. Deploy. Netlify opretter også en produktions-URL (`<site>.netlify.app`); den bruges ikke til
+   noget. GitHub Pages er fortsat den rigtige side — det er kun `deploy-preview-…`-URL'erne der
+   er interessante.
+
+### Vigtigt: preview'en har ikke dine data
+
+Preview'en ligger på et **andet domæne** end `lausius.github.io`, og `localStorage` er bundet
+til domænet. Preview'en starter derfor **uden dine træningsdata**. Det er med vilje: en preview
+kører kode der ikke er godkendt endnu, og på et separat domæne kan den ikke skrive i din rigtige
+træningslog.
+
+Konsekvensen er at data-afhængige ting ikke viser noget på en tom preview — fx viser
+filtreringen hele listen, netop fordi reglen er "vis alt når der ingen historik er". Derfor
+findes **🧪 Fyld med eksempeldata** i reglerne (📖 Regler → nederst): den skriver tre ugers
+A/B-historik med samme form som rigtige data, så filtrering, rotation, forslag og uge-deling
+kan prøves med det samme.
+
+### Alternativ: Cloudflare Pages
+
+Cloudflare Pages gør præcis det samme og er lige så gratis. Forskellen er URL'en: Cloudflare
+giver en hash-URL plus et stabilt alias pr. branch, fx
+`feat-filtrer-oevelser-uden-historik.<projekt>.pages.dev` (branch-navnet med `-` i stedet for
+`/`). Netlify er valgt her fordi `deploy-preview-6--…` er nemmere at læse og huske.
 
 ## Arbejdsgang: ændringer kommer som PR
 
@@ -220,9 +264,10 @@ persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i
 **redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
 **uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt),
 **filtrering af øvelser uden historik** (Vis alle-knappen, "Tilføj alle" der kun tager de
-synlige, og at en variant man aldrig har kørt ikke bliver tømt), og mobillayout ved
-320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når teksten bliver længere, og
-at intet flyder ud over kanten).
+synlige, at en variant man aldrig har kørt ikke bliver tømt, og at kropsvægtøvelser overlever
+et gem), **eksempeldata** (fyld, ryd, og at knappen ikke kan bruges når der ligger rigtige
+træninger), og mobillayout ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når
+teksten bliver længere, og at intet flyder ud over kanten).
 
 Testene rydder `localStorage` ved start, så en kørsel ikke arver state fra den forrige — de
 kan køres vilkårligt mange gange i træk med samme resultat.

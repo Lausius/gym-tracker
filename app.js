@@ -398,6 +398,119 @@
         btn.textContent = showAll ? `Skjul (${hiddenCount})` : `Vis alle (${hiddenCount})`;
     }
 
+    // ─── Eksempeldata (til at prøve appen uden at taste data ind) ──
+    // Bruges fx i en preview på et andet domæne, hvor localStorage er tom: dér ville
+    // filtreringen ikke kunne vise noget, fordi reglen er "vis alt når der ingen
+    // historik er". Knappen tilbydes derfor KUN når loggen er tom eller udelukkende
+    // indeholder eksempeldata — den kan altså aldrig overskrive rigtige træninger.
+    function isSampleWorkout(w) {
+        return !!w && w.sample === true;
+    }
+
+    function realWorkouts(workouts) {
+        return workouts.filter(w => !isSampleWorkout(w));
+    }
+
+    // Mandag i den uge datoen ligger i (ISO-ugen starter mandag)
+    function mondayOf(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return d;
+    }
+
+    // Tre hele uger med A/B-historik. Ugens fire træninger rammer de ugedage
+    // rotationen selv foreslår (Upper A → Lower A → Upper B → Lower B), og vægten
+    // stiger lidt for hver uge, så progression, filtrering og uge-deling alle har
+    // noget at vise. Øvelserne kommer fra appens egne programmer, så id'er og
+    // sæt-antal ikke kan drive fra virkeligheden.
+    function buildSampleWorkouts(today = new Date()) {
+        const monday = mondayOf(today);
+        const slots = [
+            { day: 'upper', variant: 'A', offset: 0 },
+            { day: 'lower', variant: 'A', offset: 1 },
+            { day: 'upper', variant: 'B', offset: 3 },
+            { day: 'lower', variant: 'B', offset: 4 },
+        ];
+        const out = [];
+        for (let back = 2; back >= 0; back--) {
+            const gained = 2 - back; // 0, 1 eller 2 ugers fremgang
+            for (const slot of slots) {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() - back * 7 + slot.offset);
+                const step = slot.day === 'lower' ? 5 : 2.5;
+                out.push({
+                    id: `sample-${isoDate(d)}-${slot.day}${slot.variant}`,
+                    date: isoDate(d),
+                    day: slot.day,
+                    variant: slot.variant,
+                    sample: true,
+                    exercises: getProgram(slot.day, slot.variant).map(item => ({
+                        exerciseId: item.exerciseId,
+                        // Samme regel som saveWorkout: kun sæt med vægt over 0 gemmes.
+                        // Kropsvægtøvelser (plank, pull-up) falder derfor ud af loggen
+                        // her — præcis som de ville i virkeligheden. At de så stadig
+                        // står i programmet er kropsvægt-undtagelsen, ikke held.
+                        sets: Array.from({ length: item.sets }, () => ({
+                            weight: item.weight > 0 ? item.weight + gained * step : 0,
+                            reps: item.reps,
+                        })).filter(s => s.weight > 0 && s.reps > 0),
+                    })).filter(ex => ex.sets.length > 0),
+                });
+            }
+        }
+        return out;
+    }
+
+    function renderSampleControls() {
+        const btn = document.getElementById('sample-btn');
+        const note = document.getElementById('sample-note');
+        if (!btn) return;
+
+        const workouts = loadWorkouts();
+        const real = realWorkouts(workouts);
+
+        if (real.length > 0) {
+            // Der ligger rigtige træninger: knappen fjernes helt, så den ikke kan
+            // rammes ved et uheld. Det er hele sikkerheden i funktionen.
+            btn.classList.add('hidden');
+            btn.disabled = true;
+            if (note) {
+                note.textContent = `Ikke tilgængelig: der ligger ${real.length} ` +
+                    `rigtig${real.length === 1 ? '' : 'e'} træning${real.length === 1 ? '' : 'er'}. ` +
+                    'Funktionen rører aldrig dine egne data.';
+            }
+            return;
+        }
+
+        btn.classList.remove('hidden');
+        btn.disabled = false;
+        if (workouts.length > 0) {
+            btn.textContent = `🧪 Ryd eksempeldata (${workouts.length} træninger)`;
+            if (note) note.textContent = 'Loggen indeholder kun eksempeldata — de kan fjernes igen her.';
+        } else {
+            btn.textContent = '🧪 Fyld med eksempeldata';
+            if (note) note.textContent = 'Skriver 3 ugers A/B-historik, så alt kan prøves med det samme.';
+        }
+    }
+
+    function toggleSampleData() {
+        const workouts = loadWorkouts();
+        if (realWorkouts(workouts).length > 0) {
+            showToast('Eksempeldata rører ikke dine rigtige træninger', 'info');
+            renderSampleControls();
+            return;
+        }
+        if (workouts.length > 0) {
+            saveWorkouts([]);
+            showToast('Eksempeldata ryddet', 'info');
+        } else {
+            const samples = buildSampleWorkouts();
+            saveWorkouts(samples);
+            showToast(`${samples.length} eksempeltræninger lagt ind`, 'success');
+        }
+        renderAll();
+    }
+
     // ─── Render Functions ─────────────────────────────────────────
     function renderProgram() {
         const variant = getCurrentVariant();
@@ -671,6 +784,7 @@
         renderProgressiveOverload();
         renderSaveBar();
         renderAddExerciseDropdown();
+        renderSampleControls();
     }
 
     // ─── Program handling (A/B) ───────────────────────────────────
@@ -718,6 +832,7 @@
     }
 
     function openRules() {
+        renderSampleControls(); // afhænger af om loggen indeholder rigtige træninger
         document.getElementById('rules-overlay').classList.remove('hidden');
         document.getElementById('rules-modal').classList.remove('hidden');
     }
@@ -1105,6 +1220,7 @@
             }
         });
         document.getElementById('program-rules').addEventListener('click', openRules);
+        document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
         document.getElementById('rules-close').addEventListener('click', closeRules);
         document.getElementById('rules-overlay').addEventListener('click', closeRules);
 

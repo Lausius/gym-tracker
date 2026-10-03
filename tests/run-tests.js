@@ -49,7 +49,7 @@ vm.runInContext(
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory,
-        isBodyweightExercise };
+        isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf };
     `,
     ctx
 );
@@ -58,7 +58,7 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
-    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise,
+    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -450,7 +450,66 @@ ok('Pull-up overlever i et program hvor intet er udført', progBFiltered.visible
 
 store['gym_tracker_workouts'] = asDone([]);
 
-console.log('\n── 10. Filopdeling (index.html + styles.css + app.js)');
+// ─── 10. Eksempeldata ─────────────────────────────────────────────
+// Eksempeldata skal ligne RIGTIGE data: samme sæt-regel som saveWorkout (kun sæt
+// med vægt > 0), så en preview ikke kan skjule en fejl ved at have en anden form.
+console.log('\n── 10. Eksempeldata (til at prøve appen uden at taste data ind)');
+
+const sampleToday = new Date(2026, 9, 2); // fredag 2. oktober 2026
+const samples = buildSampleWorkouts(sampleToday);
+const sampleVariant = k => {
+    const day = k.startsWith('upper') ? 'upper' : 'lower';
+    return samples.filter(w => w.day === day && w.variant === k.slice(-1));
+};
+
+ok('Der bygges tre hele uger (12 træninger)', samples.length === 12, `${samples.length}`);
+ok('Alle eksempeltræninger er markeret som eksempeldata', samples.every(isSampleWorkout));
+ok('Ingen eksempeltræning er markeret som delt', samples.every(w => !w.sharedAt));
+ok('Alle fire varianter er med tre gange', ['upperA', 'upperB', 'lowerA', 'lowerB'].every(k => sampleVariant(k).length === 3),
+    ['upperA', 'upperB', 'lowerA', 'lowerB'].map(k => `${k}=${sampleVariant(k).length}`).join(' '));
+ok('Træningerne fordeler sig på tre ISO-uger', new Set(samples.map(w => isoWeekKey(w.date))).size === 3,
+    [...new Set(samples.map(w => isoWeekKey(w.date)))].join(', '));
+ok('Den nyeste uge er ugen omkring den givne dato', isoWeekKey(samples[samples.length - 1].date) === isoWeekKey('2026-10-02'), isoWeekKey(samples[samples.length - 1].date));
+ok('Ugedagene rammer rotationen (man, tir, tor, fre)', ['2026-09-28', '2026-09-29', '2026-10-01', '2026-10-02'].every(d => samples.some(w => w.date === d)),
+    samples.slice(-4).map(w => w.date).join(', '));
+
+// Øvelserne kommer fra appens egne programmer, så id'er og sæt-antal ikke kan drive
+ok('Hver trænings øvelser findes i dens program', samples.every(w =>
+    w.exercises.every(e => getProgram(w.day, w.variant).some(item => item.exerciseId === e.exerciseId))));
+ok('Hvert gemte sæt har vægt over 0 og reps', samples.every(w => w.exercises.every(e => e.sets.every(s => s.weight > 0 && s.reps > 0))));
+// Kropsvægtøvelser falder ud af loggen her, ligesom de gør i virkeligheden
+ok('Kropsvægtøvelser er ikke i loggen (som ved et rigtigt gem)', samples.every(w => !w.exercises.some(e => e.exerciseId === 'plank' || e.exerciseId === 'pull_up')));
+ok('Lower-træningerne har derfor en øvelse mindre end skabelonen', sampleVariant('lowerA')[0].exercises.length === getProgram('lower', 'A').length - 1);
+
+// Fremgang: samme variant skal være tungere i uge 3 end i uge 1
+const weightOf = (w, id) => w.exercises.find(e => e.exerciseId === id).sets[0].weight;
+const firstUpperA = sampleVariant('upperA')[0];
+const lastUpperA = sampleVariant('upperA').slice(-1)[0];
+ok('Vægten stiger fra første til sidste uge', weightOf(lastUpperA, 'bench_press') > weightOf(firstUpperA, 'bench_press'),
+    `${weightOf(firstUpperA, 'bench_press')} → ${weightOf(lastUpperA, 'bench_press')}`);
+const firstLowerA = sampleVariant('lowerA')[0];
+const lastLowerA = sampleVariant('lowerA').slice(-1)[0];
+ok('Ben stiger hurtigere end overkrop', (weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')) > (weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')),
+    `squat +${weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')} vs bench +${weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')}`);
+
+// Sikkerheden: rigtige træninger må ikke kunne rammes
+ok('realWorkouts filtrerer eksempeldata fra', realWorkouts(samples).length === 0);
+ok('Én rigtig træning tæller som rigtige data', realWorkouts([{ id: 'rigtig', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [] }, ...samples]).length === 1);
+ok('En tom log giver ingen rigtige data', realWorkouts([]).length === 0);
+ok('En tilfældig post uden flaget tælles som rigtig', realWorkouts([{ id: 'x' }]).length === 1);
+
+// Pointen: eksempeldata skal gøre filtreringen demonstrerbar i en frisk browser,
+// hvor der ellers ikke ville være noget at filtrere på.
+store['gym_tracker_workouts'] = JSON.stringify(samples);
+ok('Eksempeldata giver historik på begge dage', getTrainedExerciseIds('upper').size > 0 && getTrainedExerciseIds('lower').size > 0,
+    `upper=${getTrainedExerciseIds('upper').size} lower=${getTrainedExerciseIds('lower').size}`);
+const sampleFiltered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Filtreringen har noget at filtrere på med eksempeldata', sampleFiltered.filtered === true && sampleFiltered.hidden.length > 0,
+    `${sampleFiltered.hidden.length} skjulte`);
+
+store['gym_tracker_workouts'] = JSON.stringify([]);
+
+console.log('\n── 11. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));

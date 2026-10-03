@@ -793,6 +793,63 @@ async function main() {
     ok('Lower-øvelser uden historik er filtreret væk', !lowerAfter.includes('leg_extension'), JSON.stringify(lowerAfter));
     ok('Plank er også med i Næste uge-listen', (await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId).includes("plank")')) === true);
 
+    // ─── 14. Eksempeldata ─────────────────────────────────────────
+    console.log('\n── 14. Eksempeldata til preview og test');
+
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate('document.getElementById("program-rules").click(); return true;');
+    await sleep(300);
+
+    ok('Knappen tilbyder at fylde eksempeldata ind', /Fyld med eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+    ok('Knappen er synlig når loggen er tom', (await evaluate('return document.getElementById("sample-btn").classList.contains("hidden")')) === false);
+    ok('Noten forklarer hvad der sker', (await evaluate('return document.getElementById("sample-note").textContent')).length > 0);
+    ok('Den er et gyldigt tap-target', (await evaluate('return Math.round(document.getElementById("sample-btn").getBoundingClientRect().height)')) >= 28);
+
+    await evaluate('document.getElementById("sample-btn").click(); return true;');
+    await sleep(450);
+    const seeded = await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
+        return { count: w.length, allSample: w.every(x => x.sample === true), days: [...new Set(w.map(x => x.day))].sort().join(",") };
+    `);
+    ok('Eksempeldata lægges ind (12 træninger)', seeded.count === 12, JSON.stringify(seeded));
+    ok('Alle er markeret som eksempeldata', seeded.allSample === true);
+    ok('Begge dage får historik', seeded.days === 'lower,upper', seeded.days);
+    ok('Knappen skifter til at kunne rydde igen', /Ryd eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+    ok('Modalen bliver ikke lukket af at trykke', (await evaluate('return document.getElementById("rules-modal").classList.contains("hidden")')) === false);
+
+    // Pointen med funktionen: filtreringen kan nu ses i en frisk browser, hvor der
+    // ellers ikke ville være noget at filtrere på.
+    await evaluate('document.getElementById("rules-close").click(); return true;');
+    await sleep(300);
+    const seededList = await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length');
+    const upperDbSize = await evaluate('return ALL_EXERCISES.upper.length');
+    ok('Næste-uge-listen er filtreret med eksempeldata', seededList > 0 && seededList < upperDbSize, `${seededList} af ${upperDbSize}`);
+
+    // Sikkerheden: så snart der ligger én rigtig træning, må knappen ikke kunne bruges
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
+            id: "rigtig_1", date: "2026-09-28", day: "upper", variant: "A",
+            exercises: [{ exerciseId: "bench_press", sets: [{ weight: 60, reps: 8 }] }],
+        }]));
+        return true;
+    `);
+    await load(URL_UNDER_TEST);
+    await evaluate('document.getElementById("program-rules").click(); return true;');
+    await sleep(300);
+    ok('Med en rigtig træning skjules knappen', (await evaluate('return document.getElementById("sample-btn").classList.contains("hidden")')) === true);
+    ok('Knappen er deaktiveret', (await evaluate('return document.getElementById("sample-btn").disabled')) === true);
+    ok('Noten forklarer hvorfor', /Ikke tilgængelig/.test(await evaluate('return document.getElementById("sample-note").textContent')), await evaluate('return document.getElementById("sample-note").textContent'));
+    await evaluate('document.getElementById("sample-btn").click(); return true;');
+    await sleep(300);
+    ok('Et klik ændrer ikke de rigtige data', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+        return w.length === 1 && w[0].id === "rigtig_1" && !w[0].sample;
+    `)) === true);
+    await evaluate('document.getElementById("rules-close").click(); return true;');
+    await sleep(200);
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)
