@@ -19,12 +19,16 @@
             { id: 'shoulder_press',    name: 'Shoulder Press',           muscle: 'Skulder',    compound: true,  equipment: 'Barbell' },
             { id: 'dumbbell_shoulder_press', name: 'Dumbbell Shoulder Press', muscle: 'Skulder', compound: true, equipment: 'Dumbbell', loadNote: 'per hånd' },
             { id: 'lateral_raise',     name: 'Lateral Raise',            muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'cable_lateral_raise', name: 'Cable Lateral Raise',    muscle: 'Skulder',    compound: false, equipment: 'Cable' },
             { id: 'front_raise',       name: 'Front Raise',              muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
             { id: 'reverse_fly',       name: 'Reverse Fly',              muscle: 'Skulder/rug',compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'cable_reverse_fly', name: 'Cable Reverse Fly',        muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
             { id: 'pull_up',           name: 'Pull-Up',                  muscle: 'Ryg',        compound: true,  equipment: 'Bodyweight' },
             { id: 'chin_up',           name: 'Chin-Up',                  muscle: 'Ryg/biceps', compound: true,  equipment: 'Bodyweight' },
             { id: 'lat_pulldown',      name: 'Lat Pulldown',             muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
+            { id: 'lat_extension',     name: 'Lat Extension',            muscle: 'Ryg',        compound: false, equipment: 'Cable' },
             { id: 'cable_row',         name: 'Seated Cable Row',         muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
+            { id: 'cable_row_per_hand', name: 'Cable Row',              muscle: 'Ryg',        compound: true,  equipment: 'Cable', loadNote: 'per hånd' },
             { id: 'barbell_row',       name: 'Barbell Row',              muscle: 'Ryg',        compound: true,  equipment: 'Barbell' },
             { id: 'chest_supported_row', name: 'Chest Supported Row',    muscle: 'Ryg',        compound: true,  equipment: 'Machine/Dumbbell' },
             { id: 'face_pull',         name: 'Face Pull',                muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
@@ -32,6 +36,7 @@
             { id: 'ez_bar_curl',       name: 'Bicep Curl (EZ-bar)',      muscle: 'Biceps',     compound: false, equipment: 'EZ-bar' },
             { id: 'dumbbell_curl',     name: 'Bicep Curl (Dumbbell)',    muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
             { id: 'hammer_curl',       name: 'Hammer Curl',              muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
+            { id: 'dual_bicep_cable_curl', name: 'Dual Bicep Cable Curl', muscle: 'Biceps',   compound: false, equipment: 'Cable' },
             { id: 'tricep_pushdown',   name: 'Tricep Pushdown',          muscle: 'Triceps',    compound: false, equipment: 'Cable' },
             { id: 'skull_crusher',     name: 'Skull Crusher',            muscle: 'Triceps',    compound: false, equipment: 'EZ-bar' },
             { id: 'overhead_tricep',   name: 'Overhead Tricep Extension',muscle: 'Triceps',    compound: false, equipment: 'Cable' },
@@ -398,6 +403,116 @@
         btn.textContent = showAll ? `Skjul (${hiddenCount})` : `Vis alle (${hiddenCount})`;
     }
 
+    // ─── Eksempeldata (til at prøve appen uden at taste data ind) ──
+    // Bruges fx i en preview på et andet domæne, hvor localStorage er tom: dér ville
+    // filtreringen ikke kunne vise noget, fordi reglen er "vis alt når der ingen
+    // historik er". Knappen tilbydes derfor KUN når loggen er tom eller udelukkende
+    // indeholder eksempeldata — den kan altså aldrig overskrive rigtige træninger.
+    function isSampleWorkout(w) {
+        return !!w && w.sample === true;
+    }
+
+    function realWorkouts(workouts) {
+        return workouts.filter(w => !isSampleWorkout(w));
+    }
+
+    // Mandag i den uge datoen ligger i (ISO-ugen starter mandag)
+    function mondayOf(date) {
+        const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+        return d;
+    }
+
+    // Tre hele uger med A/B-historik. Ugens fire træninger rammer de ugedage
+    // rotationen selv foreslår (Upper A → Lower A → Upper B → Lower B), og vægten
+    // stiger lidt for hver uge, så progression, filtrering og uge-deling alle har
+    // noget at vise. Øvelserne kommer fra appens egne programmer, så id'er og
+    // sæt-antal ikke kan drive fra virkeligheden.
+    function buildSampleWorkouts(today = new Date()) {
+        const monday = mondayOf(today);
+        const slots = [
+            { day: 'upper', variant: 'A', offset: 0 },
+            { day: 'lower', variant: 'A', offset: 1 },
+            { day: 'upper', variant: 'B', offset: 3 },
+            { day: 'lower', variant: 'B', offset: 4 },
+        ];
+        const out = [];
+        for (let back = 2; back >= 0; back--) {
+            const gained = 2 - back; // 0, 1 eller 2 ugers fremgang
+            for (const slot of slots) {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() - back * 7 + slot.offset);
+                const step = slot.day === 'lower' ? 5 : 2.5;
+                out.push({
+                    id: `sample-${isoDate(d)}-${slot.day}${slot.variant}`,
+                    date: isoDate(d),
+                    day: slot.day,
+                    variant: slot.variant,
+                    sample: true,
+                    exercises: getProgram(slot.day, slot.variant).map(item => ({
+                        exerciseId: item.exerciseId,
+                        // Samme regel som saveWorkout: kun sæt med vægt over 0 gemmes.
+                        // Kropsvægtøvelser (plank, pull-up) falder derfor ud af loggen
+                        // her — præcis som de ville i virkeligheden. At de så stadig
+                        // står i programmet er kropsvægt-undtagelsen, ikke held.
+                        sets: Array.from({ length: item.sets }, () => ({
+                            weight: item.weight > 0 ? item.weight + gained * step : 0,
+                            reps: item.reps,
+                        })).filter(s => s.weight > 0 && s.reps > 0),
+                    })).filter(ex => ex.sets.length > 0),
+                });
+            }
+        }
+        return out;
+    }
+
+    function renderSampleControls() {
+        const section = document.getElementById('sample-section');
+        const btn = document.getElementById('sample-btn');
+        const note = document.getElementById('sample-note');
+        if (!section || !btn) return;
+
+        const workouts = loadWorkouts();
+
+        // Hele blokken vises KUN når loggen er tom eller udelukkende indeholder
+        // eksempeldata. Så snart der ligger én rigtig træning, forsvinder den —
+        // ikke bare knappen. Ellers stod overskriften og teksten tilbage uden
+        // nogen knap, og så ser det ud som om noget mangler.
+        if (realWorkouts(workouts).length > 0) {
+            section.classList.add('hidden');
+            btn.disabled = true;
+            return;
+        }
+
+        section.classList.remove('hidden');
+        btn.disabled = false;
+        if (workouts.length > 0) {
+            btn.textContent = `Ryd eksempeldata (${workouts.length} træninger)`;
+            if (note) note.textContent = 'Loggen indeholder kun eksempeldata — de kan fjernes igen her.';
+        } else {
+            btn.textContent = 'Fyld med eksempeldata';
+            if (note) note.textContent = 'Skriver tre ugers A/B-historik, så rotation, forslag, filtrering og deling kan prøves med det samme.';
+        }
+    }
+
+    function toggleSampleData() {
+        const workouts = loadWorkouts();
+        if (realWorkouts(workouts).length > 0) {
+            showToast('Eksempeldata rører ikke dine rigtige træninger', 'info');
+            renderSampleControls();
+            return;
+        }
+        if (workouts.length > 0) {
+            saveWorkouts([]);
+            showToast('Eksempeldata ryddet', 'info');
+        } else {
+            const samples = buildSampleWorkouts();
+            saveWorkouts(samples);
+            showToast(`${samples.length} eksempeltræninger lagt ind`, 'success');
+        }
+        renderAll();
+    }
+
     // ─── Render Functions ─────────────────────────────────────────
     function renderProgram() {
         const variant = getCurrentVariant();
@@ -671,6 +786,7 @@
         renderProgressiveOverload();
         renderSaveBar();
         renderAddExerciseDropdown();
+        renderSampleControls();
     }
 
     // ─── Program handling (A/B) ───────────────────────────────────
@@ -715,16 +831,6 @@
         state.programVariant = getCurrentVariant() === 'A' ? 'B' : 'A';
         renderProgram();
         showToast(`Viser ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${state.programVariant}`, 'info');
-    }
-
-    function openRules() {
-        document.getElementById('rules-overlay').classList.remove('hidden');
-        document.getElementById('rules-modal').classList.remove('hidden');
-    }
-
-    function closeRules() {
-        document.getElementById('rules-overlay').classList.add('hidden');
-        document.getElementById('rules-modal').classList.add('hidden');
     }
 
     // ─── Actions ──────────────────────────────────────────────────
@@ -1104,9 +1210,7 @@
                 showToast('Øvelsen er allerede tilføjet', 'info');
             }
         });
-        document.getElementById('program-rules').addEventListener('click', openRules);
-        document.getElementById('rules-close').addEventListener('click', closeRules);
-        document.getElementById('rules-overlay').addEventListener('click', closeRules);
+        document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
 
         // Event: Add exercise
         document.getElementById('add-exercise-btn').addEventListener('click', () => {
@@ -1190,7 +1294,6 @@
             if (e.key === 'Escape') {
                 closeHistory();
                 closeShareModal();
-                closeRules();
             }
         });
 

@@ -820,19 +820,6 @@
         }
         .program-load-btn:hover { background: var(--accent-dark); }
         .program-load-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .program-rules-btn {
-            padding: 10px 14px;
-            background: var(--bg-input);
-            color: var(--text-dim);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition);
-            font-family: inherit;
-        }
-        .program-rules-btn:hover { border-color: var(--accent); color: var(--accent); }
 
         /* ===== A/B VARIANT SELECTOR ===== */
         .variant-selector {
@@ -865,67 +852,43 @@
             white-space: nowrap;
         }
 
-        /* ===== RULES MODAL ===== */
-        .rules-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 998;
-        }
-        .rules-modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: min(94vw, 460px);
-            max-height: 84dvh;
-            overflow-y: auto;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: var(--radius);
-            z-index: 999;
-            padding: 18px;
-        }
-        .rules-modal h2 {
-            font-size: 1rem;
-            margin-bottom: 12px;
-        }
-        .rules-modal h3 {
-            font-size: 0.82rem;
-            color: var(--accent);
-            margin: 14px 0 6px;
-        }
-        .rules-modal ul {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .rules-modal li {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            line-height: 1.45;
-            padding-left: 16px;
-            position: relative;
-        }
-        .rules-modal li::before {
-            content: '▸';
-            position: absolute;
-            left: 0;
-            color: var(--accent);
-        }
-        .rules-close-btn {
-            width: 100%;
-            margin-top: 16px;
-            padding: 11px;
-            background: var(--accent);
-            color: #000;
-            border: none;
+        /* Eksempeldata: bevidst nedtonet — det er et testværktøj, ikke en del af den
+           daglige brug. Ligger nu på forsiden (ikke i en modal) og skjules helt, så
+           snart der ligger en rigtig træning. */
+        .sample-section {
+            margin-bottom: 16px;
+            padding: 12px;
+            border: 1px dashed var(--border);
             border-radius: var(--radius-sm);
-            font-size: 0.85rem;
+            background: var(--bg-input);
+        }
+        .sample-title {
+            font-size: 0.8rem;
             font-weight: 700;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+        .sample-btn {
+            width: 100%;
+            margin-top: 10px;
+            min-height: 32px;
+            padding: 8px 10px;
+            background: none;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            font-weight: 600;
             font-family: inherit;
             cursor: pointer;
+            transition: all var(--transition);
+        }
+        .sample-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .sample-note {
+            margin: 6px 0 0;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            color: var(--text-dim);
         }
 
         /* ===== PROGRESSIVE OVERLOAD ===== */

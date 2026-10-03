@@ -49,7 +49,7 @@ vm.runInContext(
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained, hasVariantHistory,
-        isBodyweightExercise };
+        isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf };
     `,
     ctx
 );
@@ -58,7 +58,7 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
-    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise,
+    getTrainedExerciseIds, filterTrained, hasVariantHistory, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -183,6 +183,57 @@ ok('Deadlift findes i lower (bruges i lowerB)', !!ALL_EXERCISES.lower.find(e => 
 const ids = [...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id);
 ok('Ingen dublerede øvelses-IDer', new Set(ids).size === ids.length);
 ok('Hver øvelse har navn, muskel og compound-flag', [...EXERCISES.upper, ...EXERCISES.lower].every(e => e.name && e.muscle && typeof e.compound === 'boolean'));
+
+console.log('\n── 5. De fem nye cable-øvelser');
+// Rækkefølge: navn, muskelgruppe, compound-flag. Alle er cable, og kun row-varianten
+// er markeret "per hånd" — de øvrige skal læses som én samlet belastning.
+const NEW_CABLE = {
+    cable_lateral_raise:   { name: 'Cable Lateral Raise',   muscle: 'Skulder',     compound: false },
+    cable_row_per_hand:    { name: 'Cable Row',            muscle: 'Ryg',         compound: true },
+    dual_bicep_cable_curl: { name: 'Dual Bicep Cable Curl', muscle: 'Biceps',      compound: false },
+    lat_extension:         { name: 'Lat Extension',         muscle: 'Ryg',         compound: false },
+    cable_reverse_fly:     { name: 'Cable Reverse Fly',     muscle: 'Skulder/rug', compound: false },
+};
+for (const [id, want] of Object.entries(NEW_CABLE)) {
+    const e = ALL_EXERCISES.upper.find(x => x.id === id);
+    ok(`"${want.name}" findes i upper`, !!e, 'mangler');
+    if (!e) continue;
+    ok(`"${want.name}" har navn, muskel og type som aftalt`,
+        e.name === want.name && e.muscle === want.muscle && e.compound === want.compound,
+        JSON.stringify({ name: e.name, muscle: e.muscle, compound: e.compound }));
+    ok(`"${want.name}" er en cable-øvelse`, e.equipment === 'Cable', e.equipment);
+}
+const newIds = Object.keys(NEW_CABLE);
+ok('Kun row-varianten er markeret per hånd',
+    ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => e.id).join(',') === 'cable_row_per_hand',
+    ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => `${e.id}=${e.loadNote}`).join(', '));
+
+// De er bevidst IKKE lagt ind i programmerne — de vælges manuelt
+const programExerciseIds = Object.keys(PROGRAMS).flatMap(k => PROGRAMS[k].map(i => i.exerciseId));
+ok('Ingen af de nye er lagt ind i programmerne', newIds.every(id => !programExerciseIds.includes(id)),
+    newIds.filter(id => programExerciseIds.includes(id)).join(', '));
+
+// Konsekvensen af filtreringen, som er værd at kende: en ny øvelse uden historik er
+// skjult i listerne indtil man har udført den én gang. Den kan altid vælges manuelt.
+store['gym_tracker_workouts'] = JSON.stringify([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [{ exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] }] },
+]);
+const beforeFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('En ny øvelse er skjult i listerne indtil den er udført', !beforeFirst.visible.some(e => e.id === 'cable_lateral_raise'));
+store['gym_tracker_workouts'] = JSON.stringify([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [
+        { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] },
+        { exerciseId: 'cable_lateral_raise', sets: [{ weight: 7, reps: 12 }] }] },
+]);
+const afterFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Efter det første udførte sæt vises den', afterFirst.visible.some(e => e.id === 'cable_lateral_raise'));
+
+// Cable og håndvægt skal have hver sin progression, ellers giver forslaget ingen mening
+const cableProg = calculateProgressiveOverload('cable_lateral_raise', 'upper');
+const dbProg = calculateProgressiveOverload('lateral_raise', 'upper');
+ok('Cable lateral raise foreslår ud fra sin egen historik (7 → 9,5 kg)', cableProg.suggestion === '9.5 kg × 12 reps', `fik "${cableProg.suggestion}"`);
+ok('Den blander ikke historik med håndvægt-versionen', dbProg.status === 'new' && cableProg.status !== 'new', `${cableProg.status} / ${dbProg.status}`);
+store['gym_tracker_workouts'] = JSON.stringify([]);
 
 console.log('\n── 6. Redskabsvarianter');
 const allEx = [...EXERCISES.upper, ...EXERCISES.lower];
@@ -450,7 +501,66 @@ ok('Pull-up overlever i et program hvor intet er udført', progBFiltered.visible
 
 store['gym_tracker_workouts'] = asDone([]);
 
-console.log('\n── 10. Filopdeling (index.html + styles.css + app.js)');
+// ─── 10. Eksempeldata ─────────────────────────────────────────────
+// Eksempeldata skal ligne RIGTIGE data: samme sæt-regel som saveWorkout (kun sæt
+// med vægt > 0), så en preview ikke kan skjule en fejl ved at have en anden form.
+console.log('\n── 10. Eksempeldata (til at prøve appen uden at taste data ind)');
+
+const sampleToday = new Date(2026, 9, 2); // fredag 2. oktober 2026
+const samples = buildSampleWorkouts(sampleToday);
+const sampleVariant = k => {
+    const day = k.startsWith('upper') ? 'upper' : 'lower';
+    return samples.filter(w => w.day === day && w.variant === k.slice(-1));
+};
+
+ok('Der bygges tre hele uger (12 træninger)', samples.length === 12, `${samples.length}`);
+ok('Alle eksempeltræninger er markeret som eksempeldata', samples.every(isSampleWorkout));
+ok('Ingen eksempeltræning er markeret som delt', samples.every(w => !w.sharedAt));
+ok('Alle fire varianter er med tre gange', ['upperA', 'upperB', 'lowerA', 'lowerB'].every(k => sampleVariant(k).length === 3),
+    ['upperA', 'upperB', 'lowerA', 'lowerB'].map(k => `${k}=${sampleVariant(k).length}`).join(' '));
+ok('Træningerne fordeler sig på tre ISO-uger', new Set(samples.map(w => isoWeekKey(w.date))).size === 3,
+    [...new Set(samples.map(w => isoWeekKey(w.date)))].join(', '));
+ok('Den nyeste uge er ugen omkring den givne dato', isoWeekKey(samples[samples.length - 1].date) === isoWeekKey('2026-10-02'), isoWeekKey(samples[samples.length - 1].date));
+ok('Ugedagene rammer rotationen (man, tir, tor, fre)', ['2026-09-28', '2026-09-29', '2026-10-01', '2026-10-02'].every(d => samples.some(w => w.date === d)),
+    samples.slice(-4).map(w => w.date).join(', '));
+
+// Øvelserne kommer fra appens egne programmer, så id'er og sæt-antal ikke kan drive
+ok('Hver trænings øvelser findes i dens program', samples.every(w =>
+    w.exercises.every(e => getProgram(w.day, w.variant).some(item => item.exerciseId === e.exerciseId))));
+ok('Hvert gemte sæt har vægt over 0 og reps', samples.every(w => w.exercises.every(e => e.sets.every(s => s.weight > 0 && s.reps > 0))));
+// Kropsvægtøvelser falder ud af loggen her, ligesom de gør i virkeligheden
+ok('Kropsvægtøvelser er ikke i loggen (som ved et rigtigt gem)', samples.every(w => !w.exercises.some(e => e.exerciseId === 'plank' || e.exerciseId === 'pull_up')));
+ok('Lower-træningerne har derfor en øvelse mindre end skabelonen', sampleVariant('lowerA')[0].exercises.length === getProgram('lower', 'A').length - 1);
+
+// Fremgang: samme variant skal være tungere i uge 3 end i uge 1
+const weightOf = (w, id) => w.exercises.find(e => e.exerciseId === id).sets[0].weight;
+const firstUpperA = sampleVariant('upperA')[0];
+const lastUpperA = sampleVariant('upperA').slice(-1)[0];
+ok('Vægten stiger fra første til sidste uge', weightOf(lastUpperA, 'bench_press') > weightOf(firstUpperA, 'bench_press'),
+    `${weightOf(firstUpperA, 'bench_press')} → ${weightOf(lastUpperA, 'bench_press')}`);
+const firstLowerA = sampleVariant('lowerA')[0];
+const lastLowerA = sampleVariant('lowerA').slice(-1)[0];
+ok('Ben stiger hurtigere end overkrop', (weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')) > (weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')),
+    `squat +${weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')} vs bench +${weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')}`);
+
+// Sikkerheden: rigtige træninger må ikke kunne rammes
+ok('realWorkouts filtrerer eksempeldata fra', realWorkouts(samples).length === 0);
+ok('Én rigtig træning tæller som rigtige data', realWorkouts([{ id: 'rigtig', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [] }, ...samples]).length === 1);
+ok('En tom log giver ingen rigtige data', realWorkouts([]).length === 0);
+ok('En tilfældig post uden flaget tælles som rigtig', realWorkouts([{ id: 'x' }]).length === 1);
+
+// Pointen: eksempeldata skal gøre filtreringen demonstrerbar i en frisk browser,
+// hvor der ellers ikke ville være noget at filtrere på.
+store['gym_tracker_workouts'] = JSON.stringify(samples);
+ok('Eksempeldata giver historik på begge dage', getTrainedExerciseIds('upper').size > 0 && getTrainedExerciseIds('lower').size > 0,
+    `upper=${getTrainedExerciseIds('upper').size} lower=${getTrainedExerciseIds('lower').size}`);
+const sampleFiltered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Filtreringen har noget at filtrere på med eksempeldata', sampleFiltered.filtered === true && sampleFiltered.hidden.length > 0,
+    `${sampleFiltered.hidden.length} skjulte`);
+
+store['gym_tracker_workouts'] = JSON.stringify([]);
+
+console.log('\n── 11. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
 const css = fs.readFileSync(path.join(root, 'styles.css'), 'utf8');
 ok('index.html linker til styles.css', html.includes('<link rel="stylesheet" href="styles.css">'));

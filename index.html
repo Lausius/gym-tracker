@@ -48,6 +48,13 @@
             <p><strong>Velkommen!</strong> Vælg en øvelse nedenfor for at starte din træning. Alle data gemmes lokalt på din telefon.</p>
         </div>
 
+        <!-- Eksempeldata (kun synlig når loggen er tom) -->
+        <div class="sample-section hidden" id="sample-section">
+            <div class="sample-title">🧪 Prøv appen med eksempeldata</div>
+            <p class="sample-note" id="sample-note"></p>
+            <button class="sample-btn" id="sample-btn" type="button">Fyld med eksempeldata</button>
+        </div>
+
         <!-- Share modal -->
         <div class="share-overlay hidden" id="share-overlay"></div>
         <div class="share-modal hidden" id="share-modal">
@@ -72,58 +79,6 @@
             </div>
         </div>
 
-        <!-- Rules modal -->
-        <div class="rules-overlay hidden" id="rules-overlay"></div>
-        <div class="rules-modal hidden" id="rules-modal">
-            <h2>📖 Programregler — A/B Split</h2>
-            <h3>Sådan kører rotationen</h3>
-            <ul>
-                <li>Upper A → Lower A → Upper B → Lower B → forfra.</li>
-                <li>Appen foreslår automatisk den næste variant ud fra din seneste gemte træning.</li>
-                <li>Du kan altid skifte manuelt med A/B-knapperne.</li>
-            </ul>
-            <h3>Progressiv overload</h3>
-            <ul>
-                <li>Nå 8 reps på alle sæt med samme vægt → læg 2,5 kg på (5 kg på ben).</li>
-                <li>Under 8 reps → bliv på vægten og tag flere reps først.</li>
-                <li>Stagneret i 3 træninger på samme vægt → jagt reps i stedet for kilo.</li>
-            </ul>
-            <h3>Sæt og pauser</h3>
-            <ul>
-                <li>Sammensatte øvelser: 3 sæt × 6-8 reps, 2-3 min pause.</li>
-                <li>Isolationsøvelser: 3 sæt × 10-15 reps, 60-90 sek pause.</li>
-                <li>Stop 1-3 reps før failure på de tunge løft.</li>
-            </ul>
-            <h3>Redskaber og varianter</h3>
-            <ul>
-                <li>Hver variant er sin egen øvelse: stang, EZ-bar og håndvægte har hver sin historik.</li>
-                <li>Det er med vilje — 20 kg på en EZ-bar og 20 kg i hver hånd er ikke samme belastning, så et fælles forslag ville være forkert.</li>
-                <li>"per hånd" / "per ben" betyder at du skriver vægten for én side, ikke den samlede vægt.</li>
-            </ul>
-            <h3>Kun øvelser du faktisk laver</h3>
-            <ul>
-                <li>"Næste uge" og "Dagens program" viser kun øvelser du har udført mindst én gang.</li>
-                <li>En øvelse tæller som udført, når den står med mindst ét sæt i en gemt træning for den dag (upper/lower) — nogensinde, ikke kun for nylig.</li>
-                <li>Har du slet ingen historik for dagen, filtreres der ikke: så vises alt.</li>
-                <li>En variant du aldrig har kørt, vises i fuld længde. Ellers ville Lower B stå tom, bare fordi du hidtil kun har kørt Lower A.</li>
-                <li>Kropsvægtøvelser (fx Plank og Pull-up) filtreres aldrig væk. Der gemmes kun sæt med vægt over 0, så de kan ikke føre vægthistorik — og uden undtagelsen ville de forsvinde fra programmet efter første gem.</li>
-                <li>Knappen "Vis alle (n)" henter de skjulte frem — fx når du vil begynde på en ny øvelse. Vælgeren "＋ Tilføj øvelse" har altid hele listen.</li>
-                <li>"Tilføj alle til dagens træning" lægger kun de synlige øvelser ind, så de skjulte ikke kommer med bagvejen.</li>
-            </ul>
-            <h3>Glemte du en øvelse?</h3>
-            <ul>
-                <li>Åbn historikken og tryk <strong>✏️ Rediger</strong> på træningen. Øvelserne indlæses igen, og du kan tilføje, rette eller fjerne.</li>
-                <li>Knappen hedder så <strong>Opdater træning</strong>, og datoen på træningen ændrer sig ikke — heller ikke hvis du først retter den dagen efter.</li>
-            </ul>
-            <h3>Del med AI-træneren</h3>
-            <ul>
-                <li>Vælg tidsrum i delingsvinduet: <strong>Kun nyt siden sidst</strong>, en enkelt uge, eller alle uger.</li>
-                <li><strong>Kun nyt siden sidst</strong> tager kun de træninger du ikke har sendt før. De markeres automatisk som delt når du kopierer, så du slipper for at sende det hele hver gang.</li>
-                <li>Har du kopieret en træning uden at sende den, er den ikke tabt — vælg bare ugen i listen, så kommer den igen.</li>
-                <li>Discord tillader 2.000 tegn pr. besked. Tælleren under teksten viser hvor tæt du er, så en for lang eksport opdages i god tid.</li>
-            </ul>
-            <button class="rules-close-btn" id="rules-close">Forstået</button>
-        </div>
 
         <!-- Progressive Overload Suggestions -->
         <div class="progressive-section" id="progressive-section">
@@ -159,7 +114,6 @@
             </div>
             <div class="program-actions">
                 <button class="program-load-btn" id="program-load">＋ Tilføj alle til dagens træning</button>
-                <button class="program-rules-btn" id="program-rules">📖 Regler</button>
             </div>
         </div>
 

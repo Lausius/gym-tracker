@@ -204,12 +204,8 @@ async function main() {
     ok('Del-teksten viser hvilken uge træningen hører til', /NYT SIDEN SIDST \(\d+\) · UGE \d+/.test(shareText), shareText.split('\n')[0]);
     await evaluate('document.getElementById("share-close").click(); return true;');
 
-    await evaluate('document.getElementById("program-rules").click(); return true;');
-    await sleep(150);
-    ok('Regler-modalen åbner', (await evaluate('return !document.getElementById("rules-modal").classList.contains("hidden")')) === true);
-    await evaluate('document.getElementById("rules-close").click(); return true;');
-    await sleep(150);
-    ok('Regler-modalen lukker', (await evaluate('return document.getElementById("rules-modal").classList.contains("hidden")')) === true);
+    ok('Regler-knappen er væk (reglerne ligger i README)', (await evaluate('return document.getElementById("program-rules")')) === null);
+    ok('Regler-modalen er væk', (await evaluate('return document.getElementById("rules-modal")')) === null);
 
     // ─── 7. Lower day + mobillayout ───────────────────────────────
     console.log('\n── 7. Lower day og mobillayout');
@@ -792,6 +788,132 @@ async function main() {
     ok('De udførte lower-øvelser er stadig med', lowerAfter.includes('squat') && lowerAfter.includes('leg_curl'), JSON.stringify(lowerAfter));
     ok('Lower-øvelser uden historik er filtreret væk', !lowerAfter.includes('leg_extension'), JSON.stringify(lowerAfter));
     ok('Plank er også med i Næste uge-listen', (await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId).includes("plank")')) === true);
+
+    // ─── 14. Eksempeldata ─────────────────────────────────────────
+    console.log('\n── 14. Eksempeldata til preview og test');
+
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+
+    ok('Knappen tilbyder at fylde eksempeldata ind', /Fyld med eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+    ok('Blokken er synlig når loggen er tom', (await evaluate('return document.getElementById("sample-section").classList.contains("hidden")')) === false);
+    ok('Noten forklarer hvad der sker', (await evaluate('return document.getElementById("sample-note").textContent')).length > 0);
+    ok('Den er et gyldigt tap-target', (await evaluate('return Math.round(document.getElementById("sample-btn").getBoundingClientRect().height)')) >= 28);
+
+    // Regression: knappen lå først 1746px nede i regler-modalen (som nu er væk), så
+    // man skulle scrolle forbi otte afsnit for at finde den. Den ligger nu på
+    // forsiden og skal være synlig uden at scrolle overhovedet.
+    const sampleVisible = await evaluate(`
+        const btn = document.getElementById("sample-btn");
+        const br = btn.getBoundingClientRect();
+        return {
+            synligIViewport: br.height > 0 && br.top >= 0 && br.bottom <= window.innerHeight,
+            afstandFraTop: Math.round(br.top),
+            viewportHoejde: window.innerHeight,
+            ingenModal: !document.getElementById("rules-modal"),
+        };
+    `);
+    ok('Knappen er synlig på forsiden uden at scrolle', sampleVisible.synligIViewport === true, JSON.stringify(sampleVisible));
+    ok('Der er ingen modal at gemme sig i', sampleVisible.ingenModal === true);
+
+    await evaluate('document.getElementById("sample-btn").click(); return true;');
+    await sleep(450);
+    const seeded = await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
+        return { count: w.length, allSample: w.every(x => x.sample === true), days: [...new Set(w.map(x => x.day))].sort().join(",") };
+    `);
+    ok('Eksempeldata lægges ind (12 træninger)', seeded.count === 12, JSON.stringify(seeded));
+    ok('Alle er markeret som eksempeldata', seeded.allSample === true);
+    ok('Begge dage får historik', seeded.days === 'lower,upper', seeded.days);
+    ok('Knappen skifter til at kunne rydde igen', /Ryd eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+
+    // Pointen med funktionen: filtreringen kan nu ses i en frisk browser, hvor der
+    // ellers ikke ville være noget at filtrere på.
+    const seededList = await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length');
+    const upperDbSize = await evaluate('return ALL_EXERCISES.upper.length');
+    ok('Næste-uge-listen er filtreret med eksempeldata', seededList > 0 && seededList < upperDbSize, `${seededList} af ${upperDbSize}`);
+
+    // Sikkerheden: så snart der ligger én rigtig træning, må knappen ikke kunne bruges
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
+            id: "rigtig_1", date: "2026-09-28", day: "upper", variant: "A",
+            exercises: [{ exerciseId: "bench_press", sets: [{ weight: 60, reps: 8 }] }],
+        }]));
+        return true;
+    `);
+    await load(URL_UNDER_TEST);
+    ok('Med en rigtig træning skjules hele blokken', (await evaluate('return document.getElementById("sample-section").classList.contains("hidden")')) === true);
+    ok('Knappen er deaktiveret', (await evaluate('return document.getElementById("sample-btn").disabled')) === true);
+    ok('Blokken fylder intet i den daglige visning', (await evaluate('return Math.round(document.getElementById("sample-section").getBoundingClientRect().height)')) === 0);
+    await evaluate('document.getElementById("sample-btn").click(); return true;');
+    await sleep(300);
+    ok('Et klik ændrer ikke de rigtige data', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+        return w.length === 1 && w[0].id === "rigtig_1" && !w[0].sample;
+    `)) === true);
+    // ─── 15. De fem nye cable-øvelser ─────────────────────────────
+    console.log('\n── 15. Nye cable-øvelser i vælgeren');
+
+    const NEW_CABLE_UI = [
+        ['cable_lateral_raise', 'Cable Lateral Raise'],
+        ['cable_row_per_hand', 'Cable Row (per hånd)'],
+        ['dual_bicep_cable_curl', 'Dual Bicep Cable Curl'],
+        ['lat_extension', 'Lat Extension'],
+        ['cable_reverse_fly', 'Cable Reverse Fly'],
+    ];
+    const optionValues = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.value)');
+    const optionText = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.textContent).join("\\n")');
+    for (const [id, name] of NEW_CABLE_UI) {
+        ok(`"${name}" kan vælges i ＋ Tilføj øvelse`, optionValues.includes(id) && optionText.includes(name), `id=${optionValues.includes(id)} navn=${optionText.includes(name)}`);
+    }
+    ok('Row-varianten vises med "per hånd" så vægten ikke læses som total',
+        optionText.includes('Cable Row (per hånd)'),
+        optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
+    // Navnet må ikke gentage det noten allerede siger: "Cable Row (per hånd) (per hånd)".
+    ok('"per hånd" står kun én gang på row-varianten',
+        !optionText.includes('Cable Row (per hånd) (per hånd)') && !optionText.includes('(Per hånd)'),
+        optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
+
+    // Præcis én af de nye skal bære "per hånd" — ellers ville de andre blive læst
+    // som om vægten var pr. side, og progressionen ville blive sammenlignet forkert.
+    const newOptionTexts = await evaluate(`
+        const ids = ${JSON.stringify(NEW_CABLE_UI.map(([id]) => id))};
+        return [...document.querySelectorAll("#exercise-select option")].filter(o => ids.includes(o.value)).map(o => o.textContent);
+    `);
+    const withNote = newOptionTexts.filter(t => t.includes('per hånd'));
+    ok('Præcis én af de fem vises med "per hånd"', withNote.length === 1, newOptionTexts.join(' | '));
+    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (per hånd)'), withNote.join(' | '));
+
+    // Grupperingen er det man navigerer efter i vælgeren
+    const grouped = await evaluate(`
+        const out = {};
+        for (const g of document.querySelectorAll("#exercise-select optgroup")) {
+            out[g.label] = [...g.querySelectorAll("option")].map(o => o.value);
+        }
+        return out;
+    `);
+    ok('Cable Lateral Raise er grupperet under Skulder', (grouped['Skulder'] || []).includes('cable_lateral_raise'), JSON.stringify(Object.keys(grouped)));
+    ok('Cable Reverse Fly er grupperet under Skulder/rug', (grouped['Skulder/rug'] || []).includes('cable_reverse_fly'));
+    ok('Lat Extension og Cable Row er grupperet under Ryg', ['lat_extension', 'cable_row_per_hand'].every(id => (grouped['Ryg'] || []).includes(id)), JSON.stringify(grouped['Ryg']));
+    ok('Dual Bicep Cable Curl er grupperet under Biceps', (grouped['Biceps'] || []).includes('dual_bicep_cable_curl'), JSON.stringify(grouped['Biceps']));
+
+    // De er bevidst ikke i programmerne — de vælges manuelt
+    const upperAIds = await evaluate('return getProgram("upper","A").map(i => i.exerciseId)');
+    const upperBIds = await evaluate('return getProgram("upper","B").map(i => i.exerciseId)');
+    ok('Ingen af de nye ligger i programmerne', NEW_CABLE_UI.every(([id]) => !upperAIds.includes(id) && !upperBIds.includes(id)),
+        NEW_CABLE_UI.map(([id]) => id).filter(id => upperAIds.includes(id) || upperBIds.includes(id)).join(', '));
+
+    // Og de kan faktisk tilføjes og gemmes
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "cable_lateral_raise";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(300);
+    ok('En ny øvelse kan tilføjes til dagens træning', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Cable Lateral Raise")')) === true);
+    ok('Den er ikke i programmet, så den vises ikke som "Tilføjet" der', (await evaluate('return [...document.querySelectorAll("#program-content .program-ex-added")].length')) === 0);
 
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
