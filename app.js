@@ -125,6 +125,8 @@
         programVariant: null, // null = brug foreslået variant, ellers 'A' | 'B'
         sessionVariant: null, // varianten programmet blev indlæst fra (gemmes med træningen)
         editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
+        showAllProgressive: false, // "Vis alle" i Næste uge-listen (nulstilles ved dagskift)
+        showAllProgram: false, // "Vis alle" i Dagens program (nulstilles ved dagskift)
     };
 
     // ─── Storage ──────────────────────────────────────────────────
@@ -316,10 +318,90 @@
         };
     }
 
+    // ─── Filtrering: kun øvelser man faktisk laver ────────────────
+    // Øvelser der nogensinde er udført — dvs. optræder med mindst ét sæt i en gemt
+    // træning for den pågældende dag (upper/lower). Et tomt sæt-liste tæller ikke:
+    // en øvelse man tilføjede men aldrig førte tal ind i, er ikke "udført".
+    function getTrainedExerciseIds(day) {
+        const ids = new Set();
+        for (const workout of loadWorkouts()) {
+            if (workout.day !== day) continue;
+            for (const ex of (workout.exercises || [])) {
+                if (ex.sets && ex.sets.length) ids.add(ex.exerciseId);
+            }
+        }
+        return ids;
+    }
+
+    // Kropsvægtøvelser (fx plank og pull-up) kan ikke føre vægthistorik: saveWorkout
+    // gemmer kun sæt med vægt > 0, så de optræder aldrig i en gemt træning. De må
+    // derfor ikke filtreres væk på "har du udført den før" — det ville skjule dem
+    // permanent, selv om de står i programmet. Tjekker alle varianter for dagen, så
+    // det er dataen der afgør det og ikke en hardcoded liste.
+    function isBodyweightExercise(day, id) {
+        return Object.keys(PROGRAMS).some(key =>
+            key.startsWith(day) && PROGRAMS[key].some(item => item.exerciseId === id && !(item.weight > 0))
+        );
+    }
+
+    // Er netop denne variant nogensinde trænet? Uden historik for varianten er der
+    // intet at filtrere efter, så vi viser hele skabelonen. Ellers ville Lower B
+    // stå helt tom fordi man hidtil kun har kørt Lower A — filtreringen skal skjule
+    // de øvelser man har valgt fra, ikke hele den anden variant.
+    function hasVariantHistory(day, variant) {
+        return loadWorkouts().some(w => w.day === day && w.variant === variant);
+    }
+
+    // Deler en liste i "har historik" og "har ikke". Tre ting holder listen brugbar:
+    //
+    // 1. Uden historik for dagen filtreres der ikke. Ellers ville alt blive skjult,
+    //    og en ny bruger (eller en dag man aldrig har trænet) ville stå med tomme
+    //    lister — og "Tilføj alle" ville ikke tilføje noget.
+    // 2. Er varianten aldrig trænet, filtreres der heller ikke (se hasVariantHistory).
+    // 3. Øvelser der allerede er i dagens session holdes synlige, også uden historik,
+    //    så man ikke mister dem af syne midt i en træning.
+    // 4. Kropsvægtøvelser holdes altid synlige: de kan ikke føre vægthistorik (se
+    //    isBodyweightExercise), så et historikfilter ville skjule dem for bestandigt.
+    //
+    // `hidden` udregnes også når filtreringen er slået fra. Ellers ville "Vis alle"
+    // give en tom skjult-mængde, knappen ville skjule sig selv i samme øjeblik man
+    // trykkede på den, og der var ingen vej tilbage til den filtrerede visning.
+    function filterTrained(list, day, getId, showAll, variantKnown = true) {
+        const trained = getTrainedExerciseIds(day);
+        const canFilter = trained.size > 0 && variantKnown;
+        if (!canFilter) {
+            return { visible: list, hidden: [], trained, canFilter: false, filtered: false };
+        }
+        const inSession = new Set(state.exercises.map(e => e.exerciseId));
+        const hidden = list.filter(item => {
+            const id = getId(item);
+            if (trained.has(id) || inSession.has(id)) return false;
+            return !isBodyweightExercise(day, id);
+        });
+        if (showAll) {
+            return { visible: list, hidden, trained, canFilter: true, filtered: false };
+        }
+        return { visible: list.filter(item => !hidden.includes(item)), hidden, trained, canFilter: true, filtered: true };
+    }
+
+    // Knappen skjules helt når der ikke er noget skjult, så den ikke fylder i
+    // den normale visning.
+    function renderFilterToggle(id, showAll, hiddenCount) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        if (hiddenCount === 0) {
+            btn.classList.add('hidden');
+            btn.textContent = '';
+            return;
+        }
+        btn.classList.remove('hidden');
+        btn.textContent = showAll ? `Skjul (${hiddenCount})` : `Vis alle (${hiddenCount})`;
+    }
+
     // ─── Render Functions ─────────────────────────────────────────
     function renderProgram() {
         const variant = getCurrentVariant();
-        const list = getProgram(state.currentDay, variant);
+        const full = getProgram(state.currentDay, variant);
         const content = document.getElementById('program-content');
         const hint = document.getElementById('variant-hint');
 
@@ -328,12 +410,25 @@
         });
         if (hint) hint.textContent = state.programVariant ? 'valgt' : 'foreslået';
 
-        if (list.length === 0) {
+        if (full.length === 0) {
             content.innerHTML = '<div class="program-ex-meta">Intet program fundet</div>';
+            renderFilterToggle('program-toggle', false, 0);
             return;
         }
 
-        content.innerHTML = list.map(item => {
+        // Programmet er en skabelon. Øvelser man aldrig har udført skjules, så
+        // programmet afspejler det man faktisk laver — i stedet for at blive ved
+        // med at foreslå noget man har valgt fra.
+        const { visible, hidden } = filterTrained(full, state.currentDay, i => i.exerciseId, state.showAllProgram,
+            hasVariantHistory(state.currentDay, variant));
+        renderFilterToggle('program-toggle', state.showAllProgram, hidden.length);
+
+        if (visible.length === 0) {
+            content.innerHTML = '<div class="program-ex-meta">Ingen af programmets øvelser har historik endnu.</div>';
+            return;
+        }
+
+        content.innerHTML = visible.map(item => {
             const ex = getExerciseById(state.currentDay, item.exerciseId);
             if (!ex) return '';
             const added = state.exercises.some(e => e.exerciseId === item.exerciseId);
@@ -453,10 +548,20 @@
 
     function renderProgressiveOverload() {
         const list = document.getElementById('progressive-list');
-        const exercises = ALL_EXERCISES[state.currentDay];
+        const all = ALL_EXERCISES[state.currentDay];
 
-        // Always show suggestions for all exercises in this day's category
-        list.innerHTML = exercises.map(ex => {
+        // Kun øvelser man har historik på. Ellers ville listen bestå af hele
+        // databasen, hvor de fleste poster bare siger "Ingen historik endnu" —
+        // langt og ubrugeligt.
+        const { visible, hidden } = filterTrained(all, state.currentDay, ex => ex.id, state.showAllProgressive);
+        renderFilterToggle('progressive-toggle', state.showAllProgressive, hidden.length);
+
+        if (visible.length === 0) {
+            list.innerHTML = '<div class="list-empty-note">Ingen øvelser har historik endnu. Gem en træning først — eller tryk “Vis alle”.</div>';
+            return;
+        }
+
+        list.innerHTML = visible.map(ex => {
             const prog = calculateProgressiveOverload(ex.id, state.currentDay);
             const added = state.exercises.some(e => e.exerciseId === ex.id);
             return `
@@ -583,7 +688,12 @@
 
     function loadProgramAll() {
         const variant = getCurrentVariant();
-        const list = getProgram(state.currentDay, variant);
+        const full = getProgram(state.currentDay, variant);
+        // Kun de synlige øvelser. Ellers ville "Tilføj alle" lægge præcis de
+        // øvelser ind i sessionen, som filtreringen lige har skjult.
+        const { visible, hidden } = filterTrained(full, state.currentDay, i => i.exerciseId, state.showAllProgram,
+            hasVariantHistory(state.currentDay, variant));
+        const list = visible;
         state.editing = null; // Indlæsning af programmet erstatter sessionen
         let added = 0;
         for (const item of list) {
@@ -594,7 +704,8 @@
         renderAll();
         const label = `${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant}`;
         if (added > 0) {
-            showToast(`${label} indlæst — ${added} øvelser tilføjet`, 'success');
+            const skipped = hidden.length > 0 ? ` (${hidden.length} skjult af filtreringen)` : '';
+            showToast(`${label} indlæst — ${added} øvelser tilføjet${skipped}`, 'success');
         } else {
             showToast('Alle øvelser fra programmet er allerede tilføjet', 'info');
         }
@@ -956,6 +1067,8 @@
                 state.programVariant = null; // Følg forslået A/B-variant for den nye dag
                 state.sessionVariant = null;
                 state.editing = null; // En anden dags træning kan ikke redigeres herfra
+                state.showAllProgressive = false; // Filtreringen er pr. dag — start forfra
+                state.showAllProgram = false;
                 renderAll();
             });
         });
@@ -963,6 +1076,14 @@
         // Event: Program (A/B)
         document.getElementById('program-load').addEventListener('click', loadProgramAll);
         document.getElementById('program-refresh').addEventListener('click', toggleProgramVariant);
+        document.getElementById('program-toggle').addEventListener('click', () => {
+            state.showAllProgram = !state.showAllProgram;
+            renderProgram();
+        });
+        document.getElementById('progressive-toggle').addEventListener('click', () => {
+            state.showAllProgressive = !state.showAllProgressive;
+            renderProgressiveOverload();
+        });
         document.getElementById('variant-selector').addEventListener('click', (e) => {
             const btn = e.target.closest('.variant-btn');
             if (!btn) return;

@@ -100,6 +100,16 @@
                 <li>Det er med vilje — 20 kg på en EZ-bar og 20 kg i hver hånd er ikke samme belastning, så et fælles forslag ville være forkert.</li>
                 <li>"per hånd" / "per ben" betyder at du skriver vægten for én side, ikke den samlede vægt.</li>
             </ul>
+            <h3>Kun øvelser du faktisk laver</h3>
+            <ul>
+                <li>"Næste uge" og "Dagens program" viser kun øvelser du har udført mindst én gang.</li>
+                <li>En øvelse tæller som udført, når den står med mindst ét sæt i en gemt træning for den dag (upper/lower) — nogensinde, ikke kun for nylig.</li>
+                <li>Har du slet ingen historik for dagen, filtreres der ikke: så vises alt.</li>
+                <li>En variant du aldrig har kørt, vises i fuld længde. Ellers ville Lower B stå tom, bare fordi du hidtil kun har kørt Lower A.</li>
+                <li>Kropsvægtøvelser (fx Plank og Pull-up) filtreres aldrig væk. Der gemmes kun sæt med vægt over 0, så de kan ikke føre vægthistorik — og uden undtagelsen ville de forsvinde fra programmet efter første gem.</li>
+                <li>Knappen "Vis alle (n)" henter de skjulte frem — fx når du vil begynde på en ny øvelse. Vælgeren "＋ Tilføj øvelse" har altid hele listen.</li>
+                <li>"Tilføj alle til dagens træning" lægger kun de synlige øvelser ind, så de skjulte ikke kommer med bagvejen.</li>
+            </ul>
             <h3>Glemte du en øvelse?</h3>
             <ul>
                 <li>Åbn historikken og tryk <strong>✏️ Rediger</strong> på træningen. Øvelserne indlæses igen, og du kan tilføje, rette eller fjerne.</li>
@@ -121,7 +131,8 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                 </svg>
-                Næste uge (Progressiv Overload)
+                <span>Næste uge (Progressiv Overload)</span>
+                <button class="filter-toggle-btn hidden" id="progressive-toggle" type="button"></button>
             </div>
             <div class="progressive-list" id="progressive-list"></div>
         </div>
@@ -135,7 +146,10 @@
                     </svg>
                     Dagens program
                 </div>
-                <button class="program-refresh-btn" id="program-refresh" title="Genindlæs program">↻</button>
+                <div class="header-actions">
+                    <button class="filter-toggle-btn hidden" id="program-toggle" type="button"></button>
+                    <button class="program-refresh-btn" id="program-refresh" title="Genindlæs program">↻</button>
+                </div>
             </div>
             <div class="program-content" id="program-content"></div>
             <div class="variant-selector" id="variant-selector">
