@@ -850,6 +850,65 @@ async function main() {
     await evaluate('document.getElementById("rules-close").click(); return true;');
     await sleep(200);
 
+    // ─── 15. De fem nye cable-øvelser ─────────────────────────────
+    console.log('\n── 15. Nye cable-øvelser i vælgeren');
+
+    const NEW_CABLE_UI = [
+        ['cable_lateral_raise', 'Cable Lateral Raise'],
+        ['cable_row_per_hand', 'Cable Row (Per hånd)'],
+        ['dual_bicep_cable_curl', 'Dual Bicep Cable Curl'],
+        ['lat_extension', 'Lat Extension'],
+        ['cable_reverse_fly', 'Cable Reverse Fly'],
+    ];
+    const optionValues = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.value)');
+    const optionText = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.textContent).join("\\n")');
+    for (const [id, name] of NEW_CABLE_UI) {
+        ok(`"${name}" kan vælges i ＋ Tilføj øvelse`, optionValues.includes(id) && optionText.includes(name), `id=${optionValues.includes(id)} navn=${optionText.includes(name)}`);
+    }
+    ok('Row-varianten vises med "per hånd" så vægten ikke læses som total',
+        optionText.includes('Cable Row (Per hånd) (per hånd)'),
+        optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
+
+    // Præcis én af de nye skal bære "per hånd" — ellers ville de andre blive læst
+    // som om vægten var pr. side, og progressionen ville blive sammenlignet forkert.
+    const newOptionTexts = await evaluate(`
+        const ids = ${JSON.stringify(NEW_CABLE_UI.map(([id]) => id))};
+        return [...document.querySelectorAll("#exercise-select option")].filter(o => ids.includes(o.value)).map(o => o.textContent);
+    `);
+    const withNote = newOptionTexts.filter(t => t.includes('per hånd'));
+    ok('Præcis én af de fem vises med "per hånd"', withNote.length === 1, newOptionTexts.join(' | '));
+    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (Per hånd)'), withNote.join(' | '));
+
+    // Grupperingen er det man navigerer efter i vælgeren
+    const grouped = await evaluate(`
+        const out = {};
+        for (const g of document.querySelectorAll("#exercise-select optgroup")) {
+            out[g.label] = [...g.querySelectorAll("option")].map(o => o.value);
+        }
+        return out;
+    `);
+    ok('Cable Lateral Raise er grupperet under Skulder', (grouped['Skulder'] || []).includes('cable_lateral_raise'), JSON.stringify(Object.keys(grouped)));
+    ok('Cable Reverse Fly er grupperet under Skulder/rug', (grouped['Skulder/rug'] || []).includes('cable_reverse_fly'));
+    ok('Lat Extension og Cable Row er grupperet under Ryg', ['lat_extension', 'cable_row_per_hand'].every(id => (grouped['Ryg'] || []).includes(id)), JSON.stringify(grouped['Ryg']));
+    ok('Dual Bicep Cable Curl er grupperet under Biceps', (grouped['Biceps'] || []).includes('dual_bicep_cable_curl'), JSON.stringify(grouped['Biceps']));
+
+    // De er bevidst ikke i programmerne — de vælges manuelt
+    const upperAIds = await evaluate('return getProgram("upper","A").map(i => i.exerciseId)');
+    const upperBIds = await evaluate('return getProgram("upper","B").map(i => i.exerciseId)');
+    ok('Ingen af de nye ligger i programmerne', NEW_CABLE_UI.every(([id]) => !upperAIds.includes(id) && !upperBIds.includes(id)),
+        NEW_CABLE_UI.map(([id]) => id).filter(id => upperAIds.includes(id) || upperBIds.includes(id)).join(', '));
+
+    // Og de kan faktisk tilføjes og gemmes
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "cable_lateral_raise";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(300);
+    ok('En ny øvelse kan tilføjes til dagens træning', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Cable Lateral Raise")')) === true);
+    ok('Den er ikke i programmet, så den vises ikke som "Tilføjet" der', (await evaluate('return [...document.querySelectorAll("#program-content .program-ex-added")].length')) === 0);
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)

@@ -184,6 +184,57 @@ const ids = [...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id);
 ok('Ingen dublerede øvelses-IDer', new Set(ids).size === ids.length);
 ok('Hver øvelse har navn, muskel og compound-flag', [...EXERCISES.upper, ...EXERCISES.lower].every(e => e.name && e.muscle && typeof e.compound === 'boolean'));
 
+console.log('\n── 5. De fem nye cable-øvelser');
+// Rækkefølge: navn, muskelgruppe, compound-flag. Alle er cable, og kun row-varianten
+// er markeret "per hånd" — de øvrige skal læses som én samlet belastning.
+const NEW_CABLE = {
+    cable_lateral_raise:   { name: 'Cable Lateral Raise',   muscle: 'Skulder',     compound: false },
+    cable_row_per_hand:    { name: 'Cable Row (Per hånd)',  muscle: 'Ryg',         compound: true },
+    dual_bicep_cable_curl: { name: 'Dual Bicep Cable Curl', muscle: 'Biceps',      compound: false },
+    lat_extension:         { name: 'Lat Extension',         muscle: 'Ryg',         compound: false },
+    cable_reverse_fly:     { name: 'Cable Reverse Fly',     muscle: 'Skulder/rug', compound: false },
+};
+for (const [id, want] of Object.entries(NEW_CABLE)) {
+    const e = ALL_EXERCISES.upper.find(x => x.id === id);
+    ok(`"${want.name}" findes i upper`, !!e, 'mangler');
+    if (!e) continue;
+    ok(`"${want.name}" har navn, muskel og type som aftalt`,
+        e.name === want.name && e.muscle === want.muscle && e.compound === want.compound,
+        JSON.stringify({ name: e.name, muscle: e.muscle, compound: e.compound }));
+    ok(`"${want.name}" er en cable-øvelse`, e.equipment === 'Cable', e.equipment);
+}
+const newIds = Object.keys(NEW_CABLE);
+ok('Kun row-varianten er markeret per hånd',
+    ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => e.id).join(',') === 'cable_row_per_hand',
+    ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => `${e.id}=${e.loadNote}`).join(', '));
+
+// De er bevidst IKKE lagt ind i programmerne — de vælges manuelt
+const programExerciseIds = Object.keys(PROGRAMS).flatMap(k => PROGRAMS[k].map(i => i.exerciseId));
+ok('Ingen af de nye er lagt ind i programmerne', newIds.every(id => !programExerciseIds.includes(id)),
+    newIds.filter(id => programExerciseIds.includes(id)).join(', '));
+
+// Konsekvensen af filtreringen, som er værd at kende: en ny øvelse uden historik er
+// skjult i listerne indtil man har udført den én gang. Den kan altid vælges manuelt.
+store['gym_tracker_workouts'] = JSON.stringify([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [{ exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] }] },
+]);
+const beforeFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('En ny øvelse er skjult i listerne indtil den er udført', !beforeFirst.visible.some(e => e.id === 'cable_lateral_raise'));
+store['gym_tracker_workouts'] = JSON.stringify([
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [
+        { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] },
+        { exerciseId: 'cable_lateral_raise', sets: [{ weight: 7, reps: 12 }] }] },
+]);
+const afterFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
+ok('Efter det første udførte sæt vises den', afterFirst.visible.some(e => e.id === 'cable_lateral_raise'));
+
+// Cable og håndvægt skal have hver sin progression, ellers giver forslaget ingen mening
+const cableProg = calculateProgressiveOverload('cable_lateral_raise', 'upper');
+const dbProg = calculateProgressiveOverload('lateral_raise', 'upper');
+ok('Cable lateral raise foreslår ud fra sin egen historik (7 → 9,5 kg)', cableProg.suggestion === '9.5 kg × 12 reps', `fik "${cableProg.suggestion}"`);
+ok('Den blander ikke historik med håndvægt-versionen', dbProg.status === 'new' && cableProg.status !== 'new', `${cableProg.status} / ${dbProg.status}`);
+store['gym_tracker_workouts'] = JSON.stringify([]);
+
 console.log('\n── 6. Redskabsvarianter');
 const allEx = [...EXERCISES.upper, ...EXERCISES.lower];
 ok('Alle øvelser har et redskab angivet', allEx.every(e => typeof e.equipment === 'string' && e.equipment.length > 0));

@@ -18,6 +18,10 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   hånd er ikke samme belastning, så et fælles forslag ville være forkert. Håndvægt- og
   enkeltbensøvelser er markeret "per hånd" / "per ben", og dropdown'en er grupperet pr.
   muskelgruppe.
+  - **Cable-familien** (tilføjet efter ønske): `Cable Lateral Raise`, `Cable Row (Per hånd)`,
+    `Dual Bicep Cable Curl`, `Lat Extension` og `Cable Reverse Fly`. De ligger **kun** i
+    øvelsesdatabasen — ikke i A/B-programmerne — så de vælges manuelt med ＋ Tilføj øvelse.
+    `Cable Row (Per hånd)` er den eneste af dem der er markeret "per hånd".
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
 - **Kun øvelser du faktisk laver:** "Næste uge" og "Dagens program" viser kun øvelser du har
@@ -34,6 +38,8 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
   - Kropsvægtøvelser (Plank, Pull-up) filtreres **aldrig** væk: der gemmes kun sæt med vægt
     over 0, så de kan ikke føre vægthistorik. Uden den undtagelse ville de forsvinde fra
     programmet efter det første gem — for bestandigt.
+  - En **helt ny** øvelse er derfor ikke i listerne, før du har udført den én gang. Den kan
+    altid vælges med **＋ Tilføj øvelse**, og dukker op af sig selv bagefter.
 - **Eksempeldata til test:** nederst i reglerne (📖 Regler) kan du fylde tre ugers A/B-historik
   ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger data. Den
   rører **aldrig** dine egne træninger: knappen tilbydes kun når loggen er tom eller kun
@@ -266,8 +272,9 @@ persistens og rotation**, historik, del-modal, regler-modal, redskabsvarianter i
 **filtrering af øvelser uden historik** (Vis alle-knappen, "Tilføj alle" der kun tager de
 synlige, at en variant man aldrig har kørt ikke bliver tømt, og at kropsvægtøvelser overlever
 et gem), **eksempeldata** (fyld, ryd, og at knappen ikke kan bruges når der ligger rigtige
-træninger), og mobillayout ved 320/375/390/430px (bl.a. at ＋/✕-knapper ikke flytter sig når
-teksten bliver længere, og at intet flyder ud over kanten).
+træninger), **de nye cable-øvelser** (kan vælges, er grupperet rigtigt, kun row-varianten bærer
+"per hånd", og de ligger ikke i programmerne), og mobillayout ved 320/375/390/430px (bl.a. at
+＋/✕-knapper ikke flytter sig når teksten bliver længere, og at intet flyder ud over kanten).
 
 Testene rydder `localStorage` ved start, så en kørsel ikke arver state fra den forrige — de
 kan køres vilkårligt mange gange i træk med samme resultat.
