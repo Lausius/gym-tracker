@@ -156,8 +156,17 @@ projekter.** Så svarer siden `401` med en `edge-access`-redirect til Netlify-lo
 ikke åbnes på telefonen — heller ikke af dig, uden at logge ind med din Netlify-konto.
 
 Slå det fra: **Project configuration → General → Visitor access → Project visibility → Edit
-visibility → Public → Save.** Det gælder både produktions- og preview-deploys; vælger du kun
-at fjerne beskyttelsen for produktion, står preview'erne stadig bag login.
+visibility → Public → Save.**
+
+**Previews har deres egen indstilling og er private som standard.** Netlify skriver det
+direkte: *"Previews stay private by default, including Deploy Previews, agent-run previews, and
+branch deploys."* Sætter man kun projektets synlighed til Public, bliver produktionen åben mens
+`deploy-preview-…` stadig svarer `401`. Derfor skal preview-synligheden også sættes til
+**Public** i samme område under Visitor access. Det er værd at tjekke efter, for forskellen ses
+kun ved at hente preview-URL'en: produktion svarer `200`, preview `401`.
+
+De indstillinger har i øvrigt **ingen API, ingen CLI og intet værktøj** — kun dashboardet. Det
+kan altså ikke sættes fra et script eller af en agent.
 
 Det er ikke tilfældigt at det er i orden at gøre dem offentlige: appen har ingen backend, og
 alle træningsdata ligger i **hver besøgendes egen** `localStorage`. Der er altså ingen data på
