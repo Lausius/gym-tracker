@@ -138,22 +138,48 @@ script (ikke et ES-modul), så `file://` stadig virker.
 ## Preview af en PR (test fra telefonen)
 
 Produktionssiden kommer fra `main` via GitHub Pages, så den kan man først se **efter** merge.
-For at kunne teste en PR på telefonen **inden** den merges, kobles repoet til **Netlify**, som
-giver hver pull request sin egen URL af formen
-`https://deploy-preview-<PR-nummer>--<site>.netlify.app` — fx `deploy-preview-6--...` for PR #6.
-URL'en opdateres automatisk hver gang der pushes nye commits til branchen, og Netlify skriver
-også et link i PR'ens checks.
+For at kunne teste en PR på telefonen **inden** den merges, er repoet koblet til **Netlify**,
+som giver hver pull request sin egen URL:
 
-### Opsætning (gøres én gang)
+```
+https://deploy-preview-<PR-nummer>--mellow-conkies-448bd3.netlify.app
+```
+
+Fx `deploy-preview-7--mellow-conkies-448bd3.netlify.app` for PR #7. (Netlify har også en
+produktions-URL, `mellow-conkies-448bd3.netlify.app`, som følger `main`. Den bruges ikke til
+noget — GitHub Pages er den rigtige side.)
+
+### Vigtigt: projektet skal stå som Public
+
+**Et nyt Netlify-team oprettet efter 28. juli 2026 får "Private" som standard for nye
+projekter.** Så svarer siden `401` med en `edge-access`-redirect til Netlify-login, og den kan
+ikke åbnes på telefonen — heller ikke af dig, uden at logge ind med din Netlify-konto.
+
+Slå det fra: **Project configuration → General → Visitor access → Project visibility → Edit
+visibility → Public → Save.** Det gælder både produktions- og preview-deploys; vælger du kun
+at fjerne beskyttelsen for produktion, står preview'erne stadig bag login.
+
+Det er ikke tilfældigt at det er i orden at gøre dem offentlige: appen har ingen backend, og
+alle træningsdata ligger i **hver besøgendes egen** `localStorage`. Der er altså ingen data på
+serveren at lægge åbent.
+
+### Deploy Previews bygges kun for PR'er der er oprettet eller opdateret EFTER tilkoblingen
+
+En PR der var åben før Netlify blev koblet til, får ikke et preview af sig selv — der skal et
+nyt push til branchen til. Det er også derfor `deploy-preview-<nr>` kan svare `404` på en PR
+der ellers ser fin ud på GitHub.
+
+### Opsætning (allerede gjort — gentages kun hvis projektet skal genskabes)
 
 1. Opret en gratis konto på [app.netlify.com](https://app.netlify.com/signup).
 2. Vælg **Add new site → Import an existing project → GitHub** og giv Netlify adgang til
    `Lausius/gym-tracker`.
 3. Sæt **Build command** til at være **tom**, og **Publish directory** til `/` (repoets rod).
    Der er ingen build-step — filerne ligger klar i repoet.
-4. Deploy. Netlify opretter også en produktions-URL (`<site>.netlify.app`); den bruges ikke til
-   noget. GitHub Pages er fortsat den rigtige side — det er kun `deploy-preview-…`-URL'erne der
-   er interessante.
+4. Sæt **Project visibility** til **Public** (se ovenfor).
+
+URL'en opdateres automatisk hver gang der pushes nye commits til branchen, og Netlify skriver
+også et link i PR'ens checks.
 
 ### Vigtigt: preview'en har ikke dine data
 
@@ -173,7 +199,7 @@ kan prøves med det samme.
 Cloudflare Pages gør præcis det samme og er lige så gratis. Forskellen er URL'en: Cloudflare
 giver en hash-URL plus et stabilt alias pr. branch, fx
 `feat-filtrer-oevelser-uden-historik.<projekt>.pages.dev` (branch-navnet med `-` i stedet for
-`/`). Netlify er valgt her fordi `deploy-preview-6--…` er nemmere at læse og huske.
+`/`). Netlify er valgt her fordi `deploy-preview-<nr>--…` er nemmere at læse og huske.
 
 ## Arbejdsgang: ændringer kommer som PR
 
