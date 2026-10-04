@@ -50,7 +50,8 @@ vm.runInContext(
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
         isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-        programView, lastWorkoutFor, rememberedItems };
+        programView, lastWorkoutFor, rememberedItems,
+        warmupSets, formatWarmupSets, renderWarmupBlock };
     `,
     ctx
 );
@@ -61,6 +62,7 @@ const {
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
     getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
     programView, lastWorkoutFor, rememberedItems,
+    warmupSets, formatWarmupSets, renderWarmupBlock,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -659,6 +661,43 @@ ok('Alle klasser app.js slår op findes i styles.css eller index.html', (() => {
     const used = new Set([...script.matchAll(/querySelector(?:All)?\(['"`]\.([a-z-]+)/g)].map(m => m[1]));
     return [...used].every(c => css.includes('.' + c) || html.includes('class="' + c));
 })());
+
+console.log('\n── 13. Opvarmningssæt (beregnet ud fra arbejdsvægten)');
+const exById = (day, id) => ALL_EXERCISES[day].find(e => e.id === id);
+const fmtWarmup = sets => sets.map(s => `${s.weight}×${s.reps}`).join(' ');
+
+ok('Bench 60 kg → stang 20×10, 30×8, 42.5×5, 50×3',
+    fmtWarmup(warmupSets(60, exById('upper', 'bench_press'))) === '20×10 30×8 42.5×5 50×3',
+    fmtWarmup(warmupSets(60, exById('upper', 'bench_press'))));
+ok('Bench 65 kg → rampen følger vægten (32.5×8, 55×3)',
+    fmtWarmup(warmupSets(65, exById('upper', 'bench_press'))) === '20×10 32.5×8 45×5 55×3');
+ok('Isolation med EZ-bar får ét let sæt (curl 21 kg → 12.5×12)',
+    fmtWarmup(warmupSets(21, exById('upper', 'ez_bar_curl'))) === '12.5×12',
+    fmtWarmup(warmupSets(21, exById('upper', 'ez_bar_curl'))));
+ok('EZ-bar regnes som 10 kg stang når øvelsen er sammensat',
+    fmtWarmup(warmupSets(21, { compound: true, equipment: 'EZ-bar' })) === '10×10 15×5 17.5×3',
+    fmtWarmup(warmupSets(21, { compound: true, equipment: 'EZ-bar' })));
+ok('Maskine: Leg Press 250 → 125×10 187.5×6',
+    fmtWarmup(warmupSets(250, exById('lower', 'leg_press'))) === '125×10 187.5×6');
+ok('Kabel: Lat Pulldown 62 → 30×10 47.5×6',
+    fmtWarmup(warmupSets(62, exById('upper', 'lat_pulldown'))) === '30×10 47.5×6');
+ok('Isolation: Lateral Raise 8 → ét sæt 5×12',
+    fmtWarmup(warmupSets(8, exById('upper', 'lateral_raise'))) === '5×12');
+ok('Håndvægte rundes til 1 kg (DB curl 10 → 6×12)',
+    fmtWarmup(warmupSets(10, exById('upper', 'dumbbell_curl'))) === '6×12');
+ok('Ingen arbejdsvægt → ingen opvarmning', warmupSets(0, exById('upper', 'bench_press')).length === 0);
+ok('Ukendt øvelse → ingen opvarmning', warmupSets(60, null).length === 0);
+ok('Kropsvægtøvelse → ingen tal at rampe efter', warmupSets(0, exById('upper', 'pull_up')).length === 0);
+ok('Rampen ligger altid under arbejdsvægten',
+    warmupSets(20, exById('upper', 'bench_press')).every(s => s.weight < 20));
+ok('Rampen er stigende uden dubletter', (() => {
+    const s = warmupSets(100, exById('lower', 'squat'));
+    return s.length > 1 && s.every((x, i) => i === 0 || x.weight > s[i - 1].weight);
+})());
+ok('renderWarmupBlock viser tallene', renderWarmupBlock(exById('upper', 'bench_press'), 60).includes('42.5 × 5'));
+ok('renderWarmupBlock er tom uden vægt', renderWarmupBlock(exById('upper', 'bench_press'), 0) === '');
+ok('Kun ét opvarmningsforslag pr. vægt (ingen dubletter ved runde tal)',
+    fmtWarmup(warmupSets(100, exById('lower', 'squat'))) === '20×10 50×8 70×5 85×3');
 
 console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
 process.exit(fail === 0 ? 0 : 1);
