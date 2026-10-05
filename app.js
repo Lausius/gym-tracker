@@ -11,55 +11,55 @@
     //   loadNote:  'per hånd' / 'per ben' når vægten angives pr. side, ikke total
     const EXERCISES = {
         upper: [
-            { id: 'bench_press',       name: 'Bench Press',              muscle: 'Bryst',      compound: true,  equipment: 'Barbell' },
-            { id: 'dumbbell_press',    name: 'Dumbbell Bench Press',     muscle: 'Bryst',      compound: true,  equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'incline_dumbbell',  name: 'Incline Dumbbell Press',   muscle: 'Bryst',      compound: true,  equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'dumbbell_fly',      name: 'Dumbbell Fly',             muscle: 'Bryst',      compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'cable_crossover',   name: 'Cable Crossover',          muscle: 'Bryst',      compound: false, equipment: 'Cable' },
-            { id: 'shoulder_press',    name: 'Shoulder Press',           muscle: 'Skulder',    compound: true,  equipment: 'Barbell' },
-            { id: 'dumbbell_shoulder_press', name: 'Dumbbell Shoulder Press', muscle: 'Skulder', compound: true, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'lateral_raise',     name: 'Lateral Raise',            muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'cable_lateral_raise', name: 'Cable Lateral Raise',    muscle: 'Skulder',    compound: false, equipment: 'Cable' },
-            { id: 'front_raise',       name: 'Front Raise',              muscle: 'Skulder',    compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'reverse_fly',       name: 'Reverse Fly',              muscle: 'Skulder/rug',compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'cable_reverse_fly', name: 'Cable Reverse Fly',        muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
-            { id: 'pull_up',           name: 'Pull-Up',                  muscle: 'Ryg',        compound: true,  equipment: 'Bodyweight' },
-            { id: 'chin_up',           name: 'Chin-Up',                  muscle: 'Ryg/biceps', compound: true,  equipment: 'Bodyweight' },
-            { id: 'lat_pulldown',      name: 'Lat Pulldown',             muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
-            { id: 'lat_extension',     name: 'Lat Extension',            muscle: 'Ryg',        compound: false, equipment: 'Cable' },
-            { id: 'cable_row',         name: 'Seated Cable Row',         muscle: 'Ryg',        compound: true,  equipment: 'Cable' },
-            { id: 'cable_row_per_hand', name: 'Cable Row',              muscle: 'Ryg',        compound: true,  equipment: 'Cable', loadNote: 'per hånd' },
-            { id: 'barbell_row',       name: 'Barbell Row',              muscle: 'Ryg',        compound: true,  equipment: 'Barbell' },
-            { id: 'chest_supported_row', name: 'Chest Supported Row',    muscle: 'Ryg',        compound: true,  equipment: 'Machine/Dumbbell' },
-            { id: 'face_pull',         name: 'Face Pull',                muscle: 'Skulder/rug',compound: false, equipment: 'Cable' },
-            { id: 'bicep_curl',        name: 'Bicep Curl (Barbell)',     muscle: 'Biceps',     compound: false, equipment: 'Barbell' },
-            { id: 'ez_bar_curl',       name: 'Bicep Curl (EZ-bar)',      muscle: 'Biceps',     compound: false, equipment: 'EZ-bar' },
-            { id: 'dumbbell_curl',     name: 'Bicep Curl (Dumbbell)',    muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'hammer_curl',       name: 'Hammer Curl',              muscle: 'Biceps',     compound: false, equipment: 'Dumbbell', loadNote: 'per hånd' },
-            { id: 'dual_bicep_cable_curl', name: 'Dual Bicep Cable Curl', muscle: 'Biceps',   compound: false, equipment: 'Cable' },
-            { id: 'tricep_pushdown',   name: 'Tricep Pushdown',          muscle: 'Triceps',    compound: false, equipment: 'Cable' },
-            { id: 'skull_crusher',     name: 'Skull Crusher',            muscle: 'Triceps',    compound: false, equipment: 'EZ-bar' },
-            { id: 'overhead_tricep',   name: 'Overhead Tricep Extension',muscle: 'Triceps',    compound: false, equipment: 'Cable' },
-            { id: 'dips',              name: 'Dips',                     muscle: 'Bryst/triceps',compound: true, equipment: 'Bodyweight' },
+            { id: 'bench_press',       name: 'Bench Press',              muscle: 'Chest',           compound: true,  equipment: 'Barbell' },
+            { id: 'dumbbell_press',    name: 'Dumbbell Bench Press',     muscle: 'Chest',           compound: true,  equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'incline_dumbbell',  name: 'Incline Dumbbell Press',   muscle: 'Chest',           compound: true,  equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'dumbbell_fly',      name: 'Dumbbell Fly',             muscle: 'Chest',           compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'cable_crossover',   name: 'Cable Crossover',          muscle: 'Chest',           compound: false, equipment: 'Cable' },
+            { id: 'shoulder_press',    name: 'Shoulder Press',           muscle: 'Shoulders',       compound: true,  equipment: 'Barbell' },
+            { id: 'dumbbell_shoulder_press', name: 'Dumbbell Shoulder Press', muscle: 'Shoulders', compound: true,  equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'lateral_raise',     name: 'Lateral Raise',            muscle: 'Shoulders',       compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'cable_lateral_raise', name: 'Cable Lateral Raise',    muscle: 'Shoulders',       compound: false, equipment: 'Cable' },
+            { id: 'front_raise',       name: 'Front Raise',              muscle: 'Shoulders',       compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'reverse_fly',       name: 'Reverse Fly',              muscle: 'Shoulders/Back',  compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'cable_reverse_fly', name: 'Cable Reverse Fly',        muscle: 'Shoulders/Back',  compound: false, equipment: 'Cable' },
+            { id: 'pull_up',           name: 'Pull-Up',                  muscle: 'Back',            compound: true,  equipment: 'Bodyweight' },
+            { id: 'chin_up',           name: 'Chin-Up',                  muscle: 'Back/Biceps',     compound: true,  equipment: 'Bodyweight' },
+            { id: 'lat_pulldown',      name: 'Lat Pulldown',             muscle: 'Back',            compound: true,  equipment: 'Cable' },
+            { id: 'lat_extension',     name: 'Lat Extension',            muscle: 'Back',            compound: false, equipment: 'Cable' },
+            { id: 'cable_row',         name: 'Seated Cable Row',         muscle: 'Back',            compound: true,  equipment: 'Cable' },
+            { id: 'cable_row_per_hand', name: 'Cable Row',               muscle: 'Back',            compound: true,  equipment: 'Cable', loadNote: 'per hand' },
+            { id: 'barbell_row',       name: 'Barbell Row',              muscle: 'Back',            compound: true,  equipment: 'Barbell' },
+            { id: 'chest_supported_row', name: 'Chest Supported Row',    muscle: 'Back',            compound: true,  equipment: 'Machine/Dumbbell' },
+            { id: 'face_pull',         name: 'Face Pull',                muscle: 'Shoulders/Back',  compound: false, equipment: 'Cable' },
+            { id: 'bicep_curl',        name: 'Bicep Curl (Barbell)',     muscle: 'Biceps',          compound: false, equipment: 'Barbell' },
+            { id: 'ez_bar_curl',       name: 'Bicep Curl (EZ-bar)',      muscle: 'Biceps',          compound: false, equipment: 'EZ-bar' },
+            { id: 'dumbbell_curl',     name: 'Bicep Curl (Dumbbell)',    muscle: 'Biceps',          compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'hammer_curl',       name: 'Hammer Curl',              muscle: 'Biceps',          compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'dual_bicep_cable_curl', name: 'Dual Bicep Cable Curl', muscle: 'Biceps',         compound: false, equipment: 'Cable' },
+            { id: 'tricep_pushdown',   name: 'Tricep Pushdown',          muscle: 'Triceps',         compound: false, equipment: 'Cable' },
+            { id: 'skull_crusher',     name: 'Skull Crusher',            muscle: 'Triceps',         compound: false, equipment: 'EZ-bar' },
+            { id: 'overhead_tricep',   name: 'Overhead Tricep Extension', muscle: 'Triceps',        compound: false, equipment: 'Cable' },
+            { id: 'dips',              name: 'Dips',                     muscle: 'Chest/Triceps',   compound: true,  equipment: 'Bodyweight' },
         ],
         lower: [
-            { id: 'squat',             name: 'Squat',                    muscle: 'Lår/rumpe',  compound: true,  equipment: 'Barbell' },
-            { id: 'deadlift',          name: 'Deadlift',                 muscle: 'Ryg/hofter', compound: true,  equipment: 'Barbell' },
-            { id: 'front_squat',       name: 'Front Squat',              muscle: 'Lår',        compound: true,  equipment: 'Barbell' },
-            { id: 'leg_press',         name: 'Leg Press',                muscle: 'Lår',        compound: true,  equipment: 'Machine' },
-            { id: 'hack_squat',        name: 'Hack Squat',               muscle: 'Lår',        compound: true,  equipment: 'Machine' },
-            { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',    muscle: 'Lår/rumpe',  compound: true,  equipment: 'Dumbbell', loadNote: 'per ben' },
-            { id: 'lunges',            name: 'Lunges',                   muscle: 'Lår/rumpe',  compound: true,  equipment: 'Dumbbell', loadNote: 'per ben' },
-            { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Lår/rumpe',  compound: true,  equipment: 'Barbell' },
-            { id: 'back_extension',    name: 'Back Extension',            muscle: 'Nedre ryg',  compound: false, equipment: 'Bodyweight' },
-            { id: 'leg_curl',          name: 'Leg Curl',                 muscle: 'Lår',        compound: false, equipment: 'Machine' },
-            { id: 'leg_extension',     name: 'Leg Extension',            muscle: 'Lår',        compound: false, equipment: 'Machine' },
-            { id: 'hip_thrust',        name: 'Hip Thrust',               muscle: 'Rumpe',      compound: true,  equipment: 'Barbell' },
-            { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Rumpe',      compound: false, equipment: 'Barbell' },
-            { id: 'calf_raise',        name: 'Calf Raise',               muscle: 'Kalve',      compound: false, equipment: 'Machine' },
-            { id: 'plank',             name: 'Plank',                    muscle: 'Mave',       compound: false, equipment: 'Bodyweight' },
-            { id: 'cable_crunch',      name: 'Cable Crunch',             muscle: 'Mave',       compound: false, equipment: 'Cable' },
-            { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',        muscle: 'Mave',       compound: false, equipment: 'Bodyweight' },
+            { id: 'squat',             name: 'Squat',                    muscle: 'Quads/Glutes',    compound: true,  equipment: 'Barbell' },
+            { id: 'deadlift',          name: 'Deadlift',                 muscle: 'Back/Hips',       compound: true,  equipment: 'Barbell' },
+            { id: 'front_squat',       name: 'Front Squat',              muscle: 'Quads',           compound: true,  equipment: 'Barbell' },
+            { id: 'leg_press',         name: 'Leg Press',                muscle: 'Quads',           compound: true,  equipment: 'Machine' },
+            { id: 'hack_squat',        name: 'Hack Squat',               muscle: 'Quads',           compound: true,  equipment: 'Machine' },
+            { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',    muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
+            { id: 'lunges',            name: 'Lunges',                   muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
+            { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Barbell' },
+            { id: 'back_extension',    name: 'Back Extension',           muscle: 'Lower back',      compound: false, equipment: 'Bodyweight' },
+            { id: 'leg_curl',          name: 'Leg Curl',                 muscle: 'Hamstrings',      compound: false, equipment: 'Machine' },
+            { id: 'leg_extension',     name: 'Leg Extension',            muscle: 'Quads',           compound: false, equipment: 'Machine' },
+            { id: 'hip_thrust',        name: 'Hip Thrust',               muscle: 'Glutes',          compound: true,  equipment: 'Barbell' },
+            { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Glutes',          compound: false, equipment: 'Barbell' },
+            { id: 'calf_raise',        name: 'Calf Raise',               muscle: 'Calves',          compound: false, equipment: 'Machine' },
+            { id: 'plank',             name: 'Plank',                    muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
+            { id: 'cable_crunch',      name: 'Cable Crunch',             muscle: 'Abs',             compound: false, equipment: 'Cable' },
+            { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',        muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
         ]
     };
 
@@ -70,60 +70,60 @@
     // original); her er den korte danske gengivelse, så appen er på ét sprog.
     // Øvelser uden en cue viser ingen linje — det er ikke en fejl.
     const CUES = {
-        // Bryst
-        bench_press:        'Skulderbladene trukket ned og tilbage, fødderne plantet — samme stangbane hver rep.',
-        dumbbell_press:     'Skulderbladene tilbage, håndvægtene i brysthøjde, pres let sammen opad.',
-        incline_dumbbell:   'Bænken let hævet, håndvægtene over brystet — pres op og let sammen, stop før albuerne låser.',
-        dumbbell_fly:       'Let bøjede albuer, bred bue, stræk i brystet — ikke længere ned end skulderhøjde.',
-        cable_crossover:    'Let fremadlænet, albuerne let bøjet, kryds foran brystet og klem 1 s.',
-        dips:               'Let fremadlænet, albuerne ca. 45° ud — ned til overarmen er vandret.',
-        // Skulder
-        shoulder_press:     'Ribben ned, stangen fra forreste delt, pres lige op, hovedet igennem i lockout. Arker lænden, er vægten for tung.',
-        dumbbell_shoulder_press: 'Ribben ned, håndvægtene over skuldrene, pres op og let sammen. Arker lænden, er vægten for tung.',
-        lateral_raise:      'Løft med albuerne, stop i skulderhøjde, ingen skuldertræk, 2-3 s ned. Let er pointen.',
-        cable_lateral_raise: 'Løft med albuerne, stop i skulderhøjde — kablet snyder dig til at tage for meget.',
-        front_raise:        'Løft til skulderhøjde med let bøjede albuer, ingen sving i overkroppen.',
-        reverse_fly:        'Let fremadlænet, løft ud til siden med albuerne, stop i skulderhøjde — let er pointen.',
-        cable_reverse_fly:  'Let fremadlænet, albuerne ud til siden, klem mellem skulderbladene.',
-        face_pull:          'Træk mod panden, albuerne højt, udadrotation i toppen.',
-        // Ryg
-        pull_up:            'Fuld hæng i bunden, skuldrene ned, træk brystet mod stangen — ingen sving.',
-        chin_up:            'Fuld hæng i bunden, albuerne ned mod lommen, hagen over stangen — ingen sving.',
-        lat_pulldown:       'Brystet op, 10-15° hældning, træk albuerne mod hofterne — ingen ryk i hænderne.',
-        lat_extension:      'Albuerne tæt på kroppen, stræk i lats, kontrolleret retur.',
-        cable_row:          'Brystet højt, træk til navlen, klem 1 s. Skal du rokke med overkroppen, er vægten for tung.',
-        cable_row_per_hand: 'Brystet højt, træk til hoften, ingen rotation i overkroppen.',
-        barbell_row:        'Neutral ryg, overkrop ca. 45°, træk stangen mod navlen — ingen ryk med lænden.',
-        chest_supported_row: 'Brystet støttet hele sættet, træk albuerne ned og tilbage, klem 1 s.',
+        // Chest
+        bench_press:        'Shoulder blades tucked down and back, feet planted — same bar path every rep.',
+        dumbbell_press:     'Shoulder blades back, dumbbells at chest height, press up and slightly together.',
+        incline_dumbbell:   'Bench slightly inclined, dumbbells over the chest — press up and together, stop before the elbows lock.',
+        dumbbell_fly:       'Soft elbows, wide arc, stretch across the chest — no lower than shoulder height.',
+        cable_crossover:    'Slight forward lean, elbows softly bent, cross in front of the chest and squeeze 1 s.',
+        dips:               'Slight forward lean, elbows about 45° out — down until the upper arm is horizontal.',
+        // Shoulders
+        shoulder_press:     'Ribs down, bar from the front delts, press straight up, head through at lockout. If the lower back arches, it is too heavy.',
+        dumbbell_shoulder_press: 'Ribs down, dumbbells over the shoulders, press up and slightly together. If the lower back arches, it is too heavy.',
+        lateral_raise:      'Lead with the elbows, stop at shoulder height, no shrug, 2-3 s down. Light is the point.',
+        cable_lateral_raise: 'Lead with the elbows, stop at shoulder height — the cable tempts you into too much weight.',
+        front_raise:        'Lift to shoulder height with softly bent elbows, no swing from the torso.',
+        reverse_fly:        'Slight forward lean, lift out to the sides with the elbows, stop at shoulder height — light is the point.',
+        cable_reverse_fly:  'Slight forward lean, elbows out to the sides, squeeze between the shoulder blades.',
+        face_pull:          'Pull toward the forehead, elbows high, external rotation at the top.',
+        // Back
+        pull_up:            'Full hang at the bottom, shoulders down, pull the chest to the bar — no swinging.',
+        chin_up:            'Full hang at the bottom, elbows down to the pocket, chin over the bar — no swinging.',
+        lat_pulldown:       'Chest up, 10-15° lean, drive the elbows to the hips — do not yank with the hands.',
+        lat_extension:      'Elbows close to the body, stretch the lats, control the return.',
+        cable_row:          'Chest tall, pull to the navel, squeeze 1 s. If you have to rock the torso, it is too heavy.',
+        cable_row_per_hand: 'Chest tall, pull to the hip, no rotation in the torso.',
+        barbell_row:        'Neutral spine, torso about 45°, pull the bar to the navel — no jerking with the lower back.',
+        chest_supported_row: 'Chest supported the whole set, drive the elbows down and back, squeeze 1 s.',
         // Biceps
-        bicep_curl:         'Albuerne fast ved siden, fuld stræk i bunden, klem i toppen — ingen sving.',
-        ez_bar_curl:        'Albuerne fast ved siden, fuld stræk i bunden — ingen sving med overkroppen.',
-        dumbbell_curl:      'Albuerne fast ved siden, supiner undervejs, kontrolleret ned.',
-        hammer_curl:        'Neutralt håndled hele vejen, albuerne fast — ingen sving.',
-        dual_bicep_cable_curl: 'Albuerne fast, klem i toppen, langsom retur.',
+        bicep_curl:         'Elbows pinned at the sides, full stretch at the bottom, squeeze at the top — no swinging.',
+        ez_bar_curl:        'Elbows pinned at the sides, full stretch at the bottom — no swinging from the torso.',
+        dumbbell_curl:      'Elbows pinned at the sides, supinate on the way up, control the way down.',
+        hammer_curl:        'Neutral wrist throughout, elbows pinned — no swinging.',
+        dual_bicep_cable_curl: 'Elbows pinned, squeeze at the top, slow return.',
         // Triceps
-        tricep_pushdown:    'Albuerne fastlåst og pegende samme sted — kun underarmene bevæger sig.',
-        skull_crusher:      'Albuerne fastlåst og pegende samme sted — kun underarmene bevæger sig.',
-        overhead_tricep:    'Albuerne tæt ved hovedet, fuld stræk i bunden — kun underarmene bevæger sig.',
-        // Ben
-        squat:              'Stangen over midtfoden, knæene ud over tæerne, samme dybde hver rep.',
-        front_squat:        'Albuerne højt, ribben ned, overkroppen oprejst — knæene frem.',
-        hack_squat:         'Ryggen mod pladen, hele foden, knæene over tæerne — stop før lænden runder.',
-        leg_press:          'Hele foden på platformen, knæene over tæerne, stop før lænden runder — ingen slam i lockout.',
-        bulgarian_split:    'Forreste fod så langt frem at knæet følger midten af foden, let fremadlænet, bageste knæ lige ned.',
-        lunges:             'Skridt så knæet følger midtfoden, oprejst overkrop, bageste knæ ned mod gulvet.',
-        romanian_deadlift:  'Hofterne tilbage, stangen tæt på benene, stop når baglåret løber tør for stræk — ikke når stangen rammer gulvet. 2-3 s ned.',
-        deadlift:           'Stangen tæt på benene, neutral ryg, pres gulvet væk — lås hofterne, ikke lænden.',
-        leg_curl:           'Hofteleddene i ro, fuld stræk i bunden, kontrolleret retur.',
-        leg_extension:      'Knæene i ro, klem i toppen, kontrolleret ned — ingen sving.',
-        hip_thrust:         'Hagen trukket ind, ribben ned, posterior tilt i toppen, pres gennem hælene, 1 s klem.',
-        glute_bridge:       'Hælene i gulvet, posterior tilt i toppen, 1 s klem.',
-        back_extension:     'Bevægelsen i hofteleddet, neutral ryg, klem ballerne i toppen.',
-        calf_raise:         'Fuld stræk i bunden, 1 s pause, 1 s i toppen — ingen bouncing.',
-        // Mave
-        plank:              'Ribben ned, mave og baller spændt — lige linje fra skulder til hæl.',
-        cable_crunch:       'Hofterne i ro, krøl sammen med maven ikke armene, langsom retur.',
-        hanging_leg_raise:  'Ingen sving, løft med maven, kontrolleret ned.',
+        tricep_pushdown:    'Elbows locked in place pointing the same way — only the forearms move.',
+        skull_crusher:      'Elbows locked in place pointing the same way — only the forearms move.',
+        overhead_tricep:    'Elbows close to the head, full stretch at the bottom — only the forearms move.',
+        // Legs
+        squat:              'Bar over mid-foot, knees tracking out over the toes, same depth every rep.',
+        front_squat:        'Elbows high, ribs down, torso upright — knees forward.',
+        hack_squat:         'Back against the pad, whole foot down, knees over the toes — stop before the lower back rounds.',
+        leg_press:          'Whole foot on the platform, knees over the toes, stop before the lower back rounds — no slamming into lockout.',
+        bulgarian_split:    'Front foot far enough forward that the knee tracks over mid-foot, slight forward lean, back knee straight down.',
+        lunges:             'Step so the knee tracks over mid-foot, torso upright, back knee down toward the floor.',
+        romanian_deadlift:  'Hips back, bar close to the legs, stop when the hamstrings run out of stretch — not at the floor. 2-3 s down.',
+        deadlift:           'Bar close to the legs, neutral spine, push the floor away — lock the hips, not the lower back.',
+        leg_curl:           'Hips still, full stretch at the bottom, control the return.',
+        leg_extension:      'Knees still, squeeze at the top, control the way down — no swinging.',
+        hip_thrust:         'Chin tucked, ribs down, posterior pelvic tilt at the top, push through the heels, 1 s squeeze.',
+        glute_bridge:       'Heels in the floor, posterior pelvic tilt at the top, 1 s squeeze.',
+        back_extension:     'Movement at the hip, neutral spine, squeeze the glutes at the top.',
+        calf_raise:         'Full stretch at the bottom, 1 s pause, 1 s at the top — no bouncing.',
+        // Abs
+        plank:              'Ribs down, abs and glutes tight — straight line from shoulder to heel.',
+        cable_crunch:       'Hips still, crunch with the abs not the arms, slow return.',
+        hanging_leg_raise:  'No swinging, lift with the abs, control the way down.',
     };
 
     const ALL_EXERCISES = { upper: EXERCISES.upper, lower: EXERCISES.lower };
@@ -131,38 +131,38 @@
     // ─── Træningsprogrammer (A/B Split) ───────────────────────────────
     const PROGRAMS = {
         upperA: [
-            { exerciseId: 'bench_press',       sets: 3, reps: 8,  weight: 60, note: 'Bryst' },
-            { exerciseId: 'lat_pulldown',      sets: 3, reps: 10, weight: 59, note: 'Ryg' },
-            { exerciseId: 'shoulder_press',    sets: 3, reps: 8,  weight: 30, note: 'Skulder' },
-            { exerciseId: 'cable_row',         sets: 3, reps: 12, weight: 40, note: 'Ryg' },
-            { exerciseId: 'lateral_raise',     sets: 3, reps: 12, weight: 7,  note: 'Skulder' },
+            { exerciseId: 'bench_press',       sets: 3, reps: 8,  weight: 60, note: 'Chest' },
+            { exerciseId: 'lat_pulldown',      sets: 3, reps: 10, weight: 59, note: 'Back' },
+            { exerciseId: 'shoulder_press',    sets: 3, reps: 8,  weight: 30, note: 'Shoulders' },
+            { exerciseId: 'cable_row',         sets: 3, reps: 12, weight: 40, note: 'Back' },
+            { exerciseId: 'lateral_raise',     sets: 3, reps: 12, weight: 7,  note: 'Shoulders' },
             { exerciseId: 'tricep_pushdown',   sets: 3, reps: 12, weight: 19, note: 'Triceps' },
             { exerciseId: 'ez_bar_curl',       sets: 3, reps: 12, weight: 19, note: 'Biceps (EZ-bar)' },
         ],
         upperB: [
-            { exerciseId: 'incline_dumbbell',  sets: 3, reps: 8,  weight: 25, note: 'Bryst øverst' },
-            { exerciseId: 'pull_up',           sets: 3, reps: 8,  weight: 0,  note: 'Ryg (kropsvægt)' },
-            { exerciseId: 'dumbbell_shoulder_press', sets: 3, reps: 10, weight: 15, note: 'Skulder' },
-            { exerciseId: 'barbell_row',       sets: 3, reps: 8,  weight: 50, note: 'Ryg' },
-            { exerciseId: 'reverse_fly',       sets: 3, reps: 12, weight: 8,  note: 'Skulder/rug' },
+            { exerciseId: 'incline_dumbbell',  sets: 3, reps: 8,  weight: 25, note: 'Upper chest' },
+            { exerciseId: 'pull_up',           sets: 3, reps: 8,  weight: 0,  note: 'Back (bodyweight)' },
+            { exerciseId: 'dumbbell_shoulder_press', sets: 3, reps: 10, weight: 15, note: 'Shoulders' },
+            { exerciseId: 'barbell_row',       sets: 3, reps: 8,  weight: 50, note: 'Back' },
+            { exerciseId: 'reverse_fly',       sets: 3, reps: 12, weight: 8,  note: 'Shoulders/Back' },
             { exerciseId: 'skull_crusher',     sets: 3, reps: 12, weight: 19, note: 'Triceps' },
             { exerciseId: 'hammer_curl',       sets: 3, reps: 10, weight: 15, note: 'Biceps' },
         ],
         lowerA: [
-            { exerciseId: 'squat',             sets: 3, reps: 8,  weight: 60, note: 'Lår' },
-            { exerciseId: 'romanian_deadlift', sets: 3, reps: 8,  weight: 50, note: 'Hoftebroantagelse' },
-            { exerciseId: 'leg_press',         sets: 3, reps: 10, weight: 80, note: 'Lår' },
-            { exerciseId: 'hip_thrust',        sets: 3, reps: 12, weight: 50, note: 'Rumpe' },
-            { exerciseId: 'leg_curl',          sets: 3, reps: 12, weight: 40, note: 'Lår' },
-            { exerciseId: 'plank',             sets: 3, reps: 1,  weight: 0,  note: 'Mave - hold 30-60 sekunder' },
+            { exerciseId: 'squat',             sets: 3, reps: 8,  weight: 60, note: 'Quads' },
+            { exerciseId: 'romanian_deadlift', sets: 3, reps: 8,  weight: 50, note: 'Hip hinge' },
+            { exerciseId: 'leg_press',         sets: 3, reps: 10, weight: 80, note: 'Quads' },
+            { exerciseId: 'hip_thrust',        sets: 3, reps: 12, weight: 50, note: 'Glutes' },
+            { exerciseId: 'leg_curl',          sets: 3, reps: 12, weight: 40, note: 'Hamstrings' },
+            { exerciseId: 'plank',             sets: 3, reps: 1,  weight: 0,  note: 'Abs — hold 30-60 seconds' },
         ],
         lowerB: [
-            { exerciseId: 'front_squat',       sets: 3, reps: 8,  weight: 40, note: 'Lår (fremfokus)' },
-            { exerciseId: 'deadlift',          sets: 3, reps: 6,  weight: 70, note: 'Ryg/hofter' },
-            { exerciseId: 'bulgarian_split',   sets: 3, reps: 8,  weight: 20, note: 'Lår/rumpe (per ben)' },
-            { exerciseId: 'glute_bridge',      sets: 3, reps: 12, weight: 40, note: 'Rumpe' },
-            { exerciseId: 'leg_extension',    sets: 3, reps: 12, weight: 40, note: 'Lår isolering' },
-            { exerciseId: 'cable_crunch',      sets: 3, reps: 15, weight: 30, note: 'Mave' },
+            { exerciseId: 'front_squat',       sets: 3, reps: 8,  weight: 40, note: 'Quads (front focus)' },
+            { exerciseId: 'deadlift',          sets: 3, reps: 6,  weight: 70, note: 'Back/Hips' },
+            { exerciseId: 'bulgarian_split',   sets: 3, reps: 8,  weight: 20, note: 'Quads/Glutes (per leg)' },
+            { exerciseId: 'glute_bridge',      sets: 3, reps: 12, weight: 40, note: 'Glutes' },
+            { exerciseId: 'leg_extension',     sets: 3, reps: 12, weight: 40, note: 'Quad isolation' },
+            { exerciseId: 'cable_crunch',      sets: 3, reps: 15, weight: 30, note: 'Abs' },
         ],
     };
 
@@ -264,7 +264,7 @@
     // ─── Utility ──────────────────────────────────────────────────
     function formatDate(dateStr) {
         const d = new Date(dateStr + 'T00:00:00');
-        return d.toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'short' });
+        return d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
     }
 
     function getTodayStr() {
@@ -306,8 +306,8 @@
 
         if (history.length === 0) {
             return {
-                suggestion: 'Start med 3 sæt × 8 reps',
-                detail: 'Ingen historik endnu. Vælg en vægt du kan udføre 8 reps med god form.',
+                suggestion: 'Start with 3 sets × 8 reps',
+                detail: 'No history yet. Pick a weight you can do 8 clean reps with.',
                 status: 'new',
             };
         }
@@ -342,7 +342,7 @@
             if (newReps > targetReps) {
                 return {
                     suggestion: `${newReps} reps med ${currentWeight} kg`,
-                    detail: `Du har brugt ${currentWeight} kg i ${sameWeightSessions} sammenhænge. Fokus på flere reps før vægtophedning.`,
+                    detail: `You have used ${currentWeight} kg across ${sameWeightSessions} sessions. Focus on more reps before adding weight.`,
                     status: 'stagnant',
                 };
             }
@@ -482,14 +482,14 @@
         if (sets.length === 0) return '';
 
         const note = exercise.compound
-            ? 'Rampe op til arbejdsvægten — aldrig til failure, 60-90 s pause. Er du allerede varm fra en tidligere øvelse, er ét let sæt nok.'
-            : 'Ét let sæt som forberedelse — ikke til failure.';
+            ? 'Ramp up to the working weight — never to failure, 60-90 s rest. Already warm from an earlier exercise? One light set is enough.'
+            : 'One light set to prepare — not to failure.';
 
         return `
             <details class="warmup-block">
                 <summary>
-                    <span class="warmup-title">🔥 Opvarmning</span>
-                    <span class="warmup-count">${sets.length} sæt · arbejdsvægt ${workingWeight} kg</span>
+                    <span class="warmup-title">🔥 Warm-up</span>
+                    <span class="warmup-count">${sets.length} sets · working weight ${workingWeight} kg</span>
                 </summary>
                 <div class="warmup-sets">
                     ${sets.map(s => `<span class="warmup-set">${s.weight} × ${s.reps}</span>`).join('')}
@@ -603,7 +603,7 @@
             return;
         }
         btn.classList.remove('hidden');
-        btn.textContent = showAll ? `Skjul (${hiddenCount})` : `Vis alle (${hiddenCount})`;
+        btn.textContent = showAll ? `Hide (${hiddenCount})` : `Show all (${hiddenCount})`;
     }
 
     // ─── Eksempeldata (til at prøve appen uden at taste data ind) ──
@@ -690,28 +690,28 @@
         section.classList.remove('hidden');
         btn.disabled = false;
         if (workouts.length > 0) {
-            btn.textContent = `Ryd eksempeldata (${workouts.length} træninger)`;
-            if (note) note.textContent = 'Loggen indeholder kun eksempeldata — de kan fjernes igen her.';
+            btn.textContent = `Clear sample data (${workouts.length} workouts)`;
+            if (note) note.textContent = 'The log holds sample data only — you can remove it again here.';
         } else {
-            btn.textContent = 'Fyld med eksempeldata';
-            if (note) note.textContent = 'Skriver tre ugers A/B-historik, så rotation, forslag, filtrering og deling kan prøves med det samme.';
+            btn.textContent = 'Load sample data';
+            if (note) note.textContent = 'Writes three weeks of A/B history so rotation, suggestions, filtering and sharing can be tried right away.';
         }
     }
 
     function toggleSampleData() {
         const workouts = loadWorkouts();
         if (realWorkouts(workouts).length > 0) {
-            showToast('Eksempeldata rører ikke dine rigtige træninger', 'info');
+            showToast('Sample data does not touch your real workouts', 'info');
             renderSampleControls();
             return;
         }
         if (workouts.length > 0) {
             saveWorkouts([]);
-            showToast('Eksempeldata ryddet', 'info');
+            showToast('Sample data cleared', 'info');
         } else {
             const samples = buildSampleWorkouts();
             saveWorkouts(samples);
-            showToast(`${samples.length} eksempeltræninger lagt ind`, 'success');
+            showToast(`${samples.length} sample workouts loaded`, 'success');
         }
         renderAll();
     }
@@ -727,10 +727,10 @@
         document.querySelectorAll('.variant-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.variant === variant);
         });
-        if (hint) hint.textContent = state.programVariant ? 'valgt' : 'foreslået';
+        if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
 
         if (view.shown.length === 0) {
-            content.innerHTML = '<div class="program-ex-meta">Intet program fundet</div>';
+            content.innerHTML = '<div class="program-ex-meta">No program found</div>';
             renderFilterToggle('program-toggle', false, 0);
             if (memory) memory.classList.add('hidden');
             return;
@@ -740,7 +740,7 @@
         if (memory) {
             if (view.last) {
                 memory.classList.remove('hidden');
-                memory.textContent = `↩︎ Husker din ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant} fra ${formatDate(view.last.date)} — samme øvelser og vægte som sidst.`;
+                memory.textContent = `↩︎ Remembering your ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant} from ${formatDate(view.last.date)} — same exercises and weights as last time.`;
             } else {
                 memory.classList.add('hidden');
                 memory.textContent = '';
@@ -760,7 +760,7 @@
                         <div class="program-ex-meta">${ex.muscle}${ex.equipment ? ' · ' + ex.equipment : ''}${ex.loadNote ? ' · ' + ex.loadNote : ''}</div>
                         ${item.note ? `<div class="program-ex-note">${item.note}</div>` : ''}
                     </div>
-                    ${added ? '<span class="program-ex-added">✓ Tilføjet</span>' : `<span class="program-ex-planned">${plan}</span>`}
+                    ${added ? '<span class="program-ex-added">✓ Added</span>' : `<span class="program-ex-planned">${plan}</span>`}
                 </div>
             `;
         }).join('');
@@ -781,8 +781,8 @@
             list.innerHTML = `
                 <div class="no-exercises-msg">
                     <span class="emoji">🏋️</span>
-                    <p> ingen øvelser tilføjet endnu</p>
-                    <p style="font-size:0.8rem; margin-top:4px;">Vælg en øvelse nedenfor for at starte</p>
+                    <p> no exercises added yet</p>
+                    <p style="font-size:0.8rem; margin-top:4px;">Pick an exercise below to get started</p>
                 </div>
             `;
             count.textContent = '0';
@@ -805,14 +805,14 @@
                             <div class="exercise-name">${exercise.name}</div>
                             <div class="exercise-meta">
                                 <span class="tag ${exercise.compound ? 'compound' : 'isolation'}">
-                                    ${exercise.compound ? '⨯ Sammensat' : '⊕ Isolation'}
+                                    ${exercise.compound ? '⨯ Compound' : '⊕ Isolation'}
                                 </span>
                                 <span class="tag equip">${exercise.equipment || ''}</span>
                                 <span>${exercise.muscle}</span>
                                 ${exercise.loadNote ? `<span class="tag load">${exercise.loadNote}</span>` : ''}
                             </div>
                         </div>
-                        <button class="remove-btn" data-index="${idx}" aria-label="Fjern øvelse">✕</button>
+                        <button class="remove-btn" data-index="${idx}" aria-label="Remove exercise">✕</button>
                     </div>
                     ${renderCueLine(exercise)}
                     <div class="warmup-holder">${renderWarmupBlock(exercise, workingWeightFor(ex))}</div>
@@ -820,9 +820,9 @@
                         <thead>
                             <tr>
                                 <th style="width:32px">#</th>
-                                <th>Vægt (kg)</th>
+                                <th>Weight (kg)</th>
                                 <th>Reps</th>
-                                <th style="text-align:right">Volumen (kg)</th>
+                                <th style="text-align:right">Volume (kg)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -857,10 +857,10 @@
                         </tbody>
                     </table>
                     <button class="add-set-btn" data-ex-index="${idx}">
-                        ＋ Tilføj sæt
+                        ＋ Add set
                     </button>
                     <div class="exercise-volume">
-                        <span>Total volumen</span>
+                        <span>Total volume</span>
                         <span class="total">${totalVolume.toFixed(0)} kg</span>
                     </div>
                 </div>
@@ -879,7 +879,7 @@
         renderFilterToggle('progressive-toggle', state.showAllProgressive, hidden.length);
 
         if (visible.length === 0) {
-            list.innerHTML = '<div class="list-empty-note">Ingen øvelser har historik endnu. Gem en træning først — eller tryk “Vis alle”.</div>';
+            list.innerHTML = '<div class="list-empty-note">No exercises have history yet. Save a workout first — or tap “Show all”.</div>';
             return;
         }
 
@@ -892,7 +892,7 @@
                         <div class="progressive-info">
                             <div class="progressive-ex-name">
                                 ${ex.name}
-                                ${added ? '<span class="added-badge">✓ Tilføjet</span>' : ''}
+                                ${added ? '<span class="added-badge">✓ Added</span>' : ''}
                             </div>
                             <div class="progressive-ex-meta">${ex.muscle}</div>
                         </div>
@@ -901,7 +901,7 @@
                             <div class="suggestion-detail">${prog.detail}</div>
                         </div>
                     </div>
-                    <button class="add-from-prog-btn" data-exercise-id="${ex.id}" title="Tilføj øvelse">
+                    <button class="add-from-prog-btn" data-exercise-id="${ex.id}" title="Add exercise">
                         ＋
                     </button>
                 </div>
@@ -919,11 +919,11 @@
             banner.classList.remove('hidden');
             document.getElementById('edit-banner-text').textContent =
                 `✏️ Redigerer ${state.editing.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(state.editing.date)}`;
-            btn.textContent = '💾 Opdater træning';
+            btn.textContent = '💾 Update workout';
             document.body.classList.add('editing');
         } else {
             banner.classList.add('hidden');
-            btn.textContent = '💾 Gem træning';
+            btn.textContent = '💾 Save workout';
             document.body.classList.remove('editing');
         }
 
@@ -931,16 +931,16 @@
         const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
 
         if (exerciseCount === 0) {
-            info.innerHTML = 'Ingen øvelser tilføjet';
+            info.innerHTML = 'No exercises added';
             btn.disabled = true;
         } else if (!hasSets) {
-            info.innerHTML = `<strong>${exerciseCount}</strong> øvelser · udfyld sættene`;
+            info.innerHTML = `<strong>${exerciseCount}</strong> exercises · fill in the sets`;
             btn.disabled = true;
         } else {
             const totalVolume = state.exercises.reduce((sum, ex) =>
                 sum + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
             );
-            info.innerHTML = `<strong>${exerciseCount}</strong> øvelser · <strong>${totalVolume.toFixed(0)} kg</strong> totalt`;
+            info.innerHTML = `<strong>${exerciseCount}</strong> exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
             btn.disabled = false;
         }
     }
@@ -956,7 +956,7 @@
             if (!groups.has(e.muscle)) groups.set(e.muscle, []);
             groups.get(e.muscle).push(e);
         }
-        select.innerHTML = '<option value="">— Vælg øvelse —</option>' +
+        select.innerHTML = '<option value="">— Choose exercise —</option>' +
             [...groups.entries()].map(([muscle, list]) =>
                 `<optgroup label="${muscle}">` +
                 list.map(e => `<option value="${e.id}">${e.name}${e.loadNote ? ' (' + e.loadNote + ')' : ''}</option>`).join('') +
@@ -969,14 +969,14 @@
 
         if (available.length === 0) {
             section.classList.add('empty-state');
-            section.querySelector('.add-exercise-title').textContent = '✅ Alle øvelser tilføjet';
+            section.querySelector('.add-exercise-title').textContent = '✅ All exercises added';
             section.querySelector('#add-exercise-btn').disabled = true;
-            section.querySelector('#add-exercise-btn').textContent = '✓ Færdig for i dag';
+            section.querySelector('#add-exercise-btn').textContent = '✓ Done for today';
         } else {
             section.classList.remove('empty-state');
-            section.querySelector('.add-exercise-title').textContent = '＋ Tilføj øvelse';
+            section.querySelector('.add-exercise-title').textContent = '＋ Add exercise';
             section.querySelector('#add-exercise-btn').disabled = false;
-            section.querySelector('#add-exercise-btn').textContent = '＋ Tilføj til dagens træning';
+            section.querySelector('#add-exercise-btn').textContent = "＋ Add to today's workout";
         }
 
         if (state.exercises.length === 0 && available.length > 0) {
@@ -1025,17 +1025,17 @@
         renderAll();
         const label = `${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant}`;
         if (added > 0) {
-            const skipped = view.hiddenCount > 0 ? ` (${view.hiddenCount} skjult af filtreringen)` : '';
-            showToast(`${label} indlæst — ${added} øvelser tilføjet${skipped}`, 'success');
+            const skipped = view.hiddenCount > 0 ? ` (${view.hiddenCount} hidden by the filter)` : '';
+            showToast(`${label} loaded — ${added} exercises added${skipped}`, 'success');
         } else {
-            showToast('Alle øvelser fra programmet er allerede tilføjet', 'info');
+            showToast('All exercises from the program are already added', 'info');
         }
     }
 
     // ─── Actions ──────────────────────────────────────────────────
     function addExercise(exerciseId) {
         if (state.exercises.some(e => e.exerciseId === exerciseId)) {
-            showToast('Øvelsen er allerede tilføjet', 'info');
+            showToast('Exercise is already added', 'info');
             return;
         }
         const exercise = getExerciseById(state.currentDay, exerciseId);
@@ -1052,13 +1052,13 @@
         });
 
         renderAll();
-        showToast(`${exercise.name} tilføjet`, 'success');
+        showToast(`${exercise.name} added`, 'success');
     }
 
     function addExerciseFromSuggestion(exerciseId) {
         // Check if already added
         if (state.exercises.some(e => e.exerciseId === exerciseId)) {
-            showToast('Øvelsen er allerede tilføjet', 'info');
+            showToast('Exercise is already added', 'info');
             return;
         }
 
@@ -1092,7 +1092,7 @@
         });
 
         renderAll();
-        showToast(`${exercise.name} tilføjet — ${suggestedWeight} kg × ${suggestedReps} reps`, 'success');
+        showToast(`${exercise.name} added — ${suggestedWeight} kg × ${suggestedReps} reps`, 'success');
     }
 
     function removeExercise(index) {
@@ -1101,7 +1101,7 @@
         renderAll();
         if (removed) {
             const exercise = getExerciseById(state.currentDay, removed.exerciseId);
-            showToast(`${exercise ? exercise.name : 'Øvelse'} fjernet`, 'info');
+            showToast(`${exercise ? exercise.name : 'Exercise'} removed`, 'info');
         }
     }
 
@@ -1179,7 +1179,7 @@
             .filter(ex => ex.sets.length > 0);
 
         if (cleanExercises.length === 0) {
-            showToast('Ingen sæt at gemme — udfyld vægt og reps', 'info');
+            showToast('No sets to save — fill in weight and reps', 'info');
             return;
         }
 
@@ -1187,7 +1187,7 @@
         if (state.editing) {
             const res = applyWorkoutEdit(workouts, state.editing.id, cleanExercises);
             if (!res.ok) {
-                showToast('Træningen findes ikke længere', 'error');
+                showToast('Workout no longer exists', 'error');
                 state.editing = null;
                 renderAll();
                 return;
@@ -1199,11 +1199,11 @@
             state.programVariant = null;
             renderAll();
             if (res.added > 0) {
-                showToast(`Træning opdateret — ${res.added} øvelse${res.added === 1 ? '' : 'r'} tilføjet`, 'success');
+                showToast(`Workout updated — ${res.added} exercise${res.added === 1 ? '' : 's'} added`, 'success');
             } else if (res.removed > 0) {
-                showToast(`Træning opdateret — ${res.removed} øvelse${res.removed === 1 ? '' : 'r'} fjernet`, 'success');
+                showToast(`Workout updated — ${res.removed} exercise${res.removed === 1 ? '' : 's'} removed`, 'success');
             } else {
-                showToast('Træning opdateret', 'success');
+                showToast('Workout updated', 'success');
             }
             return;
         }
@@ -1223,10 +1223,10 @@
 
         if (existingIdx >= 0) {
             workouts[existingIdx] = workoutData;
-            showToast('Træning opdateret', 'success');
+            showToast('Workout updated', 'success');
         } else {
             workouts.push(workoutData);
-            showToast('Træning gemt!', 'success');
+            showToast('Workout saved!', 'success');
         }
 
         saveWorkouts(workouts);
@@ -1240,7 +1240,7 @@
     function startEditWorkout(id) {
         const workout = loadWorkouts().find(w => w.id === id);
         if (!workout) {
-            showToast('Kunne ikke finde træningen', 'error');
+            showToast('Could not find the workout', 'error');
             return;
         }
 
@@ -1274,7 +1274,7 @@
 
         const label = `${workout.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(workout.date)}`;
         if (skipped.length > 0) {
-            showToast(`Redigerer ${label} — ${skipped.length} ukendt øvelse sprunget over`, 'info');
+            showToast(`Editing ${label} — ${skipped.length} unknown exercise skipped`, 'info');
         } else {
             showToast(`Redigerer ${label}`, 'info');
         }
@@ -1287,7 +1287,7 @@
         state.sessionVariant = null;
         state.programVariant = null;
         renderAll();
-        showToast('Redigering annulleret — træningen er uændret', 'info');
+        showToast('Edit cancelled — the workout is unchanged', 'info');
     }
 
     function showHistory() {
@@ -1300,8 +1300,8 @@
             content.innerHTML = `
                 <div class="history-empty">
                     <span class="emoji">📋</span>
-                    <p>Ingen træninger gemt endnu</p>
-                    <p style="font-size:0.8rem;margin-top:4px;">Gem din første træning for at se historik</p>
+                    <p>No workouts saved yet</p>
+                    <p style="font-size:0.8rem;margin-top:4px;">Save your first workout to see history</p>
                 </div>
             `;
         } else {
@@ -1332,7 +1332,7 @@
                                 <div class="history-workout">
                                     <div class="history-workout-header">
                                         <span class="history-day-type ${w.day}">${w.day === 'upper' ? 'Upper' : 'Lower'}</span>
-                                        <span class="history-workout-meta">${exCount} øvelse${exCount === 1 ? '' : 'r'} · ${totalVol.toFixed(0)} kg totalt${w.sharedAt ? ' · <span class="shared-badge">delt</span>' : ''}</span>
+                                        <span class="history-workout-meta">${exCount} exercise${exCount === 1 ? '' : 's'} · ${totalVol.toFixed(0)} kg total${w.sharedAt ? ' · <span class="shared-badge">shared</span>' : ''}</span>
                                         <button class="history-edit-btn" data-workout-id="${w.id}">✏️ Rediger</button>
                                     </div>
                                     ${w.exercises.map(ex => {
@@ -1344,16 +1344,16 @@
                                         return `
                                             <div class="history-exercise">
                                                 <div class="hist-ex-name">${exercise.name}</div>
-                                                <div class="hist-ex-meta">${exercise.muscle}${exercise.equipment ? ' · ' + exercise.equipment : ''}${exercise.loadNote ? ' · ' + exercise.loadNote : ''} · ${sets.length} sæt</div>
+                                                <div class="hist-ex-meta">${exercise.muscle}${exercise.equipment ? ' · ' + exercise.equipment : ''}${exercise.loadNote ? ' · ' + exercise.loadNote : ''} · ${sets.length} sets</div>
                                                 <div class="hist-sets">
                                                     ${sets.map((s, i) => `
                                                         <span class="hist-set ${best && s.weight === best.weight && s.reps === best.reps ? 'best' : ''}"
-                                                              title="${i + 1}. sæt">
+                                                              title="${i + 1}. set">
                                                             ${s.weight} kg × ${s.reps} reps
                                                         </span>
                                                     `).join('')}
                                                 </div>
-                                                <div class="hist-volume">${totalVol.toFixed(0)} kg totalt</div>
+                                                <div class="hist-volume">${totalVol.toFixed(0)} kg total</div>
                                             </div>
                                         `;
                                     }).join('')}
@@ -1427,9 +1427,9 @@
             if (addExerciseWithPlan(item.exerciseId, item.sets, item.reps, item.weight)) {
                 state.sessionVariant = variant;
                 renderAll();
-                showToast('Øvelse tilføjet fra programmet', 'success');
+                showToast('Exercise added from the program', 'success');
             } else {
-                showToast('Øvelsen er allerede tilføjet', 'info');
+                showToast('Exercise is already added', 'info');
             }
         });
         document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
@@ -1438,7 +1438,7 @@
         document.getElementById('add-exercise-btn').addEventListener('click', () => {
             const select = document.getElementById('exercise-select');
             if (!select.value) {
-                showToast('Vælg en øvelse først', 'error');
+                showToast('Pick an exercise first', 'error');
                 return;
             }
             addExercise(select.value);
@@ -1530,7 +1530,7 @@
     // med i kompakt form, så trenden ikke går tabt når man kun deler én uge.
     const CHAR_LIMIT = 2000;
 
-    const WEEKDAYS = ['man', 'tir', 'ons', 'tor', 'fre', 'lør', 'søn'];
+    const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     function isoDate(d) {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -1575,7 +1575,7 @@
         const mon = weekMonday(key);
         const sun = new Date(mon);
         sun.setDate(mon.getDate() + 6);
-        return `Uge ${Number(key.split('-W')[1])} (${shortDate(isoDate(mon))}–${shortDate(isoDate(sun))})`;
+        return `Week ${Number(key.split('-W')[1])} (${shortDate(isoDate(mon))}–${shortDate(isoDate(sun))})`;
     }
 
     // Grupperer træninger i ISO-uger, nyeste uge først.
@@ -1639,29 +1639,29 @@
     }
 
     function shareScopeTitle(scope, selected) {
-        if (scope === 'all') return 'ALLE UGER';
+        if (scope === 'all') return 'ALL WEEKS';
         if (scope && scope.startsWith('week:')) return weekLabel(scope.slice(5)).toUpperCase();
         // "Kun nyt" kan dække flere uger, så ugerne nævnes i titlen — ellers
         // fremgår det ikke af eksporten hvilket tidsrum den dækker.
         const keys = groupByWeek(selected).map(w => w.key).sort();
-        if (keys.length === 0) return `NYT SIDEN SIDST (${selected.length})`;
+        if (keys.length === 0) return `NEW SINCE LAST (${selected.length})`;
         const first = Number(keys[0].split('-W')[1]);
         const last = Number(keys[keys.length - 1].split('-W')[1]);
-        const span = first === last ? `UGE ${first}` : `UGE ${first}–${last}`;
-        return `NYT SIDEN SIDST (${selected.length}) · ${span}`;
+        const span = first === last ? `WEEK ${first}` : `WEEK ${first}–${last}`;
+        return `NEW SINCE LAST (${selected.length}) · ${span}`;
     }
 
     function generateShareText(scope) {
         const workouts = loadWorkouts();
         if (workouts.length === 0) {
-            return '📋 Ingen træninger gemt endnu.\n\nKopier denne tekst og send den til mig når du har nogle træninger — så kan jeg hjælpe med feedback!';
+            return '📋 No workouts saved yet.\n\nCopy this text and send it to me once you have a few workouts — then I can help with feedback!';
         }
 
         const weeks = groupByWeek(workouts);
         const selected = shareScopeWorkouts(scope, workouts, weeks).sort((a, b) => a.date.localeCompare(b.date));
 
         if (selected.length === 0) {
-            return '📋 Ingen træninger i det valgte tidsrum.\n\nVælg en anden uge i listen ovenfor.';
+            return '📋 No workouts in the selected period.\n\nPick another week in the list above.';
         }
 
         const lines = [];
@@ -1672,11 +1672,11 @@
             s + e.sets.reduce((sv, set) => sv + (set.weight * set.reps), 0), 0), 0);
 
         lines.push(`🏋️ GYM TRACKER — ${shareScopeTitle(scope, selected)}`);
-        lines.push(`${selected.length} træning${selected.length === 1 ? '' : 'er'} · ${upper} Upper · ${lower} Lower · ${sets} sæt · ${volume.toFixed(0)} kg`);
+        lines.push(`${selected.length} workout${selected.length === 1 ? '' : 's'} · ${upper} Upper · ${lower} Lower · ${sets} sets · ${volume.toFixed(0)} kg`);
         lines.push('');
 
         // "per hånd"/"per ben" er afgørende for at læse tallene rigtigt: 20 kg
-        // pr. hånd er ikke 20 kg totalt. Noten står kun for de øvelser der er med.
+        // pr. hånd er ikke 20 kg total. Noten står kun for de øvelser der er med.
         const loadNotes = new Map();
         for (const w of selected) {
             for (const ex of (w.exercises || [])) {
@@ -1688,7 +1688,7 @@
             }
         }
         for (const [note, names] of loadNotes) {
-            lines.push(`ℹ️ ${note} = kg pr. side: ${[...names].join(', ')}`);
+            lines.push(`ℹ️ ${note} = kg per side: ${[...names].join(', ')}`);
         }
 
         // Træningslog, uge for uge
@@ -1713,11 +1713,11 @@
                 const delta = v.sets[v.sets.length - 1].weight - v.sets[0].weight;
                 if (delta > 0) up++; else if (delta < 0) down++; else flat++;
             }
-            const parts = [`${up} op`];
-            if (flat > 0) parts.push(`${flat} uændret`);
-            if (down > 0) parts.push(`${down} ned`);
+            const parts = [`${up} up`];
+            if (flat > 0) parts.push(`${flat} unchanged`);
+            if (down > 0) parts.push(`${down} down`);
             lines.push('');
-            lines.push(`📈 Fremgang: ${parts.join(' · ')} (af ${inScope.size} øvelser)`);
+            lines.push(`📈 Progress: ${parts.join(' · ')} (of ${inScope.size} exercises)`);
         }
 
         // All-time bedste sæt i kompakt form på så få linjer som muligt: uden
@@ -1730,12 +1730,9 @@
         }
         if (bests.length > 0) {
             lines.push('');
-            lines.push('🏆 Bedste nogensinde (kg×reps)');
+            lines.push('🏆 Best ever (kg×reps)');
             lines.push(`  ${bests.join(' · ')}`);
         }
-
-        lines.push('');
-        lines.push('📤 Send til Binky (AI-træner)');
 
         return lines.join('\n');
     }
@@ -1757,17 +1754,17 @@
         const opts = [];
 
         if (unshared.length > 0) {
-            opts.push({ value: 'new', label: `Kun nyt siden sidst (${unshared.length} træning${unshared.length === 1 ? '' : 'er'})` });
+            opts.push({ value: 'new', label: `Only new since last (${unshared.length} workout${unshared.length === 1 ? '' : 's'})` });
         }
         for (const wk of weeks) {
-            const mark = wk.shared ? ' ✓ delt' : '';
-            const tag = wk.key === current ? ' ← denne uge' : '';
+            const mark = wk.shared ? ' ✓ shared' : '';
+            const tag = wk.key === current ? ' ← this week' : '';
             opts.push({
                 value: `week:${wk.key}`,
-                label: `${weekLabel(wk.key)} · ${wk.workouts.length} træning${wk.workouts.length === 1 ? '' : 'er'}${mark}${tag}`,
+                label: `${weekLabel(wk.key)} · ${wk.workouts.length} workout${wk.workouts.length === 1 ? '' : 's'}${mark}${tag}`,
             });
         }
-        if (workouts.length > 0) opts.push({ value: 'all', label: `Alle uger (${workouts.length} træninger)` });
+        if (workouts.length > 0) opts.push({ value: 'all', label: `All weeks (${workouts.length} workouts)` });
 
         const sel = document.getElementById('share-scope');
         sel.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
@@ -1786,8 +1783,8 @@
         const over = len > CHAR_LIMIT;
         size.className = 'share-size' + (over ? ' over' : '');
         size.textContent = over
-            ? `⚠️ ${len} tegn — del i 2 beskeder (Discords grænse er 2.000)`
-            : `${len} / 2.000 tegn — passer i én besked ✓`;
+            ? `⚠️ ${len} characters — split into 2 messages (Discord's limit is 2,000)`
+            : `${len} / 2,000 characters — fits in one message ✓`;
         return text;
     }
 
@@ -1825,7 +1822,7 @@
     function copyShareText() {
         const textarea = document.getElementById('share-text');
         const scope = document.getElementById('share-scope').value;
-        const copied = () => showToast('Kopieret til udklipsholderen!', 'success');
+        const copied = () => showToast('Copied to clipboard!', 'success');
 
         textarea.select();
         textarea.setSelectionRange(0, 99999);
@@ -1843,7 +1840,7 @@
         const n = markShareScopeAsShared(scope);
         const next = renderShareScopeOptions(scope);
         if (next !== scope) updateSharePreview(next);
-        if (n > 0) showToast(`${n} træning${n === 1 ? '' : 'er'} markeret som delt`, 'success');
+        if (n > 0) showToast(`${n} workout${n === 1 ? '' : 's'} marked as shared`, 'success');
     }
 
     // ─── Start ────────────────────────────────────────────────────

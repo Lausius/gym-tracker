@@ -107,7 +107,7 @@ async function main() {
     ok('Titel er Gym Tracker', (await evaluate('return document.title')) === 'Gym Tracker');
     ok('Program-sektionen viser øvelser', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) > 0);
     ok('Ingen historik → foreslår Upper A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
-    ok('Hint siger "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'foreslået');
+    ok('Hint siger "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested');
     ok('Gem-knappen er disabled uden øvelser', (await evaluate('return document.getElementById("save-btn").disabled')) === true);
 
     // ─── 2. Indlæs program ────────────────────────────────────────
@@ -140,7 +140,7 @@ async function main() {
     console.log('\n── 2b. Teknik-cues på kortet');
     ok('Bench Press-kortet viser sin cue', (await evaluate(`
         const cue = document.querySelector("#exercise-list .exercise-card .cue-line");
-        return !!cue && /Skulderbladene/.test(cue.textContent);
+        return !!cue && /Shoulder blades/.test(cue.textContent);
     `)) === true);
     ok('Cuen er synlig uden at folde noget ud (ikke bag <details>)', (await evaluate(`
         const cue = document.querySelector("#exercise-list .exercise-card .cue-line");
@@ -163,7 +163,7 @@ async function main() {
     ok('Lateral Raise får sin egen cue (let er pointen)', (await evaluate(`
         const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
             .find(c => c.innerText.includes("Lateral Raise"));
-        return /Let er pointen/.test(card.querySelector(".cue-line").textContent);
+        return /Light is the point/.test(card.querySelector(".cue-line").textContent);
     `)) === true);
     ok('Cue-teksten læses som én linje tekst (under 130 tegn)', (await evaluate(`
         return [...document.querySelectorAll("#exercise-list .cue-line")]
@@ -175,7 +175,7 @@ async function main() {
     await evaluate('document.querySelector(\'.variant-btn[data-variant="B"]\').click(); return true;');
     await sleep(150);
     ok('B-knappen er aktiv', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'B');
-    ok('Hint skifter til "valgt"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'valgt');
+    ok('Hint skifter til "valgt"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'chosen');
     ok('Upper B viser Incline Dumbbell Press', (await evaluate('return document.getElementById("program-content").innerText.includes("Incline Dumbbell Press")')) === true);
     ok('Upper B viser ikke Bench Press', (await evaluate('return document.getElementById("program-content").innerText.includes("Bench Press")')) === false);
     ok('↻-knappen er fjernet (A/B skiftes med knapperne)', (await evaluate('return document.getElementById("program-refresh")')) === null);
@@ -237,7 +237,7 @@ async function main() {
     await load(URL_UNDER_TEST);
     ok('Data overlever reload', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1);
     ok('Næste forslag er nu Upper B (rotation virker)', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === "B");
-    ok('Foreslået variant er igen markeret "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'foreslået');
+    ok('Foreslået variant er igen markeret "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested');
     ok('Progressiv overload foreslår 67.5 kg efter 65 kg × 8', (await evaluate(`
         const el = [...document.querySelectorAll("#progressive-list .progressive-item")]
             .find(i => i.dataset.exerciseId === "bench_press");
@@ -261,9 +261,9 @@ async function main() {
     await evaluate('document.getElementById("btn-share").click(); return true;');
     await sleep(200);
     const shareText = await evaluate('return document.getElementById("share-text").value;');
-    ok('Del-modal genererer tekst med uge-overskrift og sæt', shareText.includes('NYT SIDEN SIDST') && shareText.includes('65×8'), shareText.split('\n')[0]);
-    ok('Del-teksten har all-time-bedste og fremgangs-headline', shareText.includes('🏆 Bedste nogensinde') && shareText.includes('📈 Fremgang:'));
-    ok('Del-teksten viser hvilken uge træningen hører til', /NYT SIDEN SIDST \(\d+\) · UGE \d+/.test(shareText), shareText.split('\n')[0]);
+    ok('Del-modal genererer tekst med uge-overskrift og sæt', shareText.includes('NEW SINCE LAST') && shareText.includes('65×8'), shareText.split('\n')[0]);
+    ok('Del-teksten har all-time-bedste og fremgangs-headline', shareText.includes('🏆 Best ever') && shareText.includes('📈 Progress:'));
+    ok('Del-teksten viser hvilken uge træningen hører til', /NEW SINCE LAST \(\d+\) · WEEK \d+/.test(shareText), shareText.split('\n')[0]);
     await evaluate('document.getElementById("share-close").click(); return true;');
 
     ok('Regler-knappen er væk (reglerne ligger i README)', (await evaluate('return document.getElementById("program-rules")')) === null);
@@ -408,11 +408,11 @@ async function main() {
     ok('Øvelses-dropdown er grupperet i optgroups', (await evaluate('return document.querySelectorAll("#exercise-select optgroup").length')) > 3);
     ok('Dropdown-labels indeholder ikke længere muskelgruppen i selve teksten', (await evaluate(`
         return [...document.querySelectorAll("#exercise-select option")]
-            .filter(o => o.value).every(o => !/\\(Bryst\\)|\\(Ryg\\)|\\(Biceps\\)/.test(o.text));
+            .filter(o => o.value).every(o => !/\\(Chest\\)|\\(Back\\)|\\(Biceps\\)/.test(o.text));
     `)) === true);
     const optionTexts = await evaluate('return [...document.querySelectorAll("#exercise-select option")].map(o => o.value + "|" + o.text);');
     ok('Bicep Curl findes i tre varianter i dropdown', ['bicep_curl', 'ez_bar_curl', 'dumbbell_curl'].every(id => optionTexts.some(t => t.startsWith(id + '|'))));
-    ok('Håndvægt-curl er mærket "per hånd" i dropdown', optionTexts.some(t => t.startsWith('dumbbell_curl|') && t.includes('per hånd')));
+    ok('Håndvægt-curl er mærket "per hånd" i dropdown', optionTexts.some(t => t.startsWith('dumbbell_curl|') && t.includes('per hand')));
     ok('Chest Supported Row er valgbar', optionTexts.some(t => t.startsWith('chest_supported_row|')));
 
     // Vælg EZ-bar-curl via dropdown og tilføj den
@@ -445,7 +445,7 @@ async function main() {
         const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
         const db = cards.find(c => c.innerText.includes("Bicep Curl (Dumbbell)"));
         return db.querySelector(".tag.load").textContent.trim();
-    `)) === 'per hånd');
+    `)) === 'per hand');
     ok('Stang-curl viser ingen "per hånd"-mærkning', (await evaluate(`
         return document.querySelectorAll("#exercise-list .exercise-card .tag.load").length;
     `)) === 1);
@@ -457,7 +457,7 @@ async function main() {
         const t = document.getElementById("program-content").innerText;
         return t.includes("Bicep Curl (EZ-bar)") && t.includes("EZ-bar");
     `)) === true);
-    ok('Programrækker viser stadig deres note', (await evaluate('return document.getElementById("program-content").innerText.includes("Bryst øverst") || document.getElementById("program-content").innerText.includes("Biceps")')) === true);
+    ok('Programrækker viser stadig deres note', (await evaluate('return document.getElementById("program-content").innerText.includes("Upper chest") || document.getElementById("program-content").innerText.includes("Biceps")')) === true);
 
     ok('Del-rapporten oplyser "per hånd"/"per ben" for de øvelser der kræver det', (await evaluate(`
         document.getElementById("btn-share").click();
@@ -466,7 +466,7 @@ async function main() {
         sel.dispatchEvent(new Event("change"));
         const t = document.getElementById("share-text").value;
         document.getElementById("share-close").click();
-        return /ℹ️ (per hånd|per ben) = kg pr\\. side: \\S/.test(t);
+        return /ℹ️ (per hand|per leg) = kg per side: \\S/.test(t);
     `)) === true);
 
     // ─── 10. Rediger en gemt træning ──────────────────────────────
@@ -496,7 +496,7 @@ async function main() {
     ok('Historikken viser én træning med Rediger-knap', (await evaluate('return document.querySelectorAll("#history-content .history-edit-btn").length')) === 1);
     ok('Historik-blokken viser antal øvelser og volumen', (await evaluate(`
         const m = document.querySelector("#history-content .history-workout-meta").textContent;
-        return /7 øvelser/.test(m) && /kg totalt/.test(m);
+        return /7 exercises/.test(m) && /kg total/.test(m);
     `)) === true);
 
     // Gå i redigeringstilstand
@@ -508,7 +508,7 @@ async function main() {
         const b = document.getElementById("edit-banner");
         return !b.classList.contains("hidden") && b.textContent.includes("Redigerer Upper");
     `)) === true);
-    ok('Knappen skifter til "Opdater træning"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Opdater træning")')) === true);
+    ok('Knappen skifter til "Update workout"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Update workout")')) === true);
     ok('Dagen følger træningen der redigeres', (await evaluate('return document.querySelector(".day-btn.active").dataset.day')) === 'upper');
     ok('Sættene er indlæst med vægt og reps', (await evaluate(`
         const inputs = [...document.querySelectorAll("#exercise-list input[type=number]")];
@@ -544,14 +544,14 @@ async function main() {
     ok('Den glemte øvelse ligger i den gemte træning', afterEdit.hasNew === true);
     ok('Dag og variant er bevaret', afterEdit.day === 'upper' && afterEdit.variant === afterSave.variant);
     ok('Redigeringstilstanden er forladt', (await evaluate('return document.getElementById("edit-banner").classList.contains("hidden")')) === true);
-    ok('Knappen er tilbage til "Gem træning"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Gem træning")')) === true);
+    ok('Knappen er tilbage til "Save workout"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Save workout")')) === true);
     ok('Siden skubbes tilbage til normal afstand', (await evaluate('return getComputedStyle(document.querySelector(".app-container")).paddingBottom')) === '100px');
 
     // Historikken afspejler den opdaterede træning
     await evaluate('document.getElementById("btn-history").click(); return true;');
     await sleep(250);
     ok('Historikken viser den tilføjede øvelse', (await evaluate('return document.getElementById("history-content").innerText.includes("Chest Supported Row")')) === true);
-    ok('Historikken viser nu 8 øvelser', (await evaluate('return /8 øvelser/.test(document.querySelector("#history-content .history-workout-meta").textContent)')) === true);
+    ok('Historikken viser nu 8 øvelser', (await evaluate('return /8 exercises/.test(document.querySelector("#history-content .history-workout-meta").textContent)')) === true);
 
     // Annuller må ikke skrive noget
     await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
@@ -626,15 +626,15 @@ async function main() {
         return [...sel.options].map(o => ({ v: o.value, t: o.textContent }));
     `);
     ok('Delingsvinduet har en visnings-vælger', shareOpts.length === 4, JSON.stringify(shareOpts.map(o => o.v)));
-    ok('Vælgeren tilbyder "kun nyt" når intet er delt', shareOpts[0].v === 'new' && /nyt siden sidst \(4 træninger\)/.test(shareOpts[0].t), shareOpts[0] && shareOpts[0].t);
+    ok('Vælgeren tilbyder "kun nyt" når intet er delt', shareOpts[0].v === 'new' && /Only new since last \(4 workouts\)/.test(shareOpts[0].t), shareOpts[0] && shareOpts[0].t);
     ok('Vælgeren tilbyder begge uger', shareOpts.filter(o => o.v.startsWith('week:')).length === 2);
     ok('Vælgeren tilbyder alle uger', shareOpts[shareOpts.length - 1].v === 'all');
     const w40label = (shareOpts.find(o => o.v === 'week:2026-W40') || {}).t || '';
-    ok('Uge-label viser interval og antal træninger', /Uge 40 \(\d+\.\d+–\d+\.\d+\) · 2 træninger/.test(w40label), w40label);
+    ok('Uge-label viser interval og antal træninger', /Week 40 \(\d+\.\d+–\d+\.\d+\) · 2 workouts/.test(w40label), w40label);
     ok('Standardvisningen er "kun nyt siden sidst"', (await evaluate('return document.getElementById("share-scope").value')) === 'new');
     ok('Eksporten er under Discords 2.000 tegn', (await evaluate('return document.getElementById("share-text").value.length')) <= 2000);
     const sizeNew = await evaluate('return document.getElementById("share-size").textContent');
-    ok('Tælleren bekræfter at den passer i én besked', /passer i én besked/.test(sizeNew), sizeNew);
+    ok('Tælleren bekræfter at den passer i én besked', /fits in one message/.test(sizeNew), sizeNew);
 
     // Vælg en bestemt uge
     await evaluate(`
@@ -645,9 +645,9 @@ async function main() {
     `);
     await sleep(250);
     const weekText = await evaluate('return document.getElementById("share-text").value');
-    ok('Valg af en uge viser kun den uge', weekText.includes('UGE 41') && !weekText.includes('UGE 40'));
+    ok('Valg af en uge viser kun den uge', weekText.includes('WEEK 41') && !weekText.includes('WEEK 40'));
     ok('Ugens træninger står i loggen', weekText.includes('5.10 UPPER B') && weekText.includes('7.10 LOWER B'), weekText.split('\n').slice(3, 5).join(' / '));
-    ok('All-time-bedste følger med, så trenden ikke går tabt', weekText.includes('🏆 Bedste nogensinde'));
+    ok('All-time-bedste følger med, så trenden ikke går tabt', weekText.includes('🏆 Best ever'));
     ok('Ugens eksport passer i én besked', weekText.length <= 2000, `${weekText.length} tegn`);
     ok('Tælleren viser tallet for den valgte uge', (await evaluate('return document.getElementById("share-size").textContent')).includes(String(weekText.length)));
 
@@ -667,14 +667,14 @@ async function main() {
     ok('Markeringen vises i vælgeren', (await evaluate(`
         const sel = document.getElementById("share-scope");
         return [...sel.options].find(o => o.value === "week:2026-W41").textContent;
-    `)).includes('✓ delt'));
+    `)).includes('✓ shared'));
 
     // Genåbn: "kun nyt" tilbyder nu kun det resterende
     await evaluate('document.getElementById("share-modal-close").click(); return true;');
     await sleep(200);
     await evaluate('document.getElementById("btn-share").click(); return true;');
     await sleep(300);
-    ok('Efter deling tilbyder "kun nyt" kun de resterende 2', /nyt siden sidst \(2 træninger\)/.test(await evaluate(`
+    ok('Efter deling tilbyder "kun nyt" kun de resterende 2', /Only new since last \(2 workouts\)/.test(await evaluate(`
         const sel = document.getElementById("share-scope");
         return [...sel.options].map(o => o.textContent).join(" | ");
     `)));
@@ -731,13 +731,13 @@ async function main() {
     ok('Programmet viser kun de udførte øvelser', progRows.length === 2 && progRows.includes('bench_press') && progRows.includes('lat_pulldown'), JSON.stringify(progRows));
     ok('shoulder_press er væk fra programmet (det var hele klagen)', !progRows.includes('shoulder_press'));
     ok('Skabelonen er stadig 7 øvelser bag kulissen', progA === 7);
-    ok('Knappen tilbyder at vise de 5 skjulte', /Vis alle \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')), await evaluate('return document.getElementById("program-toggle").textContent'));
+    ok('Knappen tilbyder at vise de 5 skjulte', /Show all \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')), await evaluate('return document.getElementById("program-toggle").textContent'));
     ok('Knappen er synlig når noget er skjult', (await evaluate('return document.getElementById("program-toggle").classList.contains("hidden")')) === false);
 
     await evaluate('document.getElementById("program-toggle").click(); return true;');
     await sleep(250);
     ok('"Vis alle" henter hele skabelonen frem', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === progA);
-    ok('Knappen skifter til "Skjul"', /Skjul \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')));
+    ok('Knappen skifter til "Skjul"', /Hide \(5\)/.test(await evaluate('return document.getElementById("program-toggle").textContent')));
     await evaluate('document.getElementById("program-toggle").click(); return true;');
     await sleep(250);
     ok('Et tryk mere filtrerer igen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === 2);
@@ -750,7 +750,7 @@ async function main() {
     // væk selvom den aldrig er udført.
     ok('Kropsvægtøvelser filtreres ikke væk (pull-up)', progItems.includes('pull_up'), JSON.stringify(progItems));
     ok(`Listen er gået fra ${upperDb} til ${progItems.length} poster`, progItems.length < upperDb);
-    ok('Knappen tilbyder de skjulte i Næste uge', /Vis alle \(\d+\)/.test(await evaluate('return document.getElementById("progressive-toggle").textContent')), await evaluate('return document.getElementById("progressive-toggle").textContent'));
+    ok('Knappen tilbyder de skjulte i Næste uge', /Show all \(\d+\)/.test(await evaluate('return document.getElementById("progressive-toggle").textContent')), await evaluate('return document.getElementById("progressive-toggle").textContent'));
     await evaluate('document.getElementById("progressive-toggle").click(); return true;');
     await sleep(250);
     ok('"Vis alle" i Næste uge viser hele databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === upperDb);
@@ -857,7 +857,7 @@ async function main() {
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
 
-    ok('Knappen tilbyder at fylde eksempeldata ind', /Fyld med eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+    ok('Knappen tilbyder at fylde eksempeldata ind', /Load sample data/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
     ok('Blokken er synlig når loggen er tom', (await evaluate('return document.getElementById("sample-section").classList.contains("hidden")')) === false);
     ok('Noten forklarer hvad der sker', (await evaluate('return document.getElementById("sample-note").textContent')).length > 0);
     ok('Den er et gyldigt tap-target', (await evaluate('return Math.round(document.getElementById("sample-btn").getBoundingClientRect().height)')) >= 28);
@@ -887,7 +887,7 @@ async function main() {
     ok('Eksempeldata lægges ind (12 træninger)', seeded.count === 12, JSON.stringify(seeded));
     ok('Alle er markeret som eksempeldata', seeded.allSample === true);
     ok('Begge dage får historik', seeded.days === 'lower,upper', seeded.days);
-    ok('Knappen skifter til at kunne rydde igen', /Ryd eksempeldata/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
+    ok('Knappen skifter til at kunne rydde igen', /Clear sample data/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
 
     // Pointen med funktionen: filtreringen kan nu ses i en frisk browser, hvor der
     // ellers ikke ville være noget at filtrere på.
@@ -919,7 +919,7 @@ async function main() {
 
     const NEW_CABLE_UI = [
         ['cable_lateral_raise', 'Cable Lateral Raise'],
-        ['cable_row_per_hand', 'Cable Row (per hånd)'],
+        ['cable_row_per_hand', 'Cable Row (per hand)'],
         ['dual_bicep_cable_curl', 'Dual Bicep Cable Curl'],
         ['lat_extension', 'Lat Extension'],
         ['cable_reverse_fly', 'Cable Reverse Fly'],
@@ -930,11 +930,11 @@ async function main() {
         ok(`"${name}" kan vælges i ＋ Tilføj øvelse`, optionValues.includes(id) && optionText.includes(name), `id=${optionValues.includes(id)} navn=${optionText.includes(name)}`);
     }
     ok('Row-varianten vises med "per hånd" så vægten ikke læses som total',
-        optionText.includes('Cable Row (per hånd)'),
+        optionText.includes('Cable Row (per hand)'),
         optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
-    // Navnet må ikke gentage det noten allerede siger: "Cable Row (per hånd) (per hånd)".
+    // Navnet må ikke gentage det noten allerede siger: "Cable Row (per hand) (per hand)".
     ok('"per hånd" står kun én gang på row-varianten',
-        !optionText.includes('Cable Row (per hånd) (per hånd)') && !optionText.includes('(Per hånd)'),
+        !optionText.includes('Cable Row (per hand) (per hand)') && !optionText.includes('(Per hånd)'),
         optionText.split('\n').filter(t => t.includes('Cable Row')).join(' | '));
 
     // Præcis én af de nye skal bære "per hånd" — ellers ville de andre blive læst
@@ -943,9 +943,9 @@ async function main() {
         const ids = ${JSON.stringify(NEW_CABLE_UI.map(([id]) => id))};
         return [...document.querySelectorAll("#exercise-select option")].filter(o => ids.includes(o.value)).map(o => o.textContent);
     `);
-    const withNote = newOptionTexts.filter(t => t.includes('per hånd'));
+    const withNote = newOptionTexts.filter(t => t.includes('per hand'));
     ok('Præcis én af de fem vises med "per hånd"', withNote.length === 1, newOptionTexts.join(' | '));
-    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (per hånd)'), withNote.join(' | '));
+    ok('Det er row-varianten', withNote[0] && withNote[0].startsWith('Cable Row (per hand)'), withNote.join(' | '));
 
     // Grupperingen er det man navigerer efter i vælgeren
     const grouped = await evaluate(`
@@ -955,9 +955,9 @@ async function main() {
         }
         return out;
     `);
-    ok('Cable Lateral Raise er grupperet under Skulder', (grouped['Skulder'] || []).includes('cable_lateral_raise'), JSON.stringify(Object.keys(grouped)));
-    ok('Cable Reverse Fly er grupperet under Skulder/rug', (grouped['Skulder/rug'] || []).includes('cable_reverse_fly'));
-    ok('Lat Extension og Cable Row er grupperet under Ryg', ['lat_extension', 'cable_row_per_hand'].every(id => (grouped['Ryg'] || []).includes(id)), JSON.stringify(grouped['Ryg']));
+    ok('Cable Lateral Raise er grupperet under Skulder', (grouped['Shoulders'] || []).includes('cable_lateral_raise'), JSON.stringify(Object.keys(grouped)));
+    ok('Cable Reverse Fly er grupperet under Skulder/rug', (grouped['Shoulders/Back'] || []).includes('cable_reverse_fly'));
+    ok('Lat Extension og Cable Row er grupperet under Ryg', ['lat_extension', 'cable_row_per_hand'].every(id => (grouped['Back'] || []).includes(id)), JSON.stringify(grouped['Back']));
     ok('Dual Bicep Cable Curl er grupperet under Biceps', (grouped['Biceps'] || []).includes('dual_bicep_cable_curl'), JSON.stringify(grouped['Biceps']));
 
     // De er bevidst ikke i programmerne — de vælges manuelt
@@ -1022,7 +1022,7 @@ async function main() {
     ok('Programmet husker den gemte træning, ikke skabelonen', rememberedRows.length === templateCount - 1, `${rememberedRows.length} vs skabelon ${templateCount}`);
     ok('Den fjernede øvelse er ikke med mere', (await evaluate('return document.getElementById("program-content").innerText.includes("Cable Crunch")')) === false, JSON.stringify(rememberedRows));
     ok('"Husker"-linjen vises nu', (await evaluate('return document.getElementById("program-memory").classList.contains("hidden")')) === false);
-    ok('Og den siger hvilken træning og hvilken dag', /Husker din Lower B fra/.test(await evaluate('return document.getElementById("program-memory").textContent')), await evaluate('return document.getElementById("program-memory").textContent'));
+    ok('Og den siger hvilken træning og hvilken dag', /Remembering your Lower B from/.test(await evaluate('return document.getElementById("program-memory").textContent')), await evaluate('return document.getElementById("program-memory").textContent'));
     ok('Den husker den rettede vægt (99 kg)', (await evaluate('return document.getElementById("program-content").innerText.includes("99 kg")')) === true, await evaluate('return document.getElementById("program-content").innerText'));
 
     // "Tilføj alle" lægger nu den huskede træning ind — klar til at gentage
