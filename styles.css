@@ -261,6 +261,19 @@
         }
         .remove-btn:hover { background: rgba(255,107,107,0.1); border-color: var(--secondary); color: var(--secondary); }
 
+        /* ===== TEKNIK-CUES ===== */
+        /* Én linje pr. øvelse, altid synlig: pointen er at kunne læse den mens man
+           står med vægten, så den må ikke ligge bag en fold. Dæmpet farve og lille
+           skrift, så den ikke konkurrerer med vægt-felterne. */
+        .cue-line {
+            font-size: 0.75rem;
+            line-height: 1.35;
+            color: var(--text-dim);
+            border-left: 2px solid var(--warning);
+            padding: 2px 0 2px 8px;
+            margin: 4px 0 8px;
+        }
+
         /* ===== OPVARMNING ===== */
         /* Rampen regnes ud fra arbejdsvægten og er foldet sammen som standard, så
            kortet ikke vokser for hver øvelse. <details> er native og virker uden JS. */
