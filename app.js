@@ -1734,9 +1734,6 @@
             lines.push(`  ${bests.join(' · ')}`);
         }
 
-        lines.push('');
-        lines.push('📤 Send to Binky (AI coach)');
-
         return lines.join('\n');
     }
 
