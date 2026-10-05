@@ -261,6 +261,54 @@
         }
         .remove-btn:hover { background: rgba(255,107,107,0.1); border-color: var(--secondary); color: var(--secondary); }
 
+        /* ===== OPVARMNING ===== */
+        /* Rampen regnes ud fra arbejdsvægten og er foldet sammen som standard, så
+           kortet ikke vokser for hver øvelse. <details> er native og virker uden JS. */
+        /* Tom når øvelsen er kropsvægt eller vægten er 0 — så fylder den intet */
+        .warmup-holder:empty { display: none; }
+
+        .warmup-block {
+            margin-bottom: 8px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 8px 10px;
+            font-size: 0.78rem;
+        }
+        .warmup-block summary {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            cursor: pointer;
+            list-style: none;
+        }
+        .warmup-block summary::-webkit-details-marker { display: none; }
+        .warmup-block summary::after { content: '▾'; color: var(--text-dim); }
+        .warmup-block[open] summary::after { content: '▴'; }
+        .warmup-title { color: var(--warning); font-weight: 600; }
+        .warmup-count { color: var(--text-dim); font-size: 0.72rem; }
+        .warmup-sets {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 8px;
+        }
+        .warmup-set {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 3px 8px;
+            color: var(--text);
+            white-space: nowrap;
+        }
+        .warmup-note {
+            margin-top: 8px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            line-height: 1.35;
+        }
+
         /* ===== SETS TABLE ===== */
         .sets-table {
             width: 100%;

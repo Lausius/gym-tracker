@@ -351,6 +351,85 @@
         );
     }
 
+    // ─── Opvarmningssæt ───────────────────────────────────────────
+    // Rampen regnes ud fra arbejdsvægten (det tungeste sæt i øvelsen).
+    //   Sammensat med stang:  stang → 50% → 70% → 85%
+    //   Maskine/kabel:        50% → 75%
+    //   Isolation:            ét let sæt (~60%)
+    //   Kropsvægt:            ingen tal at rampe efter
+    // Der rundes til 2,5 kg (stang/maskine), men til 1 kg for håndvægte —
+    // hans center har 1 kg's spring i det område (derfor 3,5 og 5,5 kg).
+    const WARMUP_BAR = { Barbell: 20, 'EZ-bar': 10 };
+    const WARMUP_COMPOUND = [[0.5, 8], [0.7, 5], [0.85, 3]];
+    const WARMUP_MACHINE = [[0.5, 10], [0.75, 6]];
+
+    function roundToStep(value, step) {
+        return Math.round(value / step) * step;
+    }
+
+    function warmupSets(workingWeight, exercise) {
+        const weight = parseFloat(workingWeight) || 0;
+        if (!exercise || weight <= 0 || exercise.equipment === 'Bodyweight') return [];
+
+        const step = exercise.equipment === 'Dumbbell' ? 1 : 2.5;
+        const out = [];
+        const push = (w, reps) => {
+            const rounded = roundToStep(w, step);
+            if (rounded > 0 && rounded < weight && !out.some(s => s.weight === rounded)) {
+                out.push({ weight: rounded, reps });
+            }
+        };
+
+        if (!exercise.compound) {
+            push(weight * 0.6, 12);
+            return out;
+        }
+
+        const bar = WARMUP_BAR[exercise.equipment];
+        if (bar) {
+            if (bar < weight) out.push({ weight: bar, reps: 10 });
+            for (const [pct, reps] of WARMUP_COMPOUND) push(weight * pct, reps);
+        } else {
+            for (const [pct, reps] of WARMUP_MACHINE) push(weight * pct, reps);
+        }
+        return out;
+    }
+
+    function formatWarmupSets(sets) {
+        return sets.map(s => `${s.weight} × ${s.reps}`).join(' · ');
+    }
+
+    function renderWarmupBlock(exercise, workingWeight) {
+        const sets = warmupSets(workingWeight, exercise);
+        if (sets.length === 0) return '';
+
+        const note = exercise.compound
+            ? 'Rampe op til arbejdsvægten — aldrig til failure, 60-90 s pause. Er du allerede varm fra en tidligere øvelse, er ét let sæt nok.'
+            : 'Ét let sæt som forberedelse — ikke til failure.';
+
+        return `
+            <details class="warmup-block">
+                <summary>
+                    <span class="warmup-title">🔥 Opvarmning</span>
+                    <span class="warmup-count">${sets.length} sæt · arbejdsvægt ${workingWeight} kg</span>
+                </summary>
+                <div class="warmup-sets">
+                    ${sets.map(s => `<span class="warmup-set">${s.weight} × ${s.reps}</span>`).join('')}
+                </div>
+                <div class="warmup-note">${note}</div>
+            </details>
+        `;
+    }
+
+    // Arbejdsvægten er det tungeste sæt i øvelsen lige nu. Er intet tastet endnu,
+    // bruges den seneste vægt fra historikken, så rampen er der fra første sekund.
+    function workingWeightFor(ex) {
+        const max = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
+        if (max > 0) return max;
+        const prog = calculateProgressiveOverload(ex.exerciseId, state.currentDay);
+        return (prog && prog.lastWeight) || 0;
+    }
+
     // ─── Husk sidste træning for en dag+variant ───────────────────
     // Den nyeste gemte træning for netop den dag og variant, eller null.
     function lastWorkoutFor(day, variant) {
@@ -657,6 +736,7 @@
                         </div>
                         <button class="remove-btn" data-index="${idx}" aria-label="Fjern øvelse">✕</button>
                     </div>
+                    <div class="warmup-holder">${renderWarmupBlock(exercise, workingWeightFor(ex))}</div>
                     <table class="sets-table">
                         <thead>
                             <tr>
@@ -965,6 +1045,27 @@
         renderSaveBar();
         // Update volume cell in real-time
         updateVolumeCell(exIndex, setIndex);
+        // Opvarmningen hænger på arbejdsvægten og skal følge med, uden at kortet
+        // tegnes forfra (det ville lukke ramp'en og stjæle fokus fra feltet)
+        updateWarmupBlock(exIndex);
+    }
+
+    function updateWarmupBlock(exIndex) {
+        const ex = state.exercises[exIndex];
+        if (!ex) return;
+        const card = document.querySelector(`.exercise-card[data-index="${exIndex}"]`);
+        const holder = card && card.querySelector('.warmup-holder');
+        if (!holder) return;
+        const exercise = getExerciseById(state.currentDay, ex.exerciseId);
+        if (!exercise) return;
+
+        const existing = holder.querySelector('.warmup-block');
+        const wasOpen = !!(existing && existing.open);
+        holder.innerHTML = renderWarmupBlock(exercise, workingWeightFor(ex));
+        if (wasOpen) {
+            const details = holder.querySelector('.warmup-block');
+            if (details) details.open = true;
+        }
     }
 
     function updateVolumeCell(exIndex, setIndex) {

@@ -124,6 +124,17 @@ async function main() {
         const r = card.querySelector(".set-reps").value;
         return w === "60" && r === "8";
     `)) === true);
+    ok('Opvarmningsrampen vises på Bench Press (60 kg → 20×10, 42.5×5, 50×3)', (await evaluate(`
+        const t = document.querySelector("#exercise-list .exercise-card .warmup-block");
+        const txt = t ? t.textContent : "";
+        return !!t && txt.includes("20 × 10") && txt.includes("42.5 × 5") && txt.includes("50 × 3");
+    `)) === true);
+    ok('Opvarmningen er foldet sammen som standard', (await evaluate('return document.querySelector("#exercise-list .warmup-block").open === false')) === true);
+    ok('Isolation får ét let sæt (Lateral Raise 7 kg → 4×12)', (await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.innerText.includes("Lateral Raise"));
+        return card.querySelector(".warmup-block").textContent.includes("4 × 12");
+    `)) === true);
 
     // ─── 3. A/B-skift ─────────────────────────────────────────────
     console.log('\n── 3. Skift til B-varianten');
@@ -147,6 +158,22 @@ async function main() {
         w.value = "65";
         w.dispatchEvent(new Event("input", { bubbles: true }));
         return card.querySelector(".volume-cell").textContent.trim() === "520";
+    `)) === true);
+    ok('Opvarmningen følger den rettede vægt (65 kg → 32.5×8, 55×3)', (await evaluate(`
+        const t = document.querySelector("#exercise-list .exercise-card .warmup-block").textContent;
+        return t.includes("32.5 × 8") && t.includes("55 × 3");
+    `)) === true);
+    ok('Åben opvarmning forbliver åben mens vægten rettes', (await evaluate(`
+        const card = document.querySelector("#exercise-list .exercise-card");
+        card.querySelector(".warmup-block").open = true;
+        const w = card.querySelector(".set-weight");
+        w.value = "70";
+        w.dispatchEvent(new Event("input", { bubbles: true }));
+        const stillOpen = card.querySelector(".warmup-block").open === true;
+        const followed = card.querySelector(".warmup-block").innerText.includes("35 × 8");
+        w.value = "65";
+        w.dispatchEvent(new Event("input", { bubbles: true }));
+        return stillOpen && followed && card.querySelector(".warmup-block").innerText.includes("32.5 × 8");
     `)) === true);
     await evaluate('document.querySelector("#exercise-list .add-set-btn").click(); return true;');
     await sleep(150);

@@ -24,6 +24,13 @@ hjemmeside eller ved at åbne `index.html` direkte fra disken.
     `Cable Row (Per hånd)` er den eneste af dem der er markeret "per hånd".
 - **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
   flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
+- **Opvarmningssæt pr. øvelse:** hvert kort har en sammenfoldet 🔥 Opvarmning, der regner rampen
+  ud fra arbejdsvægten (det tungeste sæt i øvelsen). Sammensatte stangøvelser:
+  stang → 50% → 70% → 85%; maskine/kabel: 50% → 75%; isolation: ét let sæt (~60%).
+  Rampen rundes til 2,5 kg (1 kg for håndvægte) og holder sig altid under arbejdsvægten.
+  Retter du vægten, følger rampen med med det samme — uden at kortet tegnes forfra, så et åbent
+  felt og en åben rampe bliver stående. Kropsvægtøvelser har ingen rampe (der er ingen tal).
+  Rampen er et forslag: er du allerede varm fra en tidligere øvelse, er ét let sæt nok.
 - **Kun øvelser du faktisk laver:** "Næste uge" viser kun øvelser du har udført mindst én gang.
   En øvelse tæller som udført, når den står med mindst ét sæt i en gemt træning for den dag —
   nogensinde, ikke kun for nylig. Det holder listen kort i stedet for at fylde den med hele
@@ -294,7 +301,8 @@ Køres sådan:
 
 ```bash
 # 1) Logik uden browser: A/B-rotation, program-integritet, progressiv overload,
-#    redskabsvarianter, samt at opdelingen i index.html/styles.css/app.js hænger sammen
+#    opvarmningsrampe, redskabsvarianter, samt at opdelingen i index.html/styles.css/app.js
+#    hænger sammen
 node tests/run-tests.js
 
 # 2) Fuld brugerrejse i headless Chrome (kræver en kørende server på port 8099)
@@ -310,6 +318,8 @@ JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, 
 persistens og rotation**, historik, del-modal, redskabsvarianter i UI'et,
 **redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
 **uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt),
+**opvarmningsrampen** (vises på kortet, er foldet sammen, følger en rettet vægt og bliver åben
+mens man retter),
 **filtrering af øvelser uden historik i "Næste uge"** (Vis alle-knappen, at en ny bruger ikke
 står med tomme lister, og at kropsvægtøvelser ikke forsvinder), **"Dagens program" der husker
 sidste træning** (kør en variant, ret den, gem, og se at programmet kan gentage den — inkl.
