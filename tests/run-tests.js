@@ -51,7 +51,7 @@ vm.runInContext(
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
         isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
         programView, lastWorkoutFor, rememberedItems,
-        warmupSets, formatWarmupSets, renderWarmupBlock };
+        warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine };
     `,
     ctx
 );
@@ -62,7 +62,7 @@ const {
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
     getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
     programView, lastWorkoutFor, rememberedItems,
-    warmupSets, formatWarmupSets, renderWarmupBlock,
+    warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -698,6 +698,34 @@ ok('renderWarmupBlock viser tallene', renderWarmupBlock(exById('upper', 'bench_p
 ok('renderWarmupBlock er tom uden vægt', renderWarmupBlock(exById('upper', 'bench_press'), 0) === '');
 ok('Kun ét opvarmningsforslag pr. vægt (ingen dubletter ved runde tal)',
     fmtWarmup(warmupSets(100, exById('lower', 'squat'))) === '20×10 50×8 70×5 85×3');
+
+console.log('\n── 14. Teknik-cues på øvelseskortet');
+const allIds = new Set([...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id));
+
+ok('Cue findes for Bench Press', /Skulderbladene/.test(exerciseCue(exById('upper', 'bench_press'))));
+ok('Ukendt id → ingen cue', exerciseCue({ id: 'findes_ikke' }) === '');
+ok('Tom/manglende øvelse → ingen cue', exerciseCue(null) === '' && exerciseCue({}) === '');
+ok('Alle cue-nøgler peger på en øvelse i databasen (ingen døde opslag)',
+    Object.keys(CUES).every(id => allIds.has(id)),
+    Object.keys(CUES).filter(id => !allIds.has(id)).join(', '));
+ok('Hver øvelse i A/B-programmerne har en cue', (() => {
+    const progIds = new Set(Object.values(PROGRAMS).flat().map(item => item.exerciseId));
+    return [...progIds].every(id => (CUES[id] || '').length > 0);
+})(), [...new Set(Object.values(PROGRAMS).flat().map(i => i.exerciseId))].filter(id => !CUES[id]).join(', '));
+ok('Cues er korte nok til mobilen (maks 130 tegn)',
+    Object.values(CUES).every(c => c.length <= 130),
+    Object.entries(CUES).filter(([, c]) => c.length > 130).map(([id]) => id).join(', '));
+ok('Cues er rene tekststrenge uden HTML',
+    Object.values(CUES).every(c => typeof c === 'string' && !/[<>]/.test(c)));
+ok('renderCueLine sætter linjen på kortet', (() => {
+    const html = renderCueLine(exById('upper', 'bench_press'));
+    return html.includes('class="cue-line"') && html.includes('💡') && html.includes('Skulderbladene');
+})());
+ok('renderCueLine er tom for en øvelse uden cue', renderCueLine({ id: 'findes_ikke' }) === '');
+ok('RDL-cue nævner det vigtigste (hofterne tilbage)', /Hofterne tilbage/.test(exerciseCue(exById('lower', 'romanian_deadlift'))));
+ok('Lateral Raise-cue holder den let', /Let er pointen/.test(exerciseCue(exById('upper', 'lateral_raise'))));
+ok('Skull Crusher og Tricep Pushdown deler samme cue (samme bevægelse)',
+    exerciseCue(exById('upper', 'skull_crusher')) === exerciseCue(exById('upper', 'tricep_pushdown')));
 
 console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
 process.exit(fail === 0 ? 0 : 1);

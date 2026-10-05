@@ -63,6 +63,69 @@
         ]
     };
 
+    // ─── Teknik-cues ──────────────────────────────────────────────
+    // Én linje pr. øvelse, skrevet til at blive læst mens man står med vægten:
+    // den vigtigste ting ved løftet, ikke en hel teknikbeskrivelse.
+    // Kilden er ~/.hermes/Documents/gym-tracker/warmup-and-cues.md (den engelske
+    // original); her er den korte danske gengivelse, så appen er på ét sprog.
+    // Øvelser uden en cue viser ingen linje — det er ikke en fejl.
+    const CUES = {
+        // Bryst
+        bench_press:        'Skulderbladene trukket ned og tilbage, fødderne plantet — samme stangbane hver rep.',
+        dumbbell_press:     'Skulderbladene tilbage, håndvægtene i brysthøjde, pres let sammen opad.',
+        incline_dumbbell:   'Bænken let hævet, håndvægtene over brystet — pres op og let sammen, stop før albuerne låser.',
+        dumbbell_fly:       'Let bøjede albuer, bred bue, stræk i brystet — ikke længere ned end skulderhøjde.',
+        cable_crossover:    'Let fremadlænet, albuerne let bøjet, kryds foran brystet og klem 1 s.',
+        dips:               'Let fremadlænet, albuerne ca. 45° ud — ned til overarmen er vandret.',
+        // Skulder
+        shoulder_press:     'Ribben ned, stangen fra forreste delt, pres lige op, hovedet igennem i lockout. Arker lænden, er vægten for tung.',
+        dumbbell_shoulder_press: 'Ribben ned, håndvægtene over skuldrene, pres op og let sammen. Arker lænden, er vægten for tung.',
+        lateral_raise:      'Løft med albuerne, stop i skulderhøjde, ingen skuldertræk, 2-3 s ned. Let er pointen.',
+        cable_lateral_raise: 'Løft med albuerne, stop i skulderhøjde — kablet snyder dig til at tage for meget.',
+        front_raise:        'Løft til skulderhøjde med let bøjede albuer, ingen sving i overkroppen.',
+        reverse_fly:        'Let fremadlænet, løft ud til siden med albuerne, stop i skulderhøjde — let er pointen.',
+        cable_reverse_fly:  'Let fremadlænet, albuerne ud til siden, klem mellem skulderbladene.',
+        face_pull:          'Træk mod panden, albuerne højt, udadrotation i toppen.',
+        // Ryg
+        pull_up:            'Fuld hæng i bunden, skuldrene ned, træk brystet mod stangen — ingen sving.',
+        chin_up:            'Fuld hæng i bunden, albuerne ned mod lommen, hagen over stangen — ingen sving.',
+        lat_pulldown:       'Brystet op, 10-15° hældning, træk albuerne mod hofterne — ingen ryk i hænderne.',
+        lat_extension:      'Albuerne tæt på kroppen, stræk i lats, kontrolleret retur.',
+        cable_row:          'Brystet højt, træk til navlen, klem 1 s. Skal du rokke med overkroppen, er vægten for tung.',
+        cable_row_per_hand: 'Brystet højt, træk til hoften, ingen rotation i overkroppen.',
+        barbell_row:        'Neutral ryg, overkrop ca. 45°, træk stangen mod navlen — ingen ryk med lænden.',
+        chest_supported_row: 'Brystet støttet hele sættet, træk albuerne ned og tilbage, klem 1 s.',
+        // Biceps
+        bicep_curl:         'Albuerne fast ved siden, fuld stræk i bunden, klem i toppen — ingen sving.',
+        ez_bar_curl:        'Albuerne fast ved siden, fuld stræk i bunden — ingen sving med overkroppen.',
+        dumbbell_curl:      'Albuerne fast ved siden, supiner undervejs, kontrolleret ned.',
+        hammer_curl:        'Neutralt håndled hele vejen, albuerne fast — ingen sving.',
+        dual_bicep_cable_curl: 'Albuerne fast, klem i toppen, langsom retur.',
+        // Triceps
+        tricep_pushdown:    'Albuerne fastlåst og pegende samme sted — kun underarmene bevæger sig.',
+        skull_crusher:      'Albuerne fastlåst og pegende samme sted — kun underarmene bevæger sig.',
+        overhead_tricep:    'Albuerne tæt ved hovedet, fuld stræk i bunden — kun underarmene bevæger sig.',
+        // Ben
+        squat:              'Stangen over midtfoden, knæene ud over tæerne, samme dybde hver rep.',
+        front_squat:        'Albuerne højt, ribben ned, overkroppen oprejst — knæene frem.',
+        hack_squat:         'Ryggen mod pladen, hele foden, knæene over tæerne — stop før lænden runder.',
+        leg_press:          'Hele foden på platformen, knæene over tæerne, stop før lænden runder — ingen slam i lockout.',
+        bulgarian_split:    'Forreste fod så langt frem at knæet følger midten af foden, let fremadlænet, bageste knæ lige ned.',
+        lunges:             'Skridt så knæet følger midtfoden, oprejst overkrop, bageste knæ ned mod gulvet.',
+        romanian_deadlift:  'Hofterne tilbage, stangen tæt på benene, stop når baglåret løber tør for stræk — ikke når stangen rammer gulvet. 2-3 s ned.',
+        deadlift:           'Stangen tæt på benene, neutral ryg, pres gulvet væk — lås hofterne, ikke lænden.',
+        leg_curl:           'Hofteleddene i ro, fuld stræk i bunden, kontrolleret retur.',
+        leg_extension:      'Knæene i ro, klem i toppen, kontrolleret ned — ingen sving.',
+        hip_thrust:         'Hagen trukket ind, ribben ned, posterior tilt i toppen, pres gennem hælene, 1 s klem.',
+        glute_bridge:       'Hælene i gulvet, posterior tilt i toppen, 1 s klem.',
+        back_extension:     'Bevægelsen i hofteleddet, neutral ryg, klem ballerne i toppen.',
+        calf_raise:         'Fuld stræk i bunden, 1 s pause, 1 s i toppen — ingen bouncing.',
+        // Mave
+        plank:              'Ribben ned, mave og baller spændt — lige linje fra skulder til hæl.',
+        cable_crunch:       'Hofterne i ro, krøl sammen med maven ikke armene, langsom retur.',
+        hanging_leg_raise:  'Ingen sving, løft med maven, kontrolleret ned.',
+    };
+
     const ALL_EXERCISES = { upper: EXERCISES.upper, lower: EXERCISES.lower };
 
     // ─── Træningsprogrammer (A/B Split) ───────────────────────────────
@@ -397,6 +460,21 @@
 
     function formatWarmupSets(sets) {
         return sets.map(s => `${s.weight} × ${s.reps}`).join(' · ');
+    }
+
+    // Slår op i CUES på øvelsens id. Ukendt id eller manglende cue giver '' —
+    // så en ny øvelse i databasen bare står uden linje i stedet for at fejle.
+    function exerciseCue(exercise) {
+        if (!exercise || !exercise.id) return '';
+        return CUES[exercise.id] || '';
+    }
+
+    // Cue-linjen er ren tekst fra konstanten ovenfor (ingen brugerinput), så den
+    // indsættes direkte — som resten af kortets markup.
+    function renderCueLine(exercise) {
+        const cue = exerciseCue(exercise);
+        if (!cue) return '';
+        return `<div class="cue-line">💡 ${cue}</div>`;
     }
 
     function renderWarmupBlock(exercise, workingWeight) {
@@ -736,6 +814,7 @@
                         </div>
                         <button class="remove-btn" data-index="${idx}" aria-label="Fjern øvelse">✕</button>
                     </div>
+                    ${renderCueLine(exercise)}
                     <div class="warmup-holder">${renderWarmupBlock(exercise, workingWeightFor(ex))}</div>
                     <table class="sets-table">
                         <thead>

@@ -136,6 +136,40 @@ async function main() {
         return card.querySelector(".warmup-block").textContent.includes("4 × 12");
     `)) === true);
 
+    // ─── 2b. Teknik-cues ──────────────────────────────────────────
+    console.log('\n── 2b. Teknik-cues på kortet');
+    ok('Bench Press-kortet viser sin cue', (await evaluate(`
+        const cue = document.querySelector("#exercise-list .exercise-card .cue-line");
+        return !!cue && /Skulderbladene/.test(cue.textContent);
+    `)) === true);
+    ok('Cuen er synlig uden at folde noget ud (ikke bag <details>)', (await evaluate(`
+        const cue = document.querySelector("#exercise-list .exercise-card .cue-line");
+        return cue.offsetHeight > 0 && !cue.closest("details");
+    `)) === true);
+    ok('Cuen står over opvarmningen på kortet', (await evaluate(`
+        const card = document.querySelector("#exercise-list .exercise-card");
+        const cue = card.querySelector(".cue-line");
+        const warm = card.querySelector(".warmup-block");
+        return cue.getBoundingClientRect().top < warm.getBoundingClientRect().top;
+    `)) === true);
+    ok('Hvert øvelseskort har præcis én cue-linje', (await evaluate(`
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        return cards.length === 7 && cards.every(c => c.querySelectorAll(".cue-line").length === 1);
+    `)) === true);
+    ok('Hver cue siger noget forskelligt (ingen kopi til alle)', (await evaluate(`
+        const cues = [...document.querySelectorAll("#exercise-list .cue-line")].map(c => c.textContent);
+        return new Set(cues).size === cues.length;
+    `)) === true);
+    ok('Lateral Raise får sin egen cue (let er pointen)', (await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.innerText.includes("Lateral Raise"));
+        return /Let er pointen/.test(card.querySelector(".cue-line").textContent);
+    `)) === true);
+    ok('Cue-teksten læses som én linje tekst (under 130 tegn)', (await evaluate(`
+        return [...document.querySelectorAll("#exercise-list .cue-line")]
+            .every(c => c.textContent.length < 130);
+    `)) === true);
+
     // ─── 3. A/B-skift ─────────────────────────────────────────────
     console.log('\n── 3. Skift til B-varianten');
     await evaluate('document.querySelector(\'.variant-btn[data-variant="B"]\').click(); return true;');
