@@ -192,11 +192,11 @@ console.log('\n── 5. De fem nye cable-øvelser');
 // Rækkefølge: navn, muskelgruppe, compound-flag. Alle er cable, og kun row-varianten
 // er markeret "per hånd" — de øvrige skal læses som én samlet belastning.
 const NEW_CABLE = {
-    cable_lateral_raise:   { name: 'Cable Lateral Raise',   muscle: 'Skulder',     compound: false },
-    cable_row_per_hand:    { name: 'Cable Row',            muscle: 'Ryg',         compound: true },
+    cable_lateral_raise:   { name: 'Cable Lateral Raise',   muscle: 'Shoulders',   compound: false },
+    cable_row_per_hand:    { name: 'Cable Row',            muscle: 'Back',        compound: true },
     dual_bicep_cable_curl: { name: 'Dual Bicep Cable Curl', muscle: 'Biceps',      compound: false },
-    lat_extension:         { name: 'Lat Extension',         muscle: 'Ryg',         compound: false },
-    cable_reverse_fly:     { name: 'Cable Reverse Fly',     muscle: 'Skulder/rug', compound: false },
+    lat_extension:         { name: 'Lat Extension',         muscle: 'Back',        compound: false },
+    cable_reverse_fly:     { name: 'Cable Reverse Fly',     muscle: 'Shoulders/Back', compound: false },
 };
 for (const [id, want] of Object.entries(NEW_CABLE)) {
     const e = ALL_EXERCISES.upper.find(x => x.id === id);
@@ -248,15 +248,15 @@ ok('Bicep Curl findes i tre redskabsvarianter', curls.length === 3, `fik ${curls
 ok('De tre curl-varianter har hvert sit id', new Set(curls.map(c => c.id)).size === 3);
 ok('Curl-varianterne er stang, EZ-bar og håndvægte',
     curls.map(c => c.equipment).sort().join(',') === 'Barbell,Dumbbell,EZ-bar', curls.map(c => c.equipment).join(', '));
-ok('Håndvægt-curl er markeret per hånd', curls.find(c => c.equipment === 'Dumbbell').loadNote === 'per hånd');
+ok('Håndvægt-curl er markeret per hånd', curls.find(c => c.equipment === 'Dumbbell').loadNote === 'per hand');
 ok('Chest Supported Row findes nu', !!allEx.find(e => e.id === 'chest_supported_row'));
 ok('Chest Supported Row er en sammensat rygøvelse',
-    allEx.find(e => e.id === 'chest_supported_row').muscle === 'Ryg' && allEx.find(e => e.id === 'chest_supported_row').compound === true);
+    allEx.find(e => e.id === 'chest_supported_row').muscle === 'Back' && allEx.find(e => e.id === 'chest_supported_row').compound === true);
 ok('Alle håndvægtøvelser med enkelt-side belastning har loadNote',
     allEx.filter(e => e.equipment === 'Dumbbell' && /Dumbbell|Hammer|Fly|Raise|Reverse/.test(e.name))
-         .every(e => e.loadNote === 'per hånd'));
+         .every(e => e.loadNote === 'per hand'));
 ok('Bulgarian Split Squat og Lunges er markeret per ben',
-    allEx.filter(e => ['bulgarian_split', 'lunges'].includes(e.id)).every(e => e.loadNote === 'per ben'));
+    allEx.filter(e => ['bulgarian_split', 'lunges'].includes(e.id)).every(e => e.loadNote === 'per leg'));
 // Varianter skal kunne have hver sin progression — ellers giver forslaget ingen mening
 store['gym_tracker_workouts'] = JSON.stringify([
     { id: 'w1', date: '2026-09-01', day: 'upper', variant: 'A', exercises: [
@@ -329,7 +329,7 @@ ok('ISO-uge: 2026-01-01 (torsdag) er uge 1', isoWeekKey('2026-01-01') === '2026-
 ok('ISO-uge: 2025-12-29 hører til uge 1 i 2026', isoWeekKey('2025-12-29') === '2026-W01');
 ok('ISO-uge: 2026-12-31 er uge 53', isoWeekKey('2026-12-31') === '2026-W53');
 ok('ISO-uge: 2027-01-01 hører til uge 53 i 2026', isoWeekKey('2027-01-01') === '2026-W53');
-ok('Ugelabel viser interval med dansk datoformat', weekLabel('2026-W40') === 'Uge 40 (28.9–4.10)', weekLabel('2026-W40'));
+ok('Ugelabel viser interval og ugenummer', weekLabel('2026-W40') === 'Week 40 (28.9–4.10)', weekLabel('2026-W40'));
 
 const weekFixture = (weekOffset, day, variant, shared) => {
     const base = new Date(2026, 8, 28); // mandag i uge 40
@@ -363,16 +363,16 @@ ok('To ens efterfulgt af et tredje forskelligt', formatSets([{ weight: 60, reps:
 store['gym_tracker_workouts'] = JSON.stringify([...week40, ...week41]);
 
 const text40 = generateShareText('week:2026-W40');
-ok('En uge-eksport nævner kun den uge', text40.includes('UGE 40') && !text40.includes('UGE 41'), text40.split('\n')[0]);
+ok('En uge-eksport nævner kun den uge', text40.includes('WEEK 40') && !text40.includes('WEEK 41'), text40.split('\n')[0]);
 ok('En uge-eksport indeholder ugens træninger', text40.includes('28.9 UPPER A') && text40.includes('29.9 LOWER A'));
 ok('En uge-eksport udelader andre ugers træninger', !text40.includes('5.10'));
-ok('Eksporten har uge-overskrift med antal og volumen', /2 træninger · 1 Upper · 1 Lower/.test(text40), text40.split('\n')[1]);
+ok('Eksporten har uge-overskrift med antal og volumen', /2 workouts · 1 Upper · 1 Lower/.test(text40), text40.split('\n')[1]);
 
 const text41 = generateShareText('week:2026-W41');
-ok('En anden uge giver en anden eksport', text41 !== text40 && text41.includes('UGE 41'));
-ok('All-time-bedste følger med i en uge-eksport (trenden bevares)', text40.includes('🏆 Bedste nogensinde'));
+ok('En anden uge giver en anden eksport', text41 !== text40 && text41.includes('WEEK 41'));
+ok('All-time-bedste følger med i en uge-eksport (trenden bevares)', text40.includes('🏆 Best ever'));
 ok('All-time-bedste dækker også øvelser uden for den viste uge', text40.includes('Squat') && text40.includes('Bench Press'));
-ok('Fremgang vises som headline, ikke én linje pr. øvelse', /📈 Fremgang: \d+ op/.test(text40), text40.match(/📈 Fremgang:.*/)?.[0]);
+ok('Fremgang vises som headline, ikke én linje pr. øvelse', /📈 Progress: \d+ up/.test(text40), text40.match(/📈 Progress:.*/)?.[0]);
 
 // Det vigtigste krav: en uge skal kunne sendes som ÉN Discord-besked (2.000 tegn).
 const heavyWeek = [weekFixture(0, 'upper', 'A'), weekFixture(0, 'lower', 'A'), weekFixture(0, 'upper', 'B'), weekFixture(0, 'lower', 'B')];
@@ -390,7 +390,7 @@ ok('Historikkens længde påvirker ikke ugens eksport', Math.abs(heavyWithHistor
 store['gym_tracker_workouts'] = JSON.stringify([...week40, ...week41]);
 const textNew = generateShareText('new');
 ok('"Kun nyt" tager ikke-delte træninger med', textNew.includes('28.9 UPPER A') && textNew.includes('5.10 UPPER B'));
-ok('"Kun nyt" viser antallet i overskriften', textNew.includes('NYT SIDEN SIDST (4)'), textNew.split('\n')[0]);
+ok('"Kun nyt" viser antallet i overskriften', textNew.includes('NEW SINCE LAST (4)'), textNew.split('\n')[0]);
 
 const marked = markShareScopeAsShared('week:2026-W40');
 ok('Deling markerer ugens træninger som delt', marked === 2, `markerede ${marked}`);
@@ -399,12 +399,12 @@ ok('En allerede delt træning markeres ikke igen', markShareScopeAsShared('week:
 
 const textNewAfter = generateShareText('new');
 ok('"Kun nyt" indeholder kun det endnu ikke delte', !textNewAfter.includes('28.9 UPPER A') && textNewAfter.includes('5.10 UPPER B'));
-ok('"Kun nyt" fortæller hvor mange der mangler', textNewAfter.includes('NYT SIDEN SIDST (2)'), textNewAfter.split('\n')[0]);
+ok('"Kun nyt" fortæller hvor mange der mangler', textNewAfter.includes('NEW SINCE LAST (2)'), textNewAfter.split('\n')[0]);
 
 store['gym_tracker_workouts'] = JSON.stringify([{ ...week40[0], sharedAt: 'x' }, week40[1]]);
-ok('En tom visning giver en forklarende tekst', generateShareText('week:2026-W99').includes('Ingen træninger i det valgte tidsrum'));
+ok('En tom visning giver en forklarende tekst', generateShareText('week:2026-W99').includes('No workouts in the selected period'));
 store['gym_tracker_workouts'] = JSON.stringify([]);
-ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('Ingen træninger gemt endnu'));
+ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('No workouts saved yet'));
 
 // ─── 9. Filtrering: kun øvelser man har udført ────────────────────
 // Formålet er at listerne ikke skal fyldes med øvelser man aldrig laver. Reglen er
@@ -702,7 +702,7 @@ ok('Kun ét opvarmningsforslag pr. vægt (ingen dubletter ved runde tal)',
 console.log('\n── 14. Teknik-cues på øvelseskortet');
 const allIds = new Set([...EXERCISES.upper, ...EXERCISES.lower].map(e => e.id));
 
-ok('Cue findes for Bench Press', /Skulderbladene/.test(exerciseCue(exById('upper', 'bench_press'))));
+ok('Cue findes for Bench Press', /Shoulder blades/.test(exerciseCue(exById('upper', 'bench_press'))));
 ok('Ukendt id → ingen cue', exerciseCue({ id: 'findes_ikke' }) === '');
 ok('Tom/manglende øvelse → ingen cue', exerciseCue(null) === '' && exerciseCue({}) === '');
 ok('Alle cue-nøgler peger på en øvelse i databasen (ingen døde opslag)',
@@ -719,13 +719,63 @@ ok('Cues er rene tekststrenge uden HTML',
     Object.values(CUES).every(c => typeof c === 'string' && !/[<>]/.test(c)));
 ok('renderCueLine sætter linjen på kortet', (() => {
     const html = renderCueLine(exById('upper', 'bench_press'));
-    return html.includes('class="cue-line"') && html.includes('💡') && html.includes('Skulderbladene');
+    return html.includes('class="cue-line"') && html.includes('💡') && html.includes('Shoulder blades');
 })());
 ok('renderCueLine er tom for en øvelse uden cue', renderCueLine({ id: 'findes_ikke' }) === '');
-ok('RDL-cue nævner det vigtigste (hofterne tilbage)', /Hofterne tilbage/.test(exerciseCue(exById('lower', 'romanian_deadlift'))));
-ok('Lateral Raise-cue holder den let', /Let er pointen/.test(exerciseCue(exById('upper', 'lateral_raise'))));
+ok('RDL-cue nævner det vigtigste (hofterne tilbage)', /Hips back/.test(exerciseCue(exById('lower', 'romanian_deadlift'))));
+ok('Lateral Raise-cue holder den let', /Light is the point/.test(exerciseCue(exById('upper', 'lateral_raise'))));
 ok('Skull Crusher og Tricep Pushdown deler samme cue (samme bevægelse)',
     exerciseCue(exById('upper', 'skull_crusher')) === exerciseCue(exById('upper', 'tricep_pushdown')));
+
+console.log('\n── 15. Sprogværn: engelsk i UI\'et, dansk kun i kommentarer');
+// Kommentarer er ikke bruger-vendte og må gerne være danske — resten skal være engelsk.
+// Uden denne test er en glemt streng usynlig: browser-testene tjekker adfærd, ikke sprog.
+// Metoden er bevidst grov: fjern kommentarer, og se om der er dansk tilbage nogen steder.
+const stripComments = src => src.split('\n').map(line => {
+    let quote = null, res = '';
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (quote) {
+            res += c;
+            if (c === '\\') { res += line[i + 1] || ''; i++; continue; }
+            if (c === quote) quote = null;
+            continue;
+        }
+        if (c === '/' && line[i + 1] === '/') break;
+        if (c === "'" || c === '"' || c === '`') quote = c;
+        res += c;
+    }
+    return res;
+}).join('\n');
+
+const DA_CHARS = /[æøåÆØÅ]/;
+// Ord uden æ/ø/å — de fanges ikke af tegn-tjekket, så de listes eksplicit. Listen er et
+// net, ikke en garanti: kun danske ord der ikke også findes i engelsk tekst (derfor ikke
+// fx "for", "over", "under", "med", "se"). Tegn-tjekket ovenfor fanger alt med æ/ø/å.
+const DA_WORDS = /\b(uge|uger|vis|skjul|gem|gemt|volumen|fremgang|husker|rampe|antal|historik|eksempeldata|delt|sidst|totalt|tegn|beskeder|markeret|sprunget|skjult|filtreringen|kun|nyt|bedste|nogensinde|stang|dag|dage|mave|ryg|bryst|rumpe|kalve|skulder|op|ned|ingen|vaelg|annuller|kopier|fjern|ryd|fyld|samlet|tilfoej|sammensat|intet|fundet|udklip|udklipsholderen|kopieret|endnu|ikke|eller|bliver|bruger|dato|gennem|havde|hvordan|kan|komme|kunne|meget|skal|sammen|sin|som|stor|til|viser|nederst|sidste|nye|gamle|hurtig|langsom|mellem|uden|hvis|selv|noget|nogen|mange|lidt|gerne|altid|aldrig|igen|snart|alle)\b/i;
+
+const appCode = stripComments(script);
+const htmlCode = html.replace(/<!--[\s\S]*?-->/g, '');
+
+function danishHits(text, label) {
+    const hits = [];
+    text.split('\n').forEach((line, i) => {
+        const chars = line.match(DA_CHARS);
+        const words = line.match(new RegExp(DA_WORDS, 'gi'));
+        if (chars || words) hits.push(`${label}:${i + 1} ${[...new Set([...(chars || []), ...(words || [])])].join(',')} → ${line.trim().slice(0, 70)}`);
+    });
+    return hits;
+}
+
+const appHits = danishHits(appCode, 'app.js');
+const htmlHits = danishHits(htmlCode, 'index.html');
+ok('Ingen danske tegn i app.js uden for kommentarer', appHits.length === 0, appHits.join(' | '));
+ok('Ingen danske tegn i index.html', htmlHits.length === 0, htmlHits.join(' | '));
+ok('Siden er erklæret engelsk (<html lang="en">)', /<html lang="en">/.test(html));
+ok('Sprogværnet ser skarpt nok ud (fanger en indsat dansk streng)', (() => {
+    const probe = stripComments("showToast('Øvelsen er tilføjet', 'info');\nconst x = 1; // dansk kommentar");
+    return DA_CHARS.test(probe) && !/kommentar/.test(probe);
+})());
 
 console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
 process.exit(fail === 0 ? 0 : 1);

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1a1a2e">
-    <meta name="description" content="Gym Tracker – Track dit træningsforløb med upper/lower split">
+    <meta name="description" content="Gym Tracker – Track your training with an upper/lower split">
     <title>Gym Tracker</title>
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -20,13 +20,13 @@
                 </div>
             </div>
             <div class="header-actions">
-                <button class="icon-btn share-btn" id="btn-share" title="Del træningsdata med træner">
+                <button class="icon-btn share-btn" id="btn-share" title="Share training data with your coach">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px">
                         <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
                     </svg>
-                    Del
+                    Share
                 </button>
-                <button class="icon-btn" id="btn-history" title="Vis historik" aria-label="Historik">
+                <button class="icon-btn" id="btn-history" title="Show history" aria-label="History">
                     📋
                 </button>
             </div>
@@ -45,36 +45,36 @@
         <!-- First use banner -->
         <div id="first-use-banner" class="first-use-banner hidden">
             <span class="icon">✨</span>
-            <p><strong>Velkommen!</strong> Vælg en øvelse nedenfor for at starte din træning. Alle data gemmes lokalt på din telefon.</p>
+            <p><strong>Welcome!</strong> Pick an exercise below to start your workout. All data is stored locally on your phone.</p>
         </div>
 
         <!-- Eksempeldata (kun synlig når loggen er tom) -->
         <div class="sample-section hidden" id="sample-section">
-            <div class="sample-title">🧪 Prøv appen med eksempeldata</div>
+            <div class="sample-title">🧪 Try the app with sample data</div>
             <p class="sample-note" id="sample-note"></p>
-            <button class="sample-btn" id="sample-btn" type="button">Fyld med eksempeldata</button>
+            <button class="sample-btn" id="sample-btn" type="button">Load sample data</button>
         </div>
 
         <!-- Share modal -->
         <div class="share-overlay hidden" id="share-overlay"></div>
         <div class="share-modal hidden" id="share-modal">
             <div class="share-modal-header">
-                <h2>📤 Del træningsdata</h2>
+                <h2>📤 Share training data</h2>
                 <button class="share-modal-close" id="share-modal-close">✕</button>
             </div>
             <div class="share-modal-body">
                 <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px;">
-                    Kopier teksten nedenfor og send den til mig — så kan jeg gennemgå din fremgang og give dig personlige råd.
+                    Copy the text below and send it to me — then I can review your progress and give you personal advice.
                 </p>
                 <div class="share-scope-row">
-                    <label for="share-scope">Vis:</label>
+                    <label for="share-scope">Show:</label>
                     <select id="share-scope"></select>
                 </div>
                 <textarea id="share-text" readonly></textarea>
                 <div class="share-size" id="share-size"></div>
                 <div class="share-modal-actions">
-                    <button class="share-copy-btn" id="share-copy">📋 Kopier</button>
-                    <button class="share-close-btn" id="share-close">Annuller</button>
+                    <button class="share-copy-btn" id="share-copy">📋 Copy</button>
+                    <button class="share-close-btn" id="share-close">Cancel</button>
                 </div>
             </div>
         </div>
@@ -86,7 +86,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                 </svg>
-                <span>Næste uge (Progressiv Overload)</span>
+                <span>Next week (Progressive Overload)</span>
                 <button class="filter-toggle-btn hidden" id="progressive-toggle" type="button"></button>
             </div>
             <div class="progressive-list" id="progressive-list"></div>
@@ -99,7 +99,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>
                     </svg>
-                    Dagens program
+                    Today's program
                 </div>
                 <div class="header-actions">
                     <button class="filter-toggle-btn hidden" id="program-toggle" type="button"></button>
@@ -113,14 +113,14 @@
                 <span class="variant-hint" id="variant-hint"></span>
             </div>
             <div class="program-actions">
-                <button class="program-load-btn" id="program-load">＋ Tilføj alle til dagens træning</button>
+                <button class="program-load-btn" id="program-load">＋ Add all to today's workout</button>
             </div>
         </div>
 
         <!-- Exercises -->
         <div class="section-header">
             <div class="section-title">
-                Øvelser
+                Exercises
                 <span class="count" id="exercise-count">0</span>
             </div>
         </div>
@@ -128,27 +128,27 @@
 
         <!-- Add Exercise -->
         <div class="add-exercise-section" id="add-exercise-section">
-            <div class="add-exercise-title">＋ Tilføj øvelse</div>
+            <div class="add-exercise-title">＋ Add exercise</div>
             <div class="form-row">
-                <label for="exercise-select">Øvelse</label>
+                <label for="exercise-select">Exercise</label>
                 <select id="exercise-select">
-                    <option value="">— Vælg øvelse —</option>
+                    <option value="">— Choose exercise —</option>
                 </select>
             </div>
             <div class="form-row">
-                <label for="sets-number">Sæt</label>
-                <input type="number" id="sets-number" value="3" min="1" max="10" placeholder="Antal sæt">
+                <label for="sets-number">Sets</label>
+                <input type="number" id="sets-number" value="3" min="1" max="10" placeholder="Number of sets">
             </div>
             <div class="form-row">
-                <label for="start-weight">Startvægt (kg)</label>
-                <input type="number" id="start-weight" value="20" min="0" step="0.5" placeholder="Vægt">
+                <label for="start-weight">Start weight (kg)</label>
+                <input type="number" id="start-weight" value="20" min="0" step="0.5" placeholder="Weight">
             </div>
             <div class="form-row">
-                <label for="start-reps">Mål reps</label>
+                <label for="start-reps">Target reps</label>
                 <input type="number" id="start-reps" value="8" min="1" max="30" placeholder="Reps">
             </div>
             <button class="add-btn" id="add-exercise-btn">
-                ＋ Tilføj til dagens træning
+                ＋ Add to today's workout
             </button>
         </div>
     </div>
@@ -157,14 +157,14 @@
     <div class="save-bar" id="save-bar">
         <div class="edit-banner hidden" id="edit-banner">
             <span class="edit-banner-text" id="edit-banner-text"></span>
-            <button class="edit-cancel-btn" id="edit-cancel">Annuller</button>
+            <button class="edit-cancel-btn" id="edit-cancel">Cancel</button>
         </div>
         <div class="save-bar-row">
             <div class="save-info" id="save-info">
-                Ingen øvelser tilføjet
+                No exercises added
             </div>
             <button class="save-btn" id="save-btn" disabled>
-                💾 Gem træning
+                💾 Save workout
             </button>
         </div>
     </div>
@@ -173,7 +173,7 @@
     <div class="history-overlay" id="history-overlay"></div>
     <div class="history-panel" id="history-panel">
         <div class="history-panel-header">
-            <div class="history-panel-title">📋 Træningshistorik</div>
+            <div class="history-panel-title">📋 Workout history</div>
             <button class="close-btn" id="close-history">✕</button>
         </div>
         <div class="history-content" id="history-content"></div>

@@ -1,264 +1,268 @@
 # Gym Tracker
 
-**Live: https://lausius.github.io/gym-tracker/** — åbn den på telefonen og læg den på hjemmeskærmen.
+**Live: https://lausius.github.io/gym-tracker/** — open it on your phone and add it to the home screen.
 
-Mobil-først træningsdagbog uden backend og uden build-step: ren HTML, CSS og JavaScript.
-Alle data gemmes lokalt i browserens `localStorage`, så appen kan køre fra en telefon, en
-hjemmeside eller ved at åbne `index.html` direkte fra disken.
+Mobile-first training log with no backend and no build step: plain HTML, CSS and JavaScript.
+All data is stored locally in the browser's `localStorage`, so the app runs from a phone, a
+website, or by opening `index.html` straight from disk.
 
-## Funktioner
+## Features
 
-- **A/B split (upper/lower):** fire programmer — `upperA`, `upperB`, `lowerA`, `lowerB`.
-  Appen foreslår automatisk næste variant ud fra din seneste gemte træning
-  (Upper A → Lower A → Upper B → Lower B → forfra). Kan altid overstyres med A/B-knapperne.
-- **Øvelser, vægt, sæt og reps pr. session:** hver øvelse har sine egne sæt med kg × reps,
-  og volumen (kg × reps) beregnes pr. sæt og pr. øvelse.
-- **Redskabsvarianter holdes adskilt:** fx `Bicep Curl (Barbell)`, `(EZ-bar)` og `(Dumbbell)` er
-  tre poster med hver sin historik og hver sin progression — 20 kg på en EZ-bar og 20 kg i hver
-  hånd er ikke samme belastning, så et fælles forslag ville være forkert. Håndvægt- og
-  enkeltbensøvelser er markeret "per hånd" / "per ben", og dropdown'en er grupperet pr.
-  muskelgruppe.
-  - **Cable-familien** (tilføjet efter ønske): `Cable Lateral Raise`, `Cable Row (Per hånd)`,
-    `Dual Bicep Cable Curl`, `Lat Extension` og `Cable Reverse Fly`. De ligger **kun** i
-    øvelsesdatabasen — ikke i A/B-programmerne — så de vælges manuelt med ＋ Tilføj øvelse.
-    `Cable Row (Per hånd)` er den eneste af dem der er markeret "per hånd".
-- **Progressiv overload:** forslag til næste træning pr. øvelse — vægt op ved 8+ reps,
-  flere reps når du er under, og rep-fokus hvis vægten har stået stille i 3 sessioner.
-- **Opvarmningssæt pr. øvelse:** hvert kort har en sammenfoldet 🔥 Opvarmning, der regner rampen
-  ud fra arbejdsvægten (det tungeste sæt i øvelsen). Sammensatte stangøvelser:
-  stang → 50% → 70% → 85%; maskine/kabel: 50% → 75%; isolation: ét let sæt (~60%).
-  Rampen rundes til 2,5 kg (1 kg for håndvægte) og holder sig altid under arbejdsvægten.
-  Retter du vægten, følger rampen med med det samme — uden at kortet tegnes forfra, så et åbent
-  felt og en åben rampe bliver stående. Kropsvægtøvelser har ingen rampe (der er ingen tal).
-  Rampen er et forslag: er du allerede varm fra en tidligere øvelse, er ét let sæt nok.
-- **Kun øvelser du faktisk laver:** "Næste uge" viser kun øvelser du har udført mindst én gang.
-  En øvelse tæller som udført, når den står med mindst ét sæt i en gemt træning for den dag —
-  nogensinde, ikke kun for nylig. Det holder listen kort i stedet for at fylde den med hele
-  øvelsesdatabasen, hvor det meste bare ville sige "Ingen historik endnu".
-  - Knappen **Vis alle (n)** henter de skjulte frem — fx når du vil begynde på en ny øvelse.
-    Vælgeren "＋ Tilføj øvelse" har altid hele listen.
-  - Uden historik for dagen filtreres der ikke, så en ny bruger ikke står med tomme lister.
-  - Kropsvægtøvelser (Plank, Pull-up) filtreres **aldrig** væk: der gemmes kun sæt med vægt
-    over 0, så de kan ikke føre vægthistorik. Uden den undtagelse ville de forsvinde fra
-    listen efter det første gem — for bestandigt.
-  - En **helt ny** øvelse er derfor ikke i listen, før du har udført den én gang. Den kan
-    altid vælges med **＋ Tilføj øvelse**, og dukker op af sig selv bagefter.
-- **Dagens program husker din sidste træning:** har du kørt fx Lower B før, viser
-  "Dagens program" **den** træning — samme øvelser i samme rækkefølge og med vægten fra det
-  bedste sæt sidste gang — så du kan gentage den med ét tryk på **Tilføj alle**. Skabelonen
-  bruges kun, når der ikke er noget at huske endnu (første gang du kører varianten).
-  - En linje under overskriften fortæller hvilken træning der huskes, og fra hvilken dato.
-  - Øvelser du selv har lagt ind (fx en cable-øvelse der ikke står i skabelonen) huskes også.
-  - **Vis alle (n)** henter skabelonens øvrige øvelser frem, hvis du vil tilføje noget nyt.
-  - Der er bevidst **ingen ↻-knap** i program-headeren: A/B skiftes med variant-knapperne
-    nedenfor, og ↻ kunne kun gøre det samme.
-- **Eksempeldata til test:** på forsiden (kun synlig når loggen er tom) kan du fylde tre ugers
-  A/B-historik ind med ét tryk — praktisk i en preview på et andet domæne, hvor der ikke ligger
-  data. Den rører **aldrig** dine egne træninger: blokken vises kun når loggen er tom eller
-  udelukkende indeholder eksempeldata, og den skjules helt så snart der ligger en rigtig træning.
-- **Historik:** alle gemte sessioner grupperet pr. dato med bedste sæt markeret.
-- **Rediger en gemt træning:** glemte du en øvelse, trykker du ✏️ Rediger på træningen i
-  historikken. Øvelserne indlæses igen, du kan tilføje/rette/fjerne, og knappen hedder så
-  **Opdater træning**. Datoen, dagen og varianten bevares, og der laves ikke en dublet —
-  også hvis du først retter træningen dagen efter. **Annuller** forlader redigeringen uden
-  at skrive noget.
-- **Del med AI-træner:** genererer en tekst-rapport klar til at kopiere. Du vælger selv
-  tidsrummet i delingsvinduet:
+- **A/B split (upper/lower):** four programs — `upperA`, `upperB`, `lowerA`, `lowerB`.
+  The app suggests the next variant automatically from your most recent saved workout
+  (Upper A → Lower A → Upper B → Lower B → repeat). Always overridable with the A/B buttons.
+- **Exercises, weight, sets and reps per session:** every exercise has its own sets with kg × reps,
+  and volume (kg × reps) is computed per set and per exercise.
+- **Equipment variants are kept apart:** e.g. `Bicep Curl (Barbell)`, `(EZ-bar)` and `(Dumbbell)` are
+  three entries with their own history and their own progression — 20 kg on an EZ-bar and 20 kg in each
+  hand are not the same load, so a shared suggestion would be wrong. Dumbbell and
+  single-leg exercises are marked "per hand" / "per leg", and the dropdown is grouped by
+  muscle group.
+  - **The cable family** (added on request): `Cable Lateral Raise`, `Cable Row (Per hand)`,
+    `Dual Bicep Cable Curl`, `Lat Extension` and `Cable Reverse Fly`. They live **only** in the
+    exercise database — not in the A/B programs — so you pick them manually with ＋ Add exercise.
+    `Cable Row (Per hand)` is the only one of them marked "per hand".
+- **Progressive overload:** a suggestion for the next workout per exercise — add weight at 8+ reps,
+  more reps when you are below, and a rep focus if the weight has been stuck for 3 sessions.
+- **Warm-up sets per exercise:** every card has a collapsible 🔥 Warm-up that computes the ramp
+  from the working weight (the heaviest set in the exercise). Compound barbell lifts:
+  bar → 50% → 70% → 85%; machine/cable: 50% → 75%; isolation: one light set (~60%).
+  The ramp is rounded to 2.5 kg (1 kg for dumbbells) and always stays below the working weight.
+  Retype the weight and the ramp follows immediately — without redrawing the card, so an open
+  ramp and your cursor stay put. Bodyweight exercises get no ramp (there is no number to ramp).
+  The ramp is a suggestion: if you are already warm from an earlier exercise, one light set is enough.
+- **Technique cues per exercise:** a short 💡 line under the exercise name with the one thing
+  that matters for that lift. Always visible, never behind a fold — the point is to read it while
+  standing at the rack. The text lives in the `CUES` dictionary in `app.js`; the longer English
+  originals are in `warmup-and-cues.md`.
+- **Only exercises you actually do:** "Next week" shows only exercises you have performed at least
+  once. An exercise counts as performed when it has at least one set in a saved workout for that day —
+  ever, not just recently. That keeps the list short instead of filling it with the whole
+  exercise database, where most entries would just say "No history yet".
+  - The **Show all (n)** button reveals the hidden ones — e.g. when you want to start a new exercise.
+    The "＋ Add exercise" picker always has the full list.
+  - With no history for the day nothing is filtered, so a new user is not left with empty lists.
+  - Bodyweight exercises (Plank, Pull-up) are **never** filtered out: only sets with weight
+    above 0 are stored, so they cannot build weight history. Without that exception they would
+    disappear from the list after the first save — permanently.
+  - A **brand new** exercise is therefore not in the list until you have performed it once. It can
+    always be picked with **＋ Add exercise**, and shows up on its own afterwards.
+- **Today's program remembers your last workout:** if you have run e.g. Lower B before, "Today's program"
+  shows **that** workout — same exercises in the same order and with the weight from the
+  best set last time — so you can repeat it with one tap on **Add all**. The template
+  is used only when there is nothing to remember yet (the first time you run the variant).
+  - A line under the heading says which workout is remembered, and from which date.
+  - Exercises you added yourself (e.g. a cable exercise not in the template) are remembered too.
+  - **Show all (n)** reveals the template's remaining exercises if you want to add something new.
+  - There is deliberately **no ↻ button** in the program header: A/B is switched with the variant
+    buttons below, and ↻ could only do the same thing.
+- **Sample data for testing:** on the front page (visible only when the log is empty) you can fill in
+  three weeks of A/B history with one tap — handy in a preview on another domain, where no data
+  exists. It **never** touches your own workouts: the block is shown only when the log is empty or
+  contains sample data only, and it is hidden completely as soon as a real workout is in there.
+- **History:** all saved sessions grouped by date with the best set highlighted.
+- **Edit a saved workout:** forgot an exercise? Tap ✏️ Edit on the workout in the
+  history. The exercises are loaded back in, you can add/fix/remove, and the button then reads
+  **Update workout**. The date, the day and the variant are preserved, and no duplicate is created —
+  also if you only fix the workout the following day. **Cancel** leaves the edit without
+  writing anything.
+- **Share with an AI coach:** generates a text report ready to copy. You pick the
+  time range in the share window:
 
-  - `Kun nyt siden sidst` — kun de træninger du ikke har sendt før (markeres automatisk
-    når du kopierer, så du slipper for at kopiere det hele hver gang)
-  - en bestemt uge, fx `Uge 40 (28.9–4.10) · 3 træninger ✓ delt`
-  - `Alle uger`
+  - `Only new since last` — only the workouts you have not sent before (marked automatically
+    when you copy, so you do not have to copy everything every time)
+  - a specific week, e.g. `Week 40 (28.9–4.10) · 3 workouts ✓ shared`
+  - `All weeks`
 
-  Uger følger ISO-kalenderen (mandag–søndag), så `uge 40` er den samme uge som i din
-  kalender. Rapporten viser uge-overskrift, træningslog, en fremgangs-headline og en
-  kompakt liste med bedste sæt nogensinde pr. øvelse — den sidste er med vilje altid med,
-  så trenden ikke går tabt når man kun deler én uge.
+  Weeks follow the ISO calendar (Monday–Sunday), so `week 40` is the same week as in your
+  calendar. The report shows a week heading, the training log, a progress headline and a
+  compact list of the best set ever per exercise — the last one is deliberately always included,
+  so the trend is not lost when you only share a single week.
 
-  **Tegnbudgettet er styrende:** Discord tillader 2.000 tegn pr. besked, og den gamle
-  eksport ramte ~8.000 tegn og kunne slet ikke sendes. En uge ligger nu på ~1.000–1.850
-  tegn og passer i én besked. Delingsvinduet viser hele tiden `1.365 / 2.000 tegn`, så en
-  for lang eksport opdages før man prøver at sende den.
-- **Programregler** ligger i README (Progressive overload, sæt og pauser, hvorfor
-  redskabsvarianter holdes adskilt). Der er bevidst ingen regler-knap i appen.
+  **The character budget drives the design:** Discord allows 2,000 characters per message, and the old
+  export hit ~8,000 characters and could not be sent at all. A week is now ~1,000–1,850
+  characters and fits in one message. The share window always shows `1,365 / 2,000 characters`, so an
+  over-long export is caught before you try to send it.
+- **Program rules** live in the README (progressive overload, sets and rest, why
+  equipment variants are kept apart). There is deliberately no rules button in the app.
 
-## Deling: hvor ofte og hvorfor
+## Sharing: how often and why
 
-**Del én gang om ugen, efter ugens sidste træning.** Delingsvinduets `Kun nyt siden sidst`
-er bygget til netop den rytme.
+**Share once a week, after the last workout of the week.** The share window's `Only new since last`
+is built for exactly that rhythm.
 
-Hvorfor ugentligt og ikke oftere:
+Why weekly and not more often:
 
-- **En uge = én fuld A/B-cyklus.** Så har hver øvelse været forbi præcis én gang. Deler du
-  midt i ugen, har halvdelen af programmet ingen ny sammenligning at holde op mod.
-- **En uge er én besked.** Worst case — 4 træninger dækkende begge varianter — ligger på
-  ~1.850 tegn mod Discords 2.000. Se tegntælleren i delingsvinduet.
-- **Appens stagnation-regel tæller unikke datoer med samme vægt og slår til ved 3.** I et
-  A/B-split kommer hver øvelse forbi én gang om ugen, altså **3 uger**. Deler du ugentligt,
-  kan en stagnation fanges i uge 2 — en uge før appen selv flagger den.
-- **Ikke oftere:** hver øvelse kommer kun forbi én gang om ugen, så en midt-uge-deling
-  indeholder de samme tal uden et nyt sammenligningspunkt.
+- **One week = one full A/B cycle.** Then every exercise has been through exactly once. If you share
+  mid-week, half the program has no new comparison to measure against.
+- **One week is one message.** Worst case — 4 workouts covering both variants — lands at
+  ~1,850 characters against Discord's 2,000. See the character counter in the share window.
+- **The app's stagnation rule counts unique dates with the same weight and triggers at 3.** In an
+  A/B split each exercise comes around once a week, so **3 weeks**. If you share weekly,
+  a stagnation can be caught in week 2 — a week before the app flags it itself.
+- **Not more often:** each exercise only comes around once a week, so a mid-week share
+  contains the same numbers without a new comparison point.
 
-Del med det samme — vent ikke til ugen er slut — hvis noget gør ondt, eller hvis en løft
-pludselig føles forkert.
+Share right away — do not wait for the week to end — if something hurts, or if a lift
+suddenly feels wrong.
 
-Springer du en uge over, er intet tabt: `Kun nyt siden sidst` samler det op næste gang.
+If you skip a week, nothing is lost: `Only new since last` picks it up next time.
 
-**Hvad du kan forvente af feedbacken:**
+**What to expect from the feedback:**
 
-- **Ugentligt:** virker dobbelt-progressionen, falder reps når vægten stiger, bliver en
-  øvelse sprunget over, hvordan bevæger volumen sig.
-- **Hver 4.–6. uge:** det større blik — om en løft reelt er stagneret eller bare havde en
-  dårlig uge, og om upper/lower-balancen er skæv. Det kan man ikke sige noget rigtigt om ud
-  fra én uge alene.
+- **Weekly:** is the double progression working, do reps drop when the weight goes up, is an
+  exercise being skipped, how is the volume moving.
+- **Every 4th–6th week:** the bigger picture — whether a lift has genuinely stagnated or just had a
+  bad week, and whether the upper/lower balance is off. That cannot be said reliably from
+  one week alone.
 
-**Én begrænsning i appens egen regel, værd at kende:** stagnation-reglen kigger kun på
-**vægten**, ikke på reps. Går du 80×8 → 80×10 → 80×12, tæller det som "3 sammenhænge med
-80 kg", og appen foreslår rep-fokus som om du stod stille — mens du i virkeligheden har øget
-reps hver gang. Derfor er de faktiske sæt i rapporten vigtigere end appens forslag alene.
+**One limitation in the app's own rule, worth knowing:** the stagnation rule looks only at
+**the weight**, not at reps. Going 80×8 → 80×10 → 80×12 counts as "3 sessions with
+80 kg", and the app suggests a rep focus as if you were standing still — while you have in fact added
+reps every time. That is why the actual sets in the report matter more than the app's suggestion alone.
 
-Den første deling er den største, fordi den tager hele historikken. Derefter er det én uge ad
-gangen. Der ligger en påmindelse **søndag kl. 21** i `#codeslop`.
+The first share is the biggest, because it carries the whole history. After that it is one week at
+a time. There is a reminder **Sunday at 21:00** in `#codeslop`.
 
-## Kør appen
+## Running the app
 
 ```bash
-# Åbn direkte (virker — klassiske <link>/<script src> er ikke ramt af file://-begrænsninger)
+# Open directly (works — classic <link>/<script src> are not affected by file:// restrictions)
 xdg-open index.html
 
-# …eller servér den
+# …or serve it
 python3 -m http.server 8099 --bind 127.0.0.1
 # → http://127.0.0.1:8099/
 ```
 
-Alt state ligger i tre `localStorage`-nøgler: `gym_tracker_workouts`,
-`gym_tracker_current_day` og `gym_tracker_settings`.
+All state lives in three `localStorage` keys: `gym_tracker_workouts`,
+`gym_tracker_current_day` and `gym_tracker_settings`.
 
-## Struktur
+## Structure
 
 ```
-index.html              markup alene — refererer styles.css og app.js
-styles.css              alt CSS, inkl. :root-variablerne
-app.js                  al applikationslogik (klassisk script, ingen moduler)
-tests/run-tests.js      logik- og struktur-tests (ingen browser)
+index.html              markup only — references styles.css and app.js
+styles.css              all CSS, including the :root variables
+app.js                  all application logic (classic script, no modules)
+tests/run-tests.js      logic and structure tests (no browser)
 tests/browser-check.js  end-to-end test via Chrome DevTools Protocol
-.github/workflows/      CI: syntax-tjek + logik-tests på hvert push
+.github/workflows/      CI: syntax check + logic tests on every push
 ```
 
-Der er bevidst ingen build-step: filerne serveres som de er, og `app.js` er et klassisk
-script (ikke et ES-modul), så `file://` stadig virker.
+There is deliberately no build step: the files are served as they are, and `app.js` is a classic
+script (not an ES module), so `file://` still works.
 
-## Preview af en PR (test fra telefonen)
+## Previewing a PR (testing from your phone)
 
-Produktionssiden kommer fra `main` via GitHub Pages, så den kan man først se **efter** merge.
-For at kunne teste en PR på telefonen **inden** den merges, er repoet koblet til **Netlify**,
-som giver hver pull request sin egen URL:
+The production site comes from `main` via GitHub Pages, so it can only be seen **after** a merge.
+To test a PR on your phone **before** it is merged, the repo is connected to **Netlify**,
+which gives every pull request its own URL:
 
 ```
-https://deploy-preview-<PR-nummer>--mellow-conkies-448bd3.netlify.app
+https://deploy-preview-<PR number>--mellow-conkies-448bd3.netlify.app
 ```
 
-Fx `deploy-preview-7--mellow-conkies-448bd3.netlify.app` for PR #7. (Netlify har også en
-produktions-URL, `mellow-conkies-448bd3.netlify.app`, som følger `main`. Den bruges ikke til
-noget — GitHub Pages er den rigtige side.)
+E.g. `deploy-preview-7--mellow-conkies-448bd3.netlify.app` for PR #7. (Netlify also has a
+production URL, `mellow-conkies-448bd3.netlify.app`, which follows `main`. It is not used for
+anything — GitHub Pages is the real site.)
 
-### Vigtigt: projektet skal stå som Public
+### Important: the project must be Public
 
-**Et nyt Netlify-team oprettet efter 28. juli 2026 får "Private" som standard for nye
-projekter.** Så svarer siden `401` med en `edge-access`-redirect til Netlify-login, og den kan
-ikke åbnes på telefonen — heller ikke af dig, uden at logge ind med din Netlify-konto.
+**A new Netlify team created after 28 July 2026 defaults new projects to "Private".** The page then
+answers `401` with an `edge-access` redirect to the Netlify login, and it cannot be opened on your
+phone — not even by you, without signing in with your Netlify account.
 
-Slå det fra: **Project configuration → General → Visitor access → Project visibility → Edit
+Turn it off: **Project configuration → General → Visitor access → Project visibility → Edit
 visibility → Public → Save.**
 
-**Previews har deres egen indstilling og er private som standard.** Netlify skriver det
-direkte: *"Previews stay private by default, including Deploy Previews, agent-run previews, and
-branch deploys."* Sætter man kun projektets synlighed til Public, bliver produktionen åben mens
-`deploy-preview-…` stadig svarer `401`. Derfor skal preview-synligheden også sættes til
-**Public** i samme område under Visitor access. Det er værd at tjekke efter, for forskellen ses
-kun ved at hente preview-URL'en: produktion svarer `200`, preview `401`.
+**Previews have their own setting and are private by default.** Netlify says so
+directly: *"Previews stay private by default, including Deploy Previews, agent-run previews, and
+branch deploys."* Setting only the project visibility to Public leaves production open while
+`deploy-preview-…` still answers `401`. So preview visibility must also be set to
+**Public** in the same area under Visitor access. Worth checking afterwards, because the difference
+only shows by fetching the preview URL: production answers `200`, preview `401`.
 
-De indstillinger har i øvrigt **ingen API, ingen CLI og intet værktøj** — kun dashboardet. Det
-kan altså ikke sættes fra et script eller af en agent.
+Those settings have, incidentally, **no API, no CLI and no tooling** — dashboard only. So they
+cannot be set from a script or by an agent.
 
-Det er ikke tilfældigt at det er i orden at gøre dem offentlige: appen har ingen backend, og
-alle træningsdata ligger i **hver besøgendes egen** `localStorage`. Der er altså ingen data på
-serveren at lægge åbent.
+It is not an accident that making them public is fine: the app has no backend, and
+all training data lives in **each visitor's own** `localStorage`. There is no data on the
+server to expose.
 
-### Deploy Previews bygges kun for PR'er der er oprettet eller opdateret EFTER tilkoblingen
+### Deploy Previews are only built for PRs created or updated AFTER the connection
 
-En PR der var åben før Netlify blev koblet til, får ikke et preview af sig selv — der skal et
-nyt push til branchen til. Det er også derfor `deploy-preview-<nr>` kan svare `404` på en PR
-der ellers ser fin ud på GitHub.
+A PR that was open before Netlify was connected does not get a preview on its own — it needs a
+new push to the branch. That is also why `deploy-preview-<n>` can answer `404` on a PR
+that otherwise looks fine on GitHub.
 
-### Opsætning (allerede gjort — gentages kun hvis projektet skal genskabes)
+### Setup (already done — repeated only if the project has to be recreated)
 
-1. Opret en gratis konto på [app.netlify.com](https://app.netlify.com/signup).
-2. Vælg **Add new site → Import an existing project → GitHub** og giv Netlify adgang til
+1. Create a free account at [app.netlify.com](https://app.netlify.com/signup).
+2. Choose **Add new site → Import an existing project → GitHub** and give Netlify access to
    `Lausius/gym-tracker`.
-3. Sæt **Build command** til at være **tom**, og **Publish directory** til `/` (repoets rod).
-   Der er ingen build-step — filerne ligger klar i repoet.
-4. Sæt **Project visibility** til **Public** (se ovenfor).
+3. Set **Build command** to **empty**, and **Publish directory** to `/` (the repo root).
+   There is no build step — the files are already in the repo.
+4. Set **Project visibility** to **Public** (see above).
 
-URL'en opdateres automatisk hver gang der pushes nye commits til branchen, og Netlify skriver
-også et link i PR'ens checks.
+The URL updates automatically every time new commits are pushed to the branch, and Netlify also
+writes a link in the PR's checks.
 
-### Vigtigt: preview'en har ikke dine data
+### Important: the preview does not have your data
 
-Preview'en ligger på et **andet domæne** end `lausius.github.io`, og `localStorage` er bundet
-til domænet. Preview'en starter derfor **uden dine træningsdata**. Det er med vilje: en preview
-kører kode der ikke er godkendt endnu, og på et separat domæne kan den ikke skrive i din rigtige
-træningslog.
+The preview lives on a **different domain** from `lausius.github.io`, and `localStorage` is bound
+to the domain. The preview therefore starts **without your training data**. That is deliberate: a preview
+runs code that has not been approved yet, and on a separate domain it cannot write to your real
+training log.
 
-Konsekvensen er at data-afhængige ting ikke viser noget på en tom preview — fx viser
-filtreringen hele listen, netop fordi reglen er "vis alt når der ingen historik er". Derfor
-findes **Fyld med eksempeldata** på forsiden (kun synlig når loggen er tom): den skriver tre ugers
-A/B-historik med samme form som rigtige data, så filtrering, rotation, forslag og uge-deling
-kan prøves med det samme.
+The consequence is that data-dependent things show nothing on an empty preview — e.g. the
+filtering shows the whole list, precisely because the rule is "show everything when there is no
+history". That is why **Load sample data** exists on the front page (visible only when the log is empty):
+it writes three weeks of A/B history with the same shape as real data, so filtering, rotation, suggestions
+and week sharing can be tried right away.
 
-### Alternativ: Cloudflare Pages
+### Alternative: Cloudflare Pages
 
-Cloudflare Pages gør præcis det samme og er lige så gratis. Forskellen er URL'en: Cloudflare
-giver en hash-URL plus et stabilt alias pr. branch, fx
-`feat-filtrer-oevelser-uden-historik.<projekt>.pages.dev` (branch-navnet med `-` i stedet for
-`/`). Netlify er valgt her fordi `deploy-preview-<nr>--…` er nemmere at læse og huske.
+Cloudflare Pages does exactly the same and is just as free. The difference is the URL: Cloudflare
+gives a hash URL plus a stable alias per branch, e.g.
+`feat-filtrer-oevelser-uden-historik.<project>.pages.dev` (the branch name with `-` instead of
+`/`). Netlify was chosen here because `deploy-preview-<n>--…` is easier to read and remember.
 
-## Arbejdsgang: ændringer kommer som PR
+## Workflow: changes arrive as PRs
 
-`main` er beskyttet og må ikke pushes direkte til. Alle ændringer — også små —
-går igennem en branch og en pull request, så de kan reviewes før merge.
+`main` is protected and must not be pushed to directly. All changes — even small ones —
+go through a branch and a pull request, so they can be reviewed before merge.
 
 ```sh
-git switch -c feat/min-aendring
-# ... ret koden, kør tests ...
+git switch -c feat/my-change
+# ... fix the code, run the tests ...
 node tests/run-tests.js && node tests/browser-check.js
 git commit -am "feat: ..."
-git push -u origin feat/min-aendring
+git push -u origin feat/my-change
 gh pr create --fill
 ```
 
-CI (`.github/workflows/tests.yml`) kører automatisk på pull requests, og
-`logic-tests` er et påkrævet check: PR'en kan ikke merges før testene er grønne.
+CI (`.github/workflows/tests.yml`) runs automatically on pull requests, and
+`logic-tests` is a required check: the PR cannot be merged until the tests are green.
 
-**Branchen slettes automatisk ved merge.** Repoet har `delete_branch_on_merge` slået til, så
-du ikke skal rydde op efter hver PR:
+**The branch is deleted automatically on merge.** The repo has `delete_branch_on_merge` enabled, so
+you do not have to clean up after every PR:
 
 ```sh
 gh api repos/Lausius/gym-tracker --jq '.delete_branch_on_merge'
 ```
 
-Efter et merge rydder du den lokale kopi sådan:
+After a merge, clean up your local copy like this:
 
 ```sh
-git switch main && git pull && git fetch --prune && git branch -d feat/min-aendring
+git switch main && git pull && git fetch --prune && git branch -d feat/my-change
 ```
 
-### Beskyttelse i praksis
+### Protection in practice
 
-**På GitHub — den del der reelt håndhæver reglen.** Branch protection på `main` kræver
-en pull request, `logic-tests` skal være grønt, og force-push/sletning er slået fra.
-`enforce_admins` er slået **til**, så reglen også gælder repo-ejeren: et push til `main`
-afvises af serveren uanset hvilke credentials der bruges.
+**On GitHub — the part that actually enforces the rule.** Branch protection on `main` requires
+a pull request, `logic-tests` must be green, and force-push/deletion are disabled.
+`enforce_admins` is **on**, so the rule applies to the repo owner too: a push to `main`
+is rejected by the server regardless of which credentials are used.
 
 ```
 remote: error: GH006: Protected branch update failed for refs/heads/main.
@@ -266,9 +270,9 @@ remote: - Changes must be made through a pull request.
 remote: - Required status check "logic-tests" is expected.
 ```
 
-Der er ikke krav om godkendelse fra en anden konto (repoet har kun én), så du kan selv
-mergie PR'en, når checket er grønt. Skal du en sjælden gang pushe direkte til `main`,
-slås admin-reglen midlertidigt fra og til igen:
+There is no requirement for approval from another account (the repo has only one), so you can merge
+the PR yourself once the check is green. If you ever need to push directly to `main`,
+turn the admin rule off temporarily and back on again:
 
 ```sh
 gh api -X DELETE repos/Lausius/gym-tracker/branches/main/protection/enforce_admins
@@ -281,15 +285,15 @@ gh api -X PUT repos/Lausius/gym-tracker/branches/main/protection --input - <<'JS
 JSON
 ```
 
-**Lokalt — kun bekvemmelighed.** `scripts/hooks/pre-push` giver en hurtigere og pænere
-fejlbesked: den fanger fejlen før netværksrunden og virker offline. Serveren ovenfor er
-den, der garanterer reglen, så hooket er valgfrit. Aktiveres én gang pr. klon:
+**Locally — convenience only.** `scripts/hooks/pre-push` gives a faster and nicer
+error message: it catches the mistake before the network round trip and works offline. The server
+above is what guarantees the rule, so the hook is optional. Enable it once per clone:
 
 ```sh
 git config core.hooksPath scripts/hooks
 ```
 
-Bevidst override, når man virkelig mener det:
+Deliberate override, when you really mean it:
 
 ```sh
 ALLOW_MAIN_PUSH=1 git push origin main
@@ -297,43 +301,44 @@ ALLOW_MAIN_PUSH=1 git push origin main
 
 ## Tests
 
-Køres sådan:
+Run them like this:
 
 ```bash
-# 1) Logik uden browser: A/B-rotation, program-integritet, progressiv overload,
-#    opvarmningsrampe, redskabsvarianter, samt at opdelingen i index.html/styles.css/app.js
-#    hænger sammen
+# 1) Logic without a browser: A/B rotation, program integrity, progressive overload,
+#    the warm-up ramp, equipment variants, and that the split across
+#    index.html/styles.css/app.js hangs together
 node tests/run-tests.js
 
-# 2) Fuld brugerrejse i headless Chrome (kræver en kørende server på port 8099)
+# 2) Full user journey in headless Chrome (requires a server running on port 8099)
 python3 -m http.server 8099 --bind 127.0.0.1 &
 node tests/browser-check.js
 
-# ... eller mod den udgivne side
+# ... or against the published site
 node tests/browser-check.js https://lausius.github.io/gym-tracker/
 ```
 
-`tests/browser-check.js` driver Chromium over DevTools Protocol og dækker: indlæsning uden
-JS-fejl, indlæs program, skift A/B-variant, ret vægt/reps, tilføj sæt, gem, **reload med
-persistens og rotation**, historik, del-modal, redskabsvarianter i UI'et,
-**redigering af en gemt træning** (inkl. annullering og at et nyt gem ikke dublerer),
-**uge-opdelt deling med tegnbudget** (vælg uge, kopiér, markering som delt),
-**opvarmningsrampen** (vises på kortet, er foldet sammen, følger en rettet vægt og bliver åben
-mens man retter),
-**filtrering af øvelser uden historik i "Næste uge"** (Vis alle-knappen, at en ny bruger ikke
-står med tomme lister, og at kropsvægtøvelser ikke forsvinder), **"Dagens program" der husker
-sidste træning** (kør en variant, ret den, gem, og se at programmet kan gentage den — inkl.
-"Husker"-linjen, at "Tilføj alle" lægger den huskede træning ind med samme vægt, at skabelonen
-stadig kan hentes frem med "Vis alle", og at ↻-knappen er væk), **eksempeldata** (fyld, ryd, og at knappen ikke kan bruges når der ligger rigtige
-træninger), **de nye cable-øvelser** (kan vælges, er grupperet rigtigt, kun row-varianten bærer
-"per hånd", og de ligger ikke i programmerne), og mobillayout ved 320/375/390/430px (bl.a. at
-＋/✕-knapper ikke flytter sig når teksten bliver længere, og at intet flyder ud over kanten).
+`tests/browser-check.js` drives Chromium over the DevTools Protocol and covers: loading without
+JS errors, loading a program, switching the A/B variant, fixing weight/reps, adding a set, saving,
+**reload with persistence and rotation**, history, the share modal, equipment variants in the UI,
+**editing a saved workout** (including cancelling and that a new save does not duplicate),
+**week-based sharing with a character budget** (pick a week, copy, mark as shared),
+**the warm-up ramp** (shown on the card, collapsed by default, follows an edited weight and stays open
+while you edit),
+**the technique cues** (visible without unfolding, one per card, above the warm-up block),
+**filtering of exercises without history in "Next week"** (the Show all button, that a new user is not
+left with empty lists, and that bodyweight exercises do not disappear), **"Today's program" that remembers
+the last workout** (run a variant, fix it, save, and see the program repeat it — including the
+"Remembering" line, that "Add all" loads the remembered workout with the same weight, that the template
+can still be brought up with "Show all", and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
+workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
+"per hand", and they are not in the programs), and the mobile layout at 320/375/390/430px (including that
+the ＋/✕ buttons do not move when the text gets longer, and that nothing spills past the edge).
 
-Testene rydder `localStorage` ved start, så en kørsel ikke arver state fra den forrige — de
-kan køres vilkårligt mange gange i træk med samme resultat.
+The tests clear `localStorage` at start, so a run does not inherit state from the previous one — they
+can be run any number of times in a row with the same result.
 
-Chrome-stien er sat til Playwrights cache; override med miljøvariablen:
+The Chrome path is set to Playwright's cache; override it with the environment variable:
 
 ```bash
-CHROME_BIN=/sti/til/chrome node tests/browser-check.js
+CHROME_BIN=/path/to/chrome node tests/browser-check.js
 ```
