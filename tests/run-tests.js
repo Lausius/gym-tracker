@@ -734,6 +734,87 @@ ok('Lateral Raise-cue holder den let', /Light is the point/.test(exerciseCue(exB
 ok('Skull Crusher og Tricep Pushdown deler samme cue (samme bevægelse)',
     exerciseCue(exById('upper', 'skull_crusher')) === exerciseCue(exById('upper', 'tricep_pushdown')));
 
+// ─── 14b. Hele øvelsesdatabasen — generelle krav ──────────────────
+// Datadrevet med vilje: hvert krav gælder ALLE øvelser, så en ny øvelse kun kræver
+// en række i EXERCISES + en cue. Skriv ikke en ny ok(...) pr. øvelse — udvid et løb
+// over databasen i stedet. (Det var præcis den boilerplate vi ville væk fra.)
+console.log('\n── 14b. Hele øvelsesdatabasen (generelle krav)');
+
+const ALL_DB = [...EXERCISES.upper.map(e => ({ ...e, day: 'upper' })), ...EXERCISES.lower.map(e => ({ ...e, day: 'lower' }))];
+const w100 = e => warmupSets(100, e);
+const fmt = sets => sets.map(s => `${s.weight}×${s.reps}`).join(' ');
+
+ok('Øvelses-id\'er er unikke',
+    new Set(ALL_DB.map(e => e.id)).size === ALL_DB.length,
+    ALL_DB.map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i).join(', '));
+ok('Hver øvelse har navn, muskelgruppe, compound-flag og redskab',
+    ALL_DB.every(e => typeof e.name === 'string' && e.name.length > 0
+        && typeof e.muscle === 'string' && e.muscle.length > 0
+        && typeof e.compound === 'boolean'
+        && typeof e.equipment === 'string' && e.equipment.length > 0));
+ok('Redskabet er et af dem vi har regler for',
+    ALL_DB.every(e => ['Barbell', 'EZ-bar', 'Dumbbell', 'Cable', 'Machine', 'Machine/Dumbbell', 'Bodyweight'].includes(e.equipment)),
+    [...new Set(ALL_DB.filter(e => !['Barbell', 'EZ-bar', 'Dumbbell', 'Cable', 'Machine', 'Machine/Dumbbell', 'Bodyweight'].includes(e.equipment)).map(e => `${e.id}=${e.equipment}`))].join(', '));
+ok('loadNote er kun "per hand" eller "per leg"',
+    ALL_DB.every(e => e.loadNote === undefined || ['per hand', 'per leg'].includes(e.loadNote)),
+    ALL_DB.filter(e => e.loadNote && !['per hand', 'per leg'].includes(e.loadNote)).map(e => `${e.id}=${e.loadNote}`).join(', '));
+ok('Navnet gentager ikke noten (fx "Cable Row (per hand) (per hand)")',
+    ALL_DB.every(e => !/\(per (hand|leg)\)/i.test(e.name)),
+    ALL_DB.filter(e => /\(per (hand|leg)\)/i.test(e.name)).map(e => e.id).join(', '));
+
+// Cue-dækning: hver øvelse i databasen skal have en linje at vise på kortet
+ok('Hver øvelse i databasen har en cue',
+    ALL_DB.every(e => (CUES[e.id] || '').length > 0),
+    ALL_DB.filter(e => !(CUES[e.id] || '').length).map(e => e.id).join(', '));
+ok('exerciseCue slår op på id (ukendt id giver tom streng)',
+    ALL_DB.every(e => exerciseCue(e) === CUES[e.id]) && exerciseCue({ id: 'findes_ikke' }) === '');
+
+// Opvarmning: reglerne pr. redskab skal holde for hele databasen på én gang.
+// 100 kg som arbejdsvægt gør tallene runde, så vi kan skrive forventningen direkte.
+const bodyweight = ALL_DB.filter(e => e.equipment === 'Bodyweight');
+const isolation = ALL_DB.filter(e => !e.compound && e.equipment !== 'Bodyweight');
+const barCompound = ALL_DB.filter(e => e.compound && ['Barbell', 'EZ-bar'].includes(e.equipment));
+const machineCompound = ALL_DB.filter(e => e.compound && !['Barbell', 'EZ-bar', 'Bodyweight'].includes(e.equipment));
+
+ok('Kropsvægtøvelser får ingen opvarmning (der er ingen tal at rampe efter)',
+    bodyweight.length > 0 && bodyweight.every(e => w100(e).length === 0),
+    bodyweight.map(e => `${e.id}=${fmt(w100(e))}`).join(', '));
+ok('Isolation får præcis ét let sæt på 12 reps under arbejdsvægten',
+    isolation.length > 0 && isolation.every(e => w100(e).length === 1 && w100(e)[0].reps === 12 && w100(e)[0].weight < 100 && w100(e)[0].weight > 0),
+    isolation.map(e => `${e.id}=${fmt(w100(e))}`).join(', '));
+ok('Stang- og EZ-bar-øvelser får stang ×10 først og tre ramp-sæt (10/8/5/3 reps)',
+    barCompound.length > 0 && barCompound.every(e => {
+        const s = w100(e);
+        const bar = e.equipment === 'EZ-bar' ? 10 : 20;
+        return s.length === 4 && s[0].weight === bar && s[0].reps === 10
+            && s.map(x => x.reps).join(',') === '10,8,5,3';
+    }),
+    barCompound.map(e => `${e.id}=${fmt(w100(e))}`).join(', '));
+ok('Maskine/kabel/håndvægt-sammensatte får to ramp-sæt (10/6 reps)',
+    machineCompound.length > 0 && machineCompound.every(e => {
+        const s = w100(e);
+        return s.length === 2 && s.map(x => x.reps).join(',') === '10,6';
+    }),
+    machineCompound.map(e => `${e.id}=${fmt(w100(e))}`).join(', '));
+ok('Enhver rampe er stigende, uden dubletter, og holder sig under arbejdsvægten',
+    ALL_DB.every(e => {
+        const s = w100(e);
+        return s.every((x, i) => x.weight > 0 && x.weight < 100
+            && (i === 0 || x.weight > s[i - 1].weight));
+    }),
+    ALL_DB.filter(e => {
+        const s = w100(e);
+        return !s.every((x, i) => x.weight > 0 && x.weight < 100 && (i === 0 || x.weight > s[i - 1].weight));
+    }).map(e => `${e.id}=${fmt(w100(e))}`).join(', '));
+ok('renderWarmupBlock viser rampen for enhver øvelse med en arbejdsvægt',
+    ALL_DB.filter(e => e.equipment !== 'Bodyweight').every(e => {
+        const html = renderWarmupBlock(e, 100);
+        return html.includes('🔥 Warm-up') && w100(e).every(s => html.includes(`${s.weight} × ${s.reps}`));
+    }),
+    ALL_DB.filter(e => e.equipment !== 'Bodyweight' && !renderWarmupBlock(e, 100).includes('🔥 Warm-up')).map(e => e.id).join(', '));
+ok('Cue-linjen bygges for enhver øvelse (ingen tom linje uden cue)',
+    ALL_DB.every(e => renderCueLine(e).includes('💡') && renderCueLine(e).includes(CUES[e.id])));
+
 console.log('\n── 15. Sprogværn: engelsk i UI\'et, dansk kun i kommentarer');
 // Kommentarer er ikke bruger-vendte og må gerne være danske — resten skal være engelsk.
 // Uden denne test er en glemt streng usynlig: browser-testene tjekker adfærd, ikke sprog.
