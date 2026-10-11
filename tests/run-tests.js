@@ -57,7 +57,7 @@ vm.runInContext(
         isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
         programView, lastWorkoutFor, rememberedItems,
         warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
-        NOTES_URL, escapeHtml, renderNotesMarkdown, loadCoachNotes };
+        NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes };
     `,
     ctx
 );
@@ -69,7 +69,7 @@ const {
     getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
     programView, lastWorkoutFor, rememberedItems,
     warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
-    NOTES_URL, escapeHtml, renderNotesMarkdown, loadCoachNotes,
+    NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -792,9 +792,12 @@ ok('Sprogværnet ser skarpt nok ud (fanger en indsat dansk streng)', (() => {
 async function notesTests() {
     console.log('\n── 16. Coach notes (hentet fra nettet, ikke fra localStorage)');
 
-    ok('NOTES_URL er https og peger på den rå gist-fil',
-        /^https:\/\/gist\.githubusercontent\.com\/Lausius\/[0-9a-f]+\/raw\/weekly-notes\.md$/.test(NOTES_URL),
+    // API'et og ikke raw-links: raw-URL'en til den nyeste revision kan hænge i
+    // CDN-cachen og vise den forrige uges noter (målt: stadig gammel efter 5 min).
+    ok('NOTES_URL er https og peger på gist-API\'et',
+        /^https:\/\/api\.github\.com\/gists\/[0-9a-f]+$/.test(NOTES_URL),
         NOTES_URL);
+    ok('Filnavnet der læses i svaret er det gisten indeholder', NOTES_FILE === 'weekly-notes.md', NOTES_FILE);
     ok('escapeHtml lukker alle fem tegn',
         escapeHtml(`<a href="x">'&'</a>`) === '&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;',
         escapeHtml(`<a href="x">'&'</a>`));
@@ -835,20 +838,53 @@ async function notesTests() {
     const realGetById = document.getElementById;
     document.getElementById = id => (captured[id] = captured[id] || makeEl(id));
 
-    let lastUrl = null, lastOpts = null;
+    let calls = [];
+    const RAW_URL = 'https://gist.githubusercontent.com/Lausius/x/raw/weekly-notes.md';
+    const jsonReply = payload => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+    const textReply = text => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(text) });
+
     notesFetchImpl = (url, opts) => {
-        lastUrl = url; lastOpts = opts;
-        return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(md) });
+        calls.push({ url, opts });
+        return jsonReply({ files: { 'weekly-notes.md': { content: md, truncated: false } } });
     };
     const loaded = await loadCoachNotes();
-    ok('Noterne hentes fra den aftalte URL', lastUrl === NOTES_URL, String(lastUrl));
+    ok('Noterne hentes fra den aftalte URL', calls[0].url === NOTES_URL, String(calls[0].url));
     ok('Hentningen omgår browserens cache (ny uge skal ikke gemmes bag en gammel)',
-        !!lastOpts && lastOpts.cache === 'no-store', JSON.stringify(lastOpts));
+        !!calls[0].opts && calls[0].opts.cache === 'no-store', JSON.stringify(calls[0].opts));
     ok('Panelet fyldes med de hentede noter', captured['notes-content'].innerHTML.includes('Week 41'));
     ok('loadCoachNotes returnerer den viste HTML', loaded.includes('notes-week'));
 
-    notesFetchImpl = () => Promise.resolve({ ok: false, status: 500, text: () => Promise.resolve('') });
+    // Svar uden den fil vi leder efter må ikke give et tomt panel uden forklaring
+    calls = [];
+    notesFetchImpl = (url, opts) => {
+        calls.push({ url, opts });
+        return jsonReply({ files: { 'other.md': { content: '# Something else' } } });
+    };
+    await loadCoachNotes();
+    ok('Mangler filen i svaret, siges det i panelet',
+        /No notes yet/.test(captured['notes-content'].innerHTML) && !captured['notes-content'].innerHTML.includes('Something else'));
+
+    // Afkortede svar: hent den rå fil i stedet for at vise halve noter
+    calls = [];
+    notesFetchImpl = (url, opts) => {
+        calls.push({ url, opts });
+        if (url === NOTES_URL) {
+            return jsonReply({ files: { 'weekly-notes.md': { content: '# Coach notes', truncated: true, raw_url: RAW_URL } } });
+        }
+        return textReply(md);
+    };
+    const truncated = await loadCoachNotes();
+    ok('Et afkortet API-svar henter den rå fil i stedet',
+        truncated.includes('Week 41') && calls.length === 2 && calls[0].url === NOTES_URL && calls[1].url === RAW_URL,
+        JSON.stringify(calls.map(c => c.url)));
+
+    notesFetchImpl = () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
     ok('HTTP-fejl giver en besked i panelet, ikke et crash',
+        (await loadCoachNotes()) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
+
+    // HTTP 200 med ugyldigt JSON er den fejl der er lettest at overse
+    notesFetchImpl = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.reject(new Error('bad json')) });
+    ok('Ugyldigt JSON-svar giver samme besked i stedet for et crash',
         (await loadCoachNotes()) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
 
     notesFetchImpl = () => Promise.reject(new Error('offline'));

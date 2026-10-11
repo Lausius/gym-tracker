@@ -1049,7 +1049,9 @@ async function main() {
         const md = '# Coach notes\\n\\n## Week 41 · 5–11 Oct 2026\\n\\n**Load up**\\n- Bench Press 65×8×3 → 67.5×6-8\\n';
         window.fetch = (url, opts) => {
             window.__notesCalls.push({ url: url, cache: opts && opts.cache });
-            return Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(md) });
+            return Promise.resolve({ ok: true, status: 200,
+                json: () => Promise.resolve({ files: { 'weekly-notes.md': { content: md, truncated: false } } }),
+                text: () => Promise.resolve(md) });
         };
         return true;
     `);
@@ -1060,8 +1062,8 @@ async function main() {
     await sleep(400);
     ok('Panelet åbner', (await evaluate('return document.getElementById("notes-panel").classList.contains("open")')) === true);
     ok('Overlejringen vises med panelet', (await evaluate('return document.getElementById("notes-overlay").classList.contains("open")')) === true);
-    ok('Noterne hentes fra gist-URL\'en',
-        /^https:\/\/gist\.githubusercontent\.com\/Lausius\/[0-9a-f]+\/raw\/weekly-notes\.md$/.test((await evaluate('return window.__notesCalls[0].url')) || ''),
+    ok('Noterne hentes fra gist-API\'et, ikke raw-linket (raw kan vise den forrige uge)',
+        /^https:\/\/api\.github\.com\/gists\/[0-9a-f]+$/.test((await evaluate('return window.__notesCalls[0].url')) || ''),
         JSON.stringify(await evaluate('return window.__notesCalls')));
     ok('Hentningen beder om at omgå cachen',
         (await evaluate('return window.__notesCalls[0].cache')) === 'no-store');

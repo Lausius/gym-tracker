@@ -1380,7 +1380,13 @@
     // opdateres hver uge uden en ny version af appen. Derfor hentes de ved åbning.
     // Gisten er "secret" = unlisted, ikke privat: URL'en virker uden login, og vi
     // viser derfor ingen hemmeligheder i filen — kun træningsnoter.
-    const NOTES_URL = 'https://gist.githubusercontent.com/Lausius/33bd4488e73c50f62617a8f96ffb208f/raw/weekly-notes.md';
+    //
+    // Vi henter gennem API'et og ikke gennem gist.githubusercontent.com: raw-links
+    // til den nyeste revision kan blive hængende i CDN'ens cache og vise den
+    // FORRIGE uges noter, og så ser opdateringen ud som om den fejlede. API-svaret
+    // er højst et minut gammelt, og filens indhold følger med i JSON'en.
+    const NOTES_URL = 'https://api.github.com/gists/33bd4488e73c50f62617a8f96ffb208f';
+    const NOTES_FILE = 'weekly-notes.md';
     const NOTES_UNAVAILABLE = 'Could not load the notes. Check your connection and try again.';
     const NOTES_EMPTY = 'No notes yet — they appear here after a weekly review.';
 
@@ -1453,7 +1459,22 @@
         try {
             const res = await fetcher(NOTES_URL, { cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const html = renderNotesMarkdown(await res.text());
+
+            const data = await res.json();
+            const file = data && data.files ? data.files[NOTES_FILE] : null;
+            if (!file) {
+                content.innerHTML = `<div class="notes-status">${NOTES_EMPTY}</div>`;
+                return '';
+            }
+
+            // API'et afkorter meget store filer; så hentes den rå fil i stedet.
+            let markdown = file.content;
+            if (file.truncated && file.raw_url) {
+                const raw = await fetcher(file.raw_url, { cache: 'no-store' });
+                if (raw.ok) markdown = await raw.text();
+            }
+
+            const html = renderNotesMarkdown(markdown);
             content.innerHTML = html;
             return html;
         } catch {
