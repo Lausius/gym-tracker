@@ -1374,6 +1374,127 @@
         document.getElementById('history-panel').classList.remove('open');
     }
 
+    // ─── Coach notes (de ugentlige noter) ─────────────────────────
+    // Noterne ligger i en gist og ikke i localStorage, af to grunde: de er ikke
+    // træningsdata (de skal ikke kunne overskrives ved en fejl), og de skal kunne
+    // opdateres hver uge uden en ny version af appen. Derfor hentes de ved åbning.
+    // Gisten er "secret" = unlisted, ikke privat: URL'en virker uden login, og vi
+    // viser derfor ingen hemmeligheder i filen — kun træningsnoter.
+    //
+    // Vi henter gennem API'et og ikke gennem gist.githubusercontent.com: raw-links
+    // til den nyeste revision kan blive hængende i CDN'ens cache og vise den
+    // FORRIGE uges noter, og så ser opdateringen ud som om den fejlede. API-svaret
+    // er højst et minut gammelt, og filens indhold følger med i JSON'en.
+    const NOTES_URL = 'https://api.github.com/gists/33bd4488e73c50f62617a8f96ffb208f';
+    const NOTES_FILE = 'weekly-notes.md';
+    const NOTES_UNAVAILABLE = 'Could not load the notes. Check your connection and try again.';
+    const NOTES_EMPTY = 'No notes yet — they appear here after a weekly review.';
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // Minimal markdown: overskrifter, punktopstilling, **fed** og `kode`.
+    // Rækkefølgen er vigtig — der escapes FØRST, så en hentet fil aldrig kan
+    // injicere HTML. Indholdet kommer fra nettet, ikke fra os selv.
+    function renderNotesMarkdown(markdown) {
+        if (!markdown || !markdown.trim()) {
+            return `<div class="notes-status">${NOTES_EMPTY}</div>`;
+        }
+
+        const inline = text => escapeHtml(text)
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        const out = [];
+        let listOpen = false;
+        const closeList = () => {
+            if (listOpen) { out.push('</ul>'); listOpen = false; }
+        };
+
+        for (const rawLine of markdown.split('\n')) {
+            const line = rawLine.trim();
+            if (!line) { closeList(); continue; }
+
+            if (line.startsWith('### ')) {
+                closeList();
+                out.push(`<div class="notes-sub">${inline(line.slice(4))}</div>`);
+            } else if (line.startsWith('## ')) {
+                closeList();
+                out.push(`<div class="notes-week">${inline(line.slice(3))}</div>`);
+            } else if (line.startsWith('# ')) {
+                closeList();
+                out.push(`<div class="notes-title">${inline(line.slice(2))}</div>`);
+            } else if (/^[-*] /.test(line)) {
+                if (!listOpen) { out.push('<ul class="notes-list">'); listOpen = true; }
+                out.push(`<li>${inline(line.slice(2))}</li>`);
+            } else {
+                closeList();
+                out.push(`<div class="notes-line">${inline(line)}</div>`);
+            }
+        }
+        closeList();
+        return out.join('');
+    }
+
+    // fetcher kan gives ind udefra, så testene kan bestemme svaret — og så den
+    // gren der betyder "miljøet har ingen fetch" kan prøves af i stedet for at
+    // ligge uverificeret hen.
+    async function loadCoachNotes(fetcher = typeof fetch === 'function' ? fetch : null) {
+        const content = document.getElementById('notes-content');
+        if (!content) return '';
+
+        content.innerHTML = '<div class="notes-status">Loading notes…</div>';
+
+        if (!fetcher) {
+            content.innerHTML = `<div class="notes-status">${NOTES_UNAVAILABLE}</div>`;
+            return '';
+        }
+
+        try {
+            const res = await fetcher(NOTES_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+            const file = data && data.files ? data.files[NOTES_FILE] : null;
+            if (!file) {
+                content.innerHTML = `<div class="notes-status">${NOTES_EMPTY}</div>`;
+                return '';
+            }
+
+            // API'et afkorter meget store filer; så hentes den rå fil i stedet.
+            let markdown = file.content;
+            if (file.truncated && file.raw_url) {
+                const raw = await fetcher(file.raw_url, { cache: 'no-store' });
+                if (raw.ok) markdown = await raw.text();
+            }
+
+            const html = renderNotesMarkdown(markdown);
+            content.innerHTML = html;
+            return html;
+        } catch {
+            content.innerHTML = `<div class="notes-status">${NOTES_UNAVAILABLE}</div>`;
+            return '';
+        }
+    }
+
+    function openCoachNotes() {
+        closeHistory();
+        document.getElementById('notes-overlay').classList.add('open');
+        document.getElementById('notes-panel').classList.add('open');
+        loadCoachNotes();
+    }
+
+    function closeCoachNotes() {
+        document.getElementById('notes-overlay').classList.remove('open');
+        document.getElementById('notes-panel').classList.remove('open');
+    }
+
     // ─── Bootstrap / Init ─────────────────────────────────────────
     function init() {
         // Restore current day
@@ -1503,6 +1624,11 @@
         document.getElementById('close-history').addEventListener('click', closeHistory);
         document.getElementById('history-overlay').addEventListener('click', closeHistory);
 
+        // Event: Coach notes
+        document.getElementById('btn-notes').addEventListener('click', openCoachNotes);
+        document.getElementById('close-notes').addEventListener('click', closeCoachNotes);
+        document.getElementById('notes-overlay').addEventListener('click', closeCoachNotes);
+
         // Event: Share with trainer
         document.getElementById('btn-share').addEventListener('click', showShareModal);
         document.getElementById('share-modal-close').addEventListener('click', closeShareModal);
@@ -1515,6 +1641,7 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closeHistory();
+                closeCoachNotes();
                 closeShareModal();
             }
         });

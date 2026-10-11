@@ -1040,6 +1040,76 @@ async function main() {
     await sleep(300);
     ok('"Vis alle" viser hele skabelonen igen', (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) === (await evaluate('return getProgram("lower","B").length')));
 
+    // ─── 17. Coach notes (hentet fra nettet, vist i panelet) ──────
+    console.log('\n── 17. Coach notes-panelet');
+    await load(URL_UNDER_TEST);
+    // Netværket stubber vi: testen skal ikke afhænge af, at gisten svarer.
+    await evaluate(`
+        window.__notesCalls = [];
+        const md = '# Coach notes\\n\\n## Week 41 · 5–11 Oct 2026\\n\\n**Load up**\\n- Bench Press 65×8×3 → 67.5×6-8\\n';
+        window.fetch = (url, opts) => {
+            window.__notesCalls.push({ url: url, cache: opts && opts.cache });
+            return Promise.resolve({ ok: true, status: 200,
+                json: () => Promise.resolve({ files: { 'weekly-notes.md': { content: md, truncated: false } } }),
+                text: () => Promise.resolve(md) });
+        };
+        return true;
+    `);
+    ok('Noterne hentes ikke ved indlæsning (kun når panelet åbnes)',
+        (await evaluate('return window.__notesCalls.length')) === 0);
+
+    await evaluate('document.getElementById("btn-notes").click(); return true;');
+    await sleep(400);
+    ok('Panelet åbner', (await evaluate('return document.getElementById("notes-panel").classList.contains("open")')) === true);
+    ok('Overlejringen vises med panelet', (await evaluate('return document.getElementById("notes-overlay").classList.contains("open")')) === true);
+    ok('Noterne hentes fra gist-API\'et, ikke raw-linket (raw kan vise den forrige uge)',
+        /^https:\/\/api\.github\.com\/gists\/[0-9a-f]+$/.test((await evaluate('return window.__notesCalls[0].url')) || ''),
+        JSON.stringify(await evaluate('return window.__notesCalls')));
+    ok('Hentningen beder om at omgå cachen',
+        (await evaluate('return window.__notesCalls[0].cache')) === 'no-store');
+    ok('Ugen vises med overskrift', (await evaluate('return document.getElementById("notes-content").textContent')).includes('Week 41 · 5–11 Oct 2026'));
+    ok('Punkterne vises som liste', (await evaluate('return document.querySelectorAll("#notes-content .notes-list li").length')) === 1);
+    ok('Punktet står med fed sektion ovenover', (await evaluate('return document.querySelectorAll("#notes-content .notes-list li")[0].textContent')).includes('Bench Press 65×8×3'));
+    ok('Noterne er ikke HTML-injiceret', (await evaluate('return document.querySelectorAll("#notes-content .notes-week").length')) === 1);
+    ok('Kortet er ikke i vejen: historik-panelet er lukket',
+        (await evaluate('return document.getElementById("history-panel").classList.contains("open")')) === false);
+
+    await evaluate('document.getElementById("close-notes").click(); return true;');
+    await sleep(300);
+    ok('Panelet lukker med ✕', (await evaluate('return document.getElementById("notes-panel").classList.contains("open")')) === false);
+
+    // Overlejringen lukker også, og Escape skal virke som i historikken
+    await evaluate('document.getElementById("btn-notes").click(); return true;');
+    await sleep(300);
+    await evaluate('document.getElementById("notes-overlay").click(); return true;');
+    await sleep(300);
+    ok('Klik på baggrunden lukker panelet', (await evaluate('return document.getElementById("notes-panel").classList.contains("open")')) === false);
+
+    await evaluate('document.getElementById("btn-notes").click(); return true;');
+    await sleep(300);
+    await evaluate('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); return true;');
+    await sleep(300);
+    ok('Escape lukker panelet', (await evaluate('return document.getElementById("notes-panel").classList.contains("open")')) === false);
+
+    // Død forbindelse: appen skal kunne bruges, og panelet sige det med ord
+    await evaluate(`
+        window.fetch = () => Promise.reject(new Error("offline"));
+        return true;
+    `);
+    await evaluate('document.getElementById("btn-notes").click(); return true;');
+    await sleep(400);
+    ok('Død forbindelse giver en besked i panelet, ikke en tom rude',
+        (await evaluate('return document.getElementById("notes-content").textContent')).includes('Could not load the notes'));
+    ok('Og appen virker stadig bagefter (programmet tegnes, knapperne svarer)',
+        (await evaluate('return document.querySelectorAll("#program-content .program-exercise").length')) > 0
+        && (await evaluate(`
+            document.querySelector('.variant-btn[data-variant="B"]').click();
+            return document.querySelector('.variant-btn[data-variant="B"]').classList.contains('active');
+        `)) === true);
+    await evaluate('document.getElementById("close-notes").click(); return true;');
+    await sleep(250);
+    ok('Ingen JS-fejl fra notes-panelet', pageErrors.length === 0, JSON.stringify(pageErrors));
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)

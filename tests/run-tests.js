@@ -40,7 +40,12 @@ const document = {
     addEventListener() {},
 };
 
-const ctx = { document, localStorage, console, setTimeout, Date, Math, JSON, Set, Array, Object, parseInt, parseFloat, isNaN };
+// fetch-stub: noterne hentes fra nettet i browseren. Testene bestemmer svaret,
+// så de kan dække både et gyldigt svar, en HTTP-fejl og en død forbindelse.
+let notesFetchImpl = () => Promise.reject(new Error('offline'));
+const fetch = (...args) => notesFetchImpl(...args);
+
+const ctx = { document, localStorage, console, setTimeout, Date, Math, JSON, Set, Array, Object, parseInt, parseFloat, isNaN, fetch };
 ctx.window = ctx;
 vm.createContext(ctx);
 vm.runInContext(
@@ -51,7 +56,8 @@ vm.runInContext(
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
         isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
         programView, lastWorkoutFor, rememberedItems,
-        warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine };
+        warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
+        NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes };
     `,
     ctx
 );
@@ -63,6 +69,7 @@ const {
     getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
     programView, lastWorkoutFor, rememberedItems,
     warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
+    NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -777,5 +784,120 @@ ok('Sprogværnet ser skarpt nok ud (fanger en indsat dansk streng)', (() => {
     return DA_CHARS.test(probe) && !/kommentar/.test(probe);
 })());
 
-console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
-process.exit(fail === 0 ? 0 : 1);
+// ─── 16. Coach notes (ugentlige noter hentet fra nettet) ────────────
+// Noterne ligger ikke i localStorage, men hentes fra en gist. Derfor er der tre
+// ting der skal holdes fast: at markdown bliver til sikker HTML, at et svar fra
+// nettet ikke kan injicere kode, og at en død forbindelse giver en besked i
+// panelet i stedet for et crash (appen skal kunne bruges uden net).
+async function notesTests() {
+    console.log('\n── 16. Coach notes (hentet fra nettet, ikke fra localStorage)');
+
+    // API'et og ikke raw-links: raw-URL'en til den nyeste revision kan hænge i
+    // CDN-cachen og vise den forrige uges noter (målt: stadig gammel efter 5 min).
+    ok('NOTES_URL er https og peger på gist-API\'et',
+        /^https:\/\/api\.github\.com\/gists\/[0-9a-f]+$/.test(NOTES_URL),
+        NOTES_URL);
+    ok('Filnavnet der læses i svaret er det gisten indeholder', NOTES_FILE === 'weekly-notes.md', NOTES_FILE);
+    ok('escapeHtml lukker alle fem tegn',
+        escapeHtml(`<a href="x">'&'</a>`) === '&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;',
+        escapeHtml(`<a href="x">'&'</a>`));
+
+    const md = [
+        '# Coach notes',
+        '',
+        '## Week 41 · 5–11 Oct 2026',
+        '',
+        '4 sessions · 52 sets · 43338 kg',
+        '',
+        '**Load up**',
+        '- Bench Press 65×8×3 → 67.5×6-8',
+        '- Lat Pulldown 66×10 → next pin',
+        '',
+        'Worth knowing: RDL stays out.',
+    ].join('\n');
+    const notesHtml = renderNotesMarkdown(md);
+
+    ok('Ugen bliver en overskrift med klasse', notesHtml.includes('<div class="notes-week">Week 41 · 5–11 Oct 2026</div>'));
+    ok('Dokumentets titel bliver den lille titel', notesHtml.includes('<div class="notes-title">Coach notes</div>'));
+    ok('Fed markdown bliver <strong>', notesHtml.includes('<div class="notes-line"><strong>Load up</strong></div>'));
+    ok('Punkter bliver en liste med ét <li> pr. linje',
+        /<ul class="notes-list"><li>Bench Press 65×8×3 → 67\.5×6-8<\/li><li>Lat Pulldown 66×10 → next pin<\/li><\/ul>/.test(notesHtml));
+    ok('Listen lukkes før næste afsnit', notesHtml.includes('</ul><div class="notes-line">Worth knowing: RDL stays out.</div>'));
+    ok('Rene linjer bliver afsnit', notesHtml.includes('<div class="notes-line">4 sessions · 52 sets · 43338 kg</div>'));
+    ok('En tom fil giver en forklarende linje, ikke et tomt panel', /class="notes-status"/.test(renderNotesMarkdown('   ')));
+    ok('Tom/manglende tekst crasher ikke', renderNotesMarkdown('').includes('notes-status') && renderNotesMarkdown(null).includes('notes-status'));
+
+    // Filen kommer fra nettet — HTML i den må aldrig slippe igennem
+    const evil = renderNotesMarkdown('# Title <script>alert(1)</script>\n- <img src=x onerror=alert(1)>');
+    ok('En hentet fil kan ikke injicere HTML', !/<script|<img/.test(evil), evil.slice(0, 90));
+    ok('Tegnene kommer i stedet med som tekst', evil.includes('&lt;script&gt;alert(1)&lt;/script&gt;'));
+    ok('Ingen rå vinkelparenteser ud over de tags vi selv laver', !/<(?!\/?(div|ul|li|strong|code)\b)/.test(evil));
+
+    // loadCoachNotes skal fylde panelet — og fejle pænt
+    const captured = {};
+    const realGetById = document.getElementById;
+    document.getElementById = id => (captured[id] = captured[id] || makeEl(id));
+
+    let calls = [];
+    const RAW_URL = 'https://gist.githubusercontent.com/Lausius/x/raw/weekly-notes.md';
+    const jsonReply = payload => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(payload) });
+    const textReply = text => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve(text) });
+
+    notesFetchImpl = (url, opts) => {
+        calls.push({ url, opts });
+        return jsonReply({ files: { 'weekly-notes.md': { content: md, truncated: false } } });
+    };
+    const loaded = await loadCoachNotes();
+    ok('Noterne hentes fra den aftalte URL', calls[0].url === NOTES_URL, String(calls[0].url));
+    ok('Hentningen omgår browserens cache (ny uge skal ikke gemmes bag en gammel)',
+        !!calls[0].opts && calls[0].opts.cache === 'no-store', JSON.stringify(calls[0].opts));
+    ok('Panelet fyldes med de hentede noter', captured['notes-content'].innerHTML.includes('Week 41'));
+    ok('loadCoachNotes returnerer den viste HTML', loaded.includes('notes-week'));
+
+    // Svar uden den fil vi leder efter må ikke give et tomt panel uden forklaring
+    calls = [];
+    notesFetchImpl = (url, opts) => {
+        calls.push({ url, opts });
+        return jsonReply({ files: { 'other.md': { content: '# Something else' } } });
+    };
+    await loadCoachNotes();
+    ok('Mangler filen i svaret, siges det i panelet',
+        /No notes yet/.test(captured['notes-content'].innerHTML) && !captured['notes-content'].innerHTML.includes('Something else'));
+
+    // Afkortede svar: hent den rå fil i stedet for at vise halve noter
+    calls = [];
+    notesFetchImpl = (url, opts) => {
+        calls.push({ url, opts });
+        if (url === NOTES_URL) {
+            return jsonReply({ files: { 'weekly-notes.md': { content: '# Coach notes', truncated: true, raw_url: RAW_URL } } });
+        }
+        return textReply(md);
+    };
+    const truncated = await loadCoachNotes();
+    ok('Et afkortet API-svar henter den rå fil i stedet',
+        truncated.includes('Week 41') && calls.length === 2 && calls[0].url === NOTES_URL && calls[1].url === RAW_URL,
+        JSON.stringify(calls.map(c => c.url)));
+
+    notesFetchImpl = () => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) });
+    ok('HTTP-fejl giver en besked i panelet, ikke et crash',
+        (await loadCoachNotes()) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
+
+    // HTTP 200 med ugyldigt JSON er den fejl der er lettest at overse
+    notesFetchImpl = () => Promise.resolve({ ok: true, status: 200, json: () => Promise.reject(new Error('bad json')) });
+    ok('Ugyldigt JSON-svar giver samme besked i stedet for et crash',
+        (await loadCoachNotes()) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
+
+    notesFetchImpl = () => Promise.reject(new Error('offline'));
+    ok('Død forbindelse giver samme besked',
+        (await loadCoachNotes()) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
+
+    ok('Miljø uden fetch siger det samme i stedet for at kaste',
+        (await loadCoachNotes(null)) === '' && /Could not load the notes/.test(captured['notes-content'].innerHTML));
+
+    document.getElementById = realGetById;
+}
+
+notesTests().then(() => {
+    console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
+    process.exit(fail === 0 ? 0 : 1);
+});

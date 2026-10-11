@@ -26,6 +26,9 @@
                     </svg>
                     Share
                 </button>
+                <button class="icon-btn" id="btn-notes" title="Weekly coach notes" aria-label="Coach notes">
+                    📝
+                </button>
                 <button class="icon-btn" id="btn-history" title="Show history" aria-label="History">
                     📋
                 </button>
@@ -177,6 +180,16 @@
             <button class="close-btn" id="close-history">✕</button>
         </div>
         <div class="history-content" id="history-content"></div>
+    </div>
+
+    <!-- Coach notes panel (hentes fra nettet, ikke fra localStorage) -->
+    <div class="notes-overlay" id="notes-overlay"></div>
+    <div class="notes-panel" id="notes-panel">
+        <div class="notes-panel-header">
+            <div class="notes-panel-title">📝 Coach notes</div>
+            <button class="close-btn" id="close-notes" aria-label="Close coach notes">✕</button>
+        </div>
+        <div class="notes-content" id="notes-content"></div>
     </div>
 
     <!-- Toast Container -->
