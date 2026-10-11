@@ -977,6 +977,99 @@ async function main() {
     ok('En ny øvelse kan tilføjes til dagens træning', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Cable Lateral Raise")')) === true);
     ok('Den er ikke i programmet, så den vises ikke som "Tilføjet" der', (await evaluate('return [...document.querySelectorAll("#program-content .program-ex-added")].length')) === 0);
 
+    // ─── 16b. Nye øvelser efter uge 41 ────────────────────────────
+    // Maskin-brystpres (valgfri brystvariant), leg press-læg (så 130 og 215 ikke
+    // lægges sammen under ét id) og cable pull-through (hofteleddet, siden RDL er
+    // ude af hensyn til lænden).
+    console.log('\n── 16b. Nye øvelser efter uge 41');
+    const NEW_AFTER_W41 = [
+        ['chest_press_machine', 'Chest Press (Machine)'],
+        ['calf_raise_leg_press', 'Calf Raise (Leg Press)'],
+        ['cable_pull_through', 'Cable Pull-Through'],
+    ];
+    // Vælgeren viser kun dagens øvelser, så overkrop og underkrop tjekkes hver for sig
+    const readPicker = () => evaluate(`
+        const opts = [...document.querySelectorAll("#exercise-select option")];
+        const groups = {};
+        for (const g of document.querySelectorAll("#exercise-select optgroup")) {
+            groups[g.label] = [...g.querySelectorAll("option")].map(o => o.value);
+        }
+        return { values: opts.map(o => o.value), text: opts.map(o => o.textContent).join("\\n"), groups };
+    `);
+
+    const upperPicker = await readPicker();
+    ok('"Chest Press (Machine)" kan vælges i ＋ Tilføj øvelse',
+        upperPicker.values.includes('chest_press_machine') && upperPicker.text.includes('Chest Press (Machine)'));
+    ok('Chest Press (Machine) er grupperet under bryst', (upperPicker.groups['Chest'] || []).includes('chest_press_machine'));
+    ok('De andre nye er ikke i overkrops-vælgeren (de hører til underkrop)',
+        !upperPicker.values.includes('calf_raise_leg_press') && !upperPicker.values.includes('cable_pull_through'));
+
+    // Maskin-pressen skal have cue og en maskinrampe på kortet
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "chest_press_machine";
+        document.getElementById("sets-number").value = "3";
+        document.getElementById("start-weight").value = "60";
+        document.getElementById("start-reps").value = "8";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(350);
+    ok('Maskin-pressen kan lægges til dagens træning', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Chest Press (Machine)")')) === true);
+    ok('Cue-linjen står på maskin-pressen', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Handles at chest height")')) === true);
+    ok('Rampen er en maskinrampe (60 kg → 30×10 og 45×6)', (await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.innerText.includes("Chest Press (Machine)"));
+        const t = card.querySelector(".warmup-block") ? card.querySelector(".warmup-block").textContent : "";
+        return t.includes("30 × 10") && t.includes("45 × 6");
+    `)) === true);
+
+    // Underkrop: de to nye lower-øvelser skal kunne vælges der
+    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
+    await sleep(400);
+    const lowerPicker = await readPicker();
+    ok('"Calf Raise (Leg Press)" kan vælges i ＋ Tilføj øvelse på underkropsdagen',
+        lowerPicker.values.includes('calf_raise_leg_press') && lowerPicker.text.includes('Calf Raise (Leg Press)'),
+        `id=${lowerPicker.values.includes('calf_raise_leg_press')}`);
+    ok('"Cable Pull-Through" kan vælges i ＋ Tilføj øvelse på underkropsdagen',
+        lowerPicker.values.includes('cable_pull_through') && lowerPicker.text.includes('Cable Pull-Through'),
+        `id=${lowerPicker.values.includes('cable_pull_through')}`);
+    ok('Calf Raise (Leg Press) er grupperet under kalve', (lowerPicker.groups['Calves'] || []).includes('calf_raise_leg_press'));
+    ok('Cable Pull-Through er grupperet under baglår/baller', (lowerPicker.groups['Hamstrings/Glutes'] || []).includes('cable_pull_through'));
+    ok('Calf Raise (Leg Press) og Calf Raise står side om side i vælgeren',
+        (lowerPicker.groups['Calves'] || []).includes('calf_raise') && (lowerPicker.groups['Calves'] || []).includes('calf_raise_leg_press'));
+    const programIds = await evaluate(`
+        return ['upperA', 'upperB', 'lowerA', 'lowerB']
+            .map(k => getProgram(k.startsWith('upper') ? 'upper' : 'lower', k.slice(-1)).map(i => i.exerciseId))
+            .flat();
+    `);
+    ok('Ingen af de tre nye er lagt ind i programmerne (de vælges manuelt)',
+        NEW_AFTER_W41.every(([id]) => !programIds.includes(id)),
+        NEW_AFTER_W41.map(([id]) => id).filter(id => programIds.includes(id)).join(', '));
+
+    // Leg press-læg får ét let sæt, som de andre isolationsøvelser
+    await evaluate(`
+        const sel = document.getElementById("exercise-select");
+        sel.value = "calf_raise_leg_press";
+        document.getElementById("sets-number").value = "3";
+        document.getElementById("start-weight").value = "130";
+        document.getElementById("start-reps").value = "15";
+        document.getElementById("add-exercise-btn").click();
+        return true;
+    `);
+    await sleep(350);
+    ok('Leg press-læg kan lægges til som sin egen øvelse', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Calf Raise (Leg Press)")')) === true);
+    ok('Leg press-læg får ét let sæt (isolation), ikke en rampe', (await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.innerText.includes("Calf Raise (Leg Press)"));
+        const sets = [...card.querySelectorAll(".warmup-block .warmup-set")].map(s => s.textContent);
+        return sets.length === 1 && /× 12/.test(sets[0]);
+    `)) === true, await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.innerText.includes("Calf Raise (Leg Press)"));
+        return [...card.querySelectorAll(".warmup-block .warmup-set")].map(s => s.textContent).join(' | ');
+    `));
+
     // ─── 16. Dagens program husker sidste træning ─────────────────
     console.log('\n── 16. Dagens program husker sidste træning');
 

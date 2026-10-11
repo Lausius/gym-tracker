@@ -13,6 +13,7 @@
         upper: [
             { id: 'bench_press',       name: 'Bench Press',              muscle: 'Chest',           compound: true,  equipment: 'Barbell' },
             { id: 'dumbbell_press',    name: 'Dumbbell Bench Press',     muscle: 'Chest',           compound: true,  equipment: 'Dumbbell', loadNote: 'per hand' },
+            { id: 'chest_press_machine', name: 'Chest Press (Machine)', muscle: 'Chest',           compound: true,  equipment: 'Machine' },
             { id: 'incline_dumbbell',  name: 'Incline Dumbbell Press',   muscle: 'Chest',           compound: true,  equipment: 'Dumbbell', loadNote: 'per hand' },
             { id: 'dumbbell_fly',      name: 'Dumbbell Fly',             muscle: 'Chest',           compound: false, equipment: 'Dumbbell', loadNote: 'per hand' },
             { id: 'cable_crossover',   name: 'Cable Crossover',          muscle: 'Chest',           compound: false, equipment: 'Cable' },
@@ -51,12 +52,14 @@
             { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',    muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
             { id: 'lunges',            name: 'Lunges',                   muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
             { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Barbell' },
+            { id: 'cable_pull_through', name: 'Cable Pull-Through',       muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Cable' },
             { id: 'back_extension',    name: 'Back Extension',           muscle: 'Lower back',      compound: false, equipment: 'Bodyweight' },
             { id: 'leg_curl',          name: 'Leg Curl',                 muscle: 'Hamstrings',      compound: false, equipment: 'Machine' },
             { id: 'leg_extension',     name: 'Leg Extension',            muscle: 'Quads',           compound: false, equipment: 'Machine' },
             { id: 'hip_thrust',        name: 'Hip Thrust',               muscle: 'Glutes',          compound: true,  equipment: 'Barbell' },
             { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Glutes',          compound: false, equipment: 'Barbell' },
             { id: 'calf_raise',        name: 'Calf Raise',               muscle: 'Calves',          compound: false, equipment: 'Machine' },
+            { id: 'calf_raise_leg_press', name: 'Calf Raise (Leg Press)', muscle: 'Calves',          compound: false, equipment: 'Machine' },
             { id: 'plank',             name: 'Plank',                    muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
             { id: 'cable_crunch',      name: 'Cable Crunch',             muscle: 'Abs',             compound: false, equipment: 'Cable' },
             { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',        muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
@@ -65,13 +68,14 @@
 
     // ─── Teknik-cues ──────────────────────────────────────────────
     // Én linje pr. øvelse, skrevet til at blive læst mens man står med vægten:
-    // den vigtigste ting ved løftet, ikke en hel teknikbeskrivelse.
-    // Kilden er ~/.hermes/Documents/gym-tracker/warmup-and-cues.md (den engelske
-    // original); her er den korte danske gengivelse, så appen er på ét sprog.
+    // den vigtigste ting ved løftet, ikke en hel teknikbeskrivelse. Cues er på
+    // engelsk som resten af UI'et; den længere tekst ligger i
+    // ~/.hermes/Documents/gym-tracker/warmup-and-cues.md og holdes i sync i hånden.
     // Øvelser uden en cue viser ingen linje — det er ikke en fejl.
     const CUES = {
         // Chest
         bench_press:        'Shoulder blades tucked down and back, feet planted — same bar path every rep.',
+        chest_press_machine: 'Handles at chest height, shoulder blades back and down, press to just short of lockout — no shrug.',
         dumbbell_press:     'Shoulder blades back, dumbbells at chest height, press up and slightly together.',
         incline_dumbbell:   'Bench slightly inclined, dumbbells over the chest — press up and together, stop before the elbows lock.',
         dumbbell_fly:       'Soft elbows, wide arc, stretch across the chest — no lower than shoulder height.',
@@ -113,6 +117,7 @@
         bulgarian_split:    'Front foot far enough forward that the knee tracks over mid-foot, slight forward lean, back knee straight down.',
         lunges:             'Step so the knee tracks over mid-foot, torso upright, back knee down toward the floor.',
         romanian_deadlift:  'Hips back, bar close to the legs, stop when the hamstrings run out of stretch — not at the floor. 2-3 s down.',
+        cable_pull_through: 'Hips back, rope close between the legs, glutes finish the rep — the spine stays still. A hinge, not a squat.',
         deadlift:           'Bar close to the legs, neutral spine, push the floor away — lock the hips, not the lower back.',
         leg_curl:           'Hips still, full stretch at the bottom, control the return.',
         leg_extension:      'Knees still, squeeze at the top, control the way down — no swinging.',
@@ -120,6 +125,7 @@
         glute_bridge:       'Heels in the floor, posterior pelvic tilt at the top, 1 s squeeze.',
         back_extension:     'Movement at the hip, neutral spine, squeeze the glutes at the top.',
         calf_raise:         'Full stretch at the bottom, 1 s pause, 1 s at the top — no bouncing.',
+        calf_raise_leg_press: 'Same as the stack: full stretch, 1 s pause, 1 s at the top — the leg press tempts you into short reps.',
         // Abs
         plank:              'Ribs down, abs and glutes tight — straight line from shoulder to heel.',
         cable_crunch:       'Hips still, crunch with the abs not the arms, slow return.',

@@ -727,6 +727,32 @@ ok('Lateral Raise-cue holder den let', /Light is the point/.test(exerciseCue(exB
 ok('Skull Crusher og Tricep Pushdown deler samme cue (samme bevægelse)',
     exerciseCue(exById('upper', 'skull_crusher')) === exerciseCue(exById('upper', 'tricep_pushdown')));
 
+// De tre øvelser der kom til efter uge 41: maskin-brystpres, leg press-læg (så
+// 130 og 215 ikke blandes) og cable pull-through, fordi RDL er ude af hensyn til
+// lænden og hofteleddet stadig skal trænes.
+ok('Chest Press (Machine) står i overkrops-databasen som maskine',
+    !!exById('upper', 'chest_press_machine') && exById('upper', 'chest_press_machine').equipment === 'Machine'
+    && exById('upper', 'chest_press_machine').compound === true);
+ok('Calf Raise (Leg Press) er sin egen øvelse under kalve',
+    !!exById('lower', 'calf_raise_leg_press') && exById('lower', 'calf_raise_leg_press').muscle === 'Calves'
+    && exById('lower', 'calf_raise_leg_press').compound === false);
+ok('Leg press-læg deler ikke id med stak-læg', exById('lower', 'calf_raise_leg_press').id !== exById('lower', 'calf_raise').id);
+ok('Cable Pull-Through står i underkrops-databasen som sammensat cable-øvelse',
+    !!exById('lower', 'cable_pull_through') && exById('lower', 'cable_pull_through').compound === true
+    && exById('lower', 'cable_pull_through').equipment === 'Cable');
+ok('Hver øvelse i databasen har en cue',
+    [...EXERCISES.upper, ...EXERCISES.lower].every(e => (CUES[e.id] || '').length > 0),
+    [...EXERCISES.upper, ...EXERCISES.lower].filter(e => !CUES[e.id]).map(e => e.id).join(', '));
+ok('Pull-through-cuen siger hofterne tilbage og at ryggen holdes stille',
+    /Hips back/.test(CUES.cable_pull_through) && /spine stays still/.test(CUES.cable_pull_through));
+ok('Maskin-pres får en maskinrampe, ikke en stangrampe',
+    fmtWarmup(warmupSets(60, exById('upper', 'chest_press_machine'))) === '30×10 45×6',
+    fmtWarmup(warmupSets(60, exById('upper', 'chest_press_machine'))));
+ok('Leg press-læg får ét let sæt som de andre isolationsøvelser',
+    warmupSets(100, exById('lower', 'calf_raise_leg_press')).length === 1
+    && warmupSets(100, exById('lower', 'calf_raise_leg_press'))[0].reps === 12,
+    fmtWarmup(warmupSets(100, exById('lower', 'calf_raise_leg_press'))));
+
 console.log('\n── 15. Sprogværn: engelsk i UI\'et, dansk kun i kommentarer');
 // Kommentarer er ikke bruger-vendte og må gerne være danske — resten skal være engelsk.
 // Uden denne test er en glemt streng usynlig: browser-testene tjekker adfærd, ikke sprog.
