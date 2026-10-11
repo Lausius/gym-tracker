@@ -8,7 +8,7 @@
     // progressiv overload sammenligner tal — slås de sammen, bliver forslaget
     // forkert (fx "læg 2,5 kg på" baseret på en helt anden øvelse).
     //   equipment: hvilket redskab
-    //   loadNote:  'per hånd' / 'per ben' når vægten angives pr. side, ikke total
+    //   loadNote:  'per hand' / 'per leg' når vægten angives pr. side, ikke total
     const EXERCISES = {
         upper: [
             { id: 'bench_press',       name: 'Bench Press',              muscle: 'Chest',           compound: true,  equipment: 'Barbell' },
