@@ -747,6 +747,11 @@ ok('styles.css er ikke tom', css.trim().length > 1000);
 ok('app.js er ikke tom', script.trim().length > 1000);
 ok('CSS-variablerne ligger i styles.css', css.includes(':root') && css.includes('--accent'));
 ok('HTML-strukturen er stadig i index.html', html.includes('id="session-bar"') && html.includes('id="exercise-list"'));
+// Ugebjælkens felter er det eneste pas-valg: dag-vælger, A/B-knapper og velkomsttekst
+// blev fjernet med vilje, og de skal ikke snige sig ind igen.
+ok('Dag-vælgeren er væk fra markup', !html.includes('day-selector') && !html.includes('day-btn'));
+ok('A/B-knapperne er væk fra markup', !html.includes('variant-selector') && !html.includes('variant-btn'));
+ok('Velkomstteksten er væk fra markup', !html.includes('first-use-banner') && !html.includes('Welcome!'));
 ok('Alle id\'er som app.js bruger findes i index.html', (() => {
     const used = new Set([...script.matchAll(/getElementById\(['"]([^'"]+)['"]\)/g)].map(m => m[1]));
     return [...used].every(id => html.includes(`id="${id}"`));
