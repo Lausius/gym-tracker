@@ -121,6 +121,14 @@ ok('Ugen er tom', Object.keys(weekDone(TODAY)).length === 0);
 
 seed([w('u1', '2026-10-05', 'upper', 'A')]);
 ok('Upper A er klaret i ugen', isDoneThisWeek('upper', 'A', TODAY) === true);
+// Rækkefølgen er den man træner i: overkrop og ben skiftevis, A før B for hver dag.
+// Den er også rækkefølgen i ugebjælken, så felterne står som pas man tager dem.
+ok('Ugens fire pas står i træningsrækkefølge (upperA, lowerA, upperB, lowerB)',
+    SESSION_ORDER.join(',') === 'upperA,lowerA,upperB,lowerB', SESSION_ORDER.join(','));
+ok('Rækkefølgen skifter mellem overkrop og ben for hvert pas',
+    SESSION_ORDER.every((k, i) => i === 0 || (k.startsWith('upper') !== SESSION_ORDER[i - 1].startsWith('upper'))),
+    SESSION_ORDER.join(','));
+
 ok('Upper B mangler', isDoneThisWeek('upper', 'B', TODAY) === false);
 ok('Efter Upper A → foreslår Upper B', getSuggestedVariant('upper', TODAY) === 'B');
 ok('Næste pas i ugen er ben (sidste pas var overkrop)', nextSessionInWeek(TODAY) === 'lowerA',

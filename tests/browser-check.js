@@ -1365,7 +1365,7 @@ async function main() {
         const chips = [...document.querySelectorAll("#week-strip .week-chip")];
         const label = document.querySelector("#week-strip .week-label").textContent;
         return chips.length === 4 && /Week \\d+/.test(label)
-            && chips.map(c => c.textContent.replace(/✓|next/g, "").trim()).join(",") === "Upper A,Upper B,Lower A,Lower B";
+            && chips.map(c => c.textContent.replace(/✓|next/g, "").trim()).join(",") === "Upper A,Lower A,Upper B,Lower B";
     `)) === true, await evaluate('return document.getElementById("week-strip").innerText'));
     ok('Med en tom log er intet pas klaret, og det første står som næste', (await evaluate(`
         const chips = [...document.querySelectorAll("#week-strip .week-chip")];

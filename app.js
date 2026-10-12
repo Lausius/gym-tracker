@@ -151,7 +151,10 @@
 
     // Rækkefølgen de fire pas lægges i. Bruges til at se hvad der mangler i ugen, og
     // til at foreslå det næste pas (se nextSessionInWeek).
-    const SESSION_ORDER = ['upperA', 'upperB', 'lowerA', 'lowerB'];
+    // Ugens fire pas i den rækkefølge de trænes: overkrop og ben skiftevis, og A før B
+    // for hver dag. Rækkefølgen er den man ser i ugebjælken — og den "næste pas"-logikken
+    // læser, så forslaget følger træningsrækkefølgen og ikke A/B-parret.
+    const SESSION_ORDER = ['upperA', 'lowerA', 'upperB', 'lowerB'];
 
     // Programmerne er bygget ud fra det han faktisk løfter (uge 41), og vægtene er
     // næste målsætning efter dobbelt-progression: 3 sæt over 8 gentagelser giver
