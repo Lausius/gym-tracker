@@ -161,7 +161,7 @@ async function main() {
             const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
                 .find(c => !c.querySelector(".tag.compound") && c.querySelector(".warmup-block"));
             if (!card) return true; // ingen isolation på denne dag
-            const ex = ALL_EXERCISES.upper.find(e => e.name === card.querySelector(".exercise-name").textContent);
+            const ex = ALL_EXERCISES.upper.find(e => e.name === card.querySelector(".exercise-name, .exercise-name-btn").textContent.replace("\u25be", "").trim());
             return card.querySelectorAll(".warmup-block .warmup-set").length === warmupSets(Number(card.querySelector(".set-weight").value), ex).length;
         `)) === true);
 
@@ -193,7 +193,7 @@ async function main() {
     ok('Hver cue på kortet er øvelsens egen cue', (await evaluate(`
         const day = "upper";
         return [...document.querySelectorAll("#exercise-list .exercise-card")].every(card => {
-            const name = card.querySelector(".exercise-name").textContent.trim();
+            const name = card.querySelector(".exercise-name, .exercise-name-btn").textContent.replace("\u25be", "").trim();
             const ex = ALL_EXERCISES[day].find(e => e.name === name);
             return ex && card.querySelector(".cue-line").textContent.trim() === "💡 " + exerciseCue(ex);
         });
@@ -213,7 +213,7 @@ async function main() {
     ok('Upper B viser ikke Bench Press', (await evaluate('return document.getElementById("program-content").innerText.includes("Bench Press")')) === false);
     ok('↻-knappen er fjernet (A/B skiftes med knapperne)', (await evaluate('return document.getElementById("program-refresh")')) === null);
     ok('Variantskiftet lægger den nye variants program ind i dagens træning', (await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name);
         return cards.length === want.length && cards.every((n, i) => n === want[i]);
     `)) === true);
@@ -221,7 +221,7 @@ async function main() {
     await sleep(150);
     ok('A-knappen skifter tilbage til A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
     ok('Og dagens øvelser følger med tilbage til Upper A', (await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         return cards.length === getProgram("upper", "A").length && cards[0] === "Bench Press";
     `)) === true);
 
@@ -258,7 +258,7 @@ async function main() {
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(300);
     ok('Efter gem er næste variant i rotationen lagt klar som dagens træning', (await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name);
         return document.querySelector(".variant-btn.active").dataset.variant === "B"
             && cards.length === want.length && cards.every((n, i) => n === want[i]);
@@ -284,11 +284,12 @@ async function main() {
     ok('Data overlever reload', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1);
     ok('Næste forslag er nu Upper B (rotation virker)', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === "B");
     ok('Foreslået variant er igen markeret "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested');
-    ok('Progressiv overload foreslår 67.5 kg efter 65 kg × 8', (await evaluate(`
-        const el = [...document.querySelectorAll("#progressive-list .progressive-item")]
-            .find(i => i.dataset.exerciseId === "bench_press");
-        return el.innerText.includes("67.5");
-    `)) === true);
+    // Fremgangen vises ikke længere i en liste for sig: den ligger som tal på kortet,
+    // hvor man kan se den mens man retter vægten. Programmets plan står uændret.
+    ok('Kortet viser programmets tal mens man retter dem', (await evaluate(`
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        return cards.length > 0 && cards.every(c => /Recommended: \\d+ × \\d+ @ [\\d.]+ kg/.test(c.querySelector(".exercise-target").textContent));
+    `)) === true, await evaluate('return document.querySelector("#exercise-list .exercise-target").textContent'));
 
     // ─── 6. Historik, deling og regler ────────────────────────────
     console.log('\n── 6. Historik, deling og regler');
@@ -354,7 +355,6 @@ async function main() {
         return evaluate(`
             const doc = document.documentElement;
             const groups = [
-                ['#progressive-list', '.progressive-item', '.add-from-prog-btn'],
                 ['#program-content', '.program-exercise', null],
                 ['#exercise-list', '.exercise-card', '.remove-btn'],
             ];
@@ -389,7 +389,7 @@ async function main() {
     }
 
     const spread = a => Math.max(...a) - Math.min(...a);
-    const label = { '#progressive-list': 'Progressiv overload', '#program-content': 'Dagens program', '#exercise-list': 'Øvelseslisten' };
+    const label = { '#program-content': 'Dagens program', '#exercise-list': 'Øvelseslisten' };
 
     for (const width of [320, 375, 390, 430]) {
         const { overflow, report } = await layoutAt(width);
@@ -409,35 +409,33 @@ async function main() {
         }
     }
 
-    // Selve regressionen: gør teksten markant længere — knappen må ikke flytte sig
+    // Selve regressionen: gør navnet markant længere — ✕-knappen må ikke flytte sig.
+    // (Det var netop fejlen før: et langt øvelsesnavn skubbede knappen ud af rækken.)
     await S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await sleep(250);
     const before = await evaluate(`
-        const r = document.querySelector("#progressive-list .progressive-item");
-        const b = r.querySelector(".add-from-prog-btn").getBoundingClientRect();
-        return Math.round(r.getBoundingClientRect().right - b.right);
+        const c = document.querySelector("#exercise-list .exercise-card");
+        const b = c.querySelector(".remove-btn").getBoundingClientRect();
+        return Math.round(c.getBoundingClientRect().right - b.right);
     `);
     await evaluate(`
-        document.querySelectorAll("#progressive-list .progressive-item").forEach(r => {
-            r.querySelector(".progressive-ex-name").insertAdjacentText("afterbegin",
-                "Incline Dumbbell Press med ekstra langt navn og mere tekst ");
-            r.querySelector(".suggestion-detail").textContent =
-                "Bedst: 112,5 kg × 12 reps (onsdag den 30. september 2026, meget lang detaljetekst)";
+        document.querySelectorAll("#exercise-list .exercise-card").forEach(c => {
+            const name = c.querySelector(".exercise-name-btn") || c.querySelector(".exercise-name");
+            name.insertAdjacentText("afterbegin", "Incline Dumbbell Press med ekstra langt navn og mere tekst ");
         });
         return true;
     `);
     await sleep(200);
     const after = await evaluate(`
-        const r = document.querySelector("#progressive-list .progressive-item");
-        const b = r.querySelector(".add-from-prog-btn").getBoundingClientRect();
-        const edges = [...document.querySelectorAll("#progressive-list .progressive-item")].map(row => {
-            const btn = row.querySelector(".add-from-prog-btn").getBoundingClientRect();
-            return Math.round(row.getBoundingClientRect().right - btn.right);
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        const edges = cards.map(c => {
+            const b = c.querySelector(".remove-btn").getBoundingClientRect();
+            return Math.round(c.getBoundingClientRect().right - b.right);
         });
-        return { offset: Math.round(r.getBoundingClientRect().right - b.right), spread: Math.max(...edges) - Math.min(...edges) };
+        return { offset: edges[0], spread: Math.max(...edges) - Math.min(...edges) };
     `);
-    ok(`＋-knappen flytter sig ikke ved lang tekst (før ${before}px, efter ${after.offset}px)`, before === after.offset);
-    ok('＋-knapperne holder samme afstand til kanten selv med lang tekst', after.spread <= 1, `spredning ${after.spread}px`);
+    ok(`✕-knappen flytter sig ikke ved lang tekst (før ${before}px, efter ${after.offset}px)`, before === after.offset);
+    ok('✕-knapperne holder samme afstand til kanten selv med lang tekst', after.spread <= 1, `spredning ${after.spread}px`);
     await load(URL_UNDER_TEST, '#app');
     await S('Emulation.clearDeviceMetricsOverride');
     await sleep(200);
@@ -468,7 +466,7 @@ async function main() {
             names: opts.map(o => o.querySelector(".swap-option-name").textContent.trim()),
             current: (opts.find(o => o.classList.contains("current")) || { dataset: {} }).dataset.swapId || null,
             muscles: opts.map(o => ALL_EXERCISES.upper.find(e => e.id === o.dataset.swapId).muscle),
-            sessionIds: [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim()),
+            sessionIds: [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim()),
         };
     `);
     ok('Bytte-listen åbner når man trykker på navnet', menu.count > 1, JSON.stringify(menu));
@@ -478,7 +476,7 @@ async function main() {
     ok('Øvelser der allerede står i dagens træning tilbydes ikke', (await evaluate(`
         const row = [...document.querySelectorAll("#program-content .program-exercise")].find(r => r.dataset.exerciseId === "bench_press");
         const opts = [...row.querySelectorAll(".swap-option")].map(o => o.dataset.swapId);
-        const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+        const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         return opts.every(id => {
             const ex = ALL_EXERCISES.upper.find(e => e.id === id);
             return id === "bench_press" || !inSession.includes(ex.name);
@@ -508,7 +506,7 @@ async function main() {
         return /Recommended: 3 × 8/.test(card.querySelector(".exercise-target").textContent);
     `)) === true);
     ok('Dagen har stadig kun sine egne øvelser (ingen dublet)', (await evaluate(`
-        const names = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+        const names = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         return new Set(names).size === names.length;
     `)) === true);
     ok('Byttet gemmes, så det huskes næste gang', (await evaluate(`
@@ -556,6 +554,94 @@ async function main() {
             const row = [...document.querySelectorAll("#program-content .program-exercise")].find(r => r.dataset.exerciseId === "hip_thrust");
             return !!row && !!row.querySelector(".program-ex-name-btn");
         `)) === true);
+
+    // ─── 9b. Byt direkte fra øvelseskortet ────────────────────────
+    // Man kigger på sine øvelser i "Exercises", ikke i programlisten, når man står
+    // midt i en træning. Navnet på kortet skal derfor åbne samme bytte-liste.
+    console.log('\n── 9b. Byt direkte fra øvelseskortet');
+
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.day-btn[data-day="upper"]').click(); return true;`);
+    await sleep(300);
+    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
+    await sleep(300);
+
+    ok('Navnet på øvelseskortet er en knap', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-name-btn").length')) > 0);
+    ok('Sektionshovedet siger at navnene kan trykkes på',
+        (await evaluate('return document.getElementById("exercise-hint").textContent')) === 'Tap a name to swap');
+    ok('Et kort uden alternativer har stadig et almindeligt navn',
+        (await evaluate(`
+            const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+            return cards.some(c => c.querySelector(".exercise-name")) || cards.every(c => c.querySelector(".exercise-name-btn"));
+        `)) === true);
+
+    const cardMenu = await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.querySelector(".exercise-name-btn").textContent.includes("Bench Press"));
+        card.querySelector(".exercise-name-btn").click();
+        return true;
+    `);
+    await sleep(250);
+    const fromCard = await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.querySelector(".exercise-name-btn") && c.querySelector(".exercise-name-btn").textContent.includes("Bench Press"));
+        const opts = [...card.querySelectorAll(".swap-option")];
+        const row = [...document.querySelectorAll("#program-content .program-exercise")].find(r => r.dataset.exerciseId === "bench_press");
+        return {
+            inCard: opts.map(o => o.dataset.swapId),
+            muscles: opts.map(o => ALL_EXERCISES.upper.find(e => e.id === o.dataset.swapId).muscle),
+            current: (opts.find(o => o.classList.contains("current")) || { dataset: {} }).dataset.swapId || null,
+            programMenuOpen: !!row && row.querySelectorAll(".swap-option").length > 0,
+            slot: card.querySelector(".exercise-name-btn").dataset.swapSlot,
+        };
+    `);
+    ok('Kortets navn åbner bytte-listen', fromCard.inCard.length > 1, JSON.stringify(fromCard));
+    ok('Kortet og programrækken viser samme liste', fromCard.programMenuOpen === true);
+    ok('Kortets liste er også kun samme muskelgruppe', fromCard.muscles.every(m => m === 'Chest'), JSON.stringify(fromCard.muscles));
+    ok('Kortet ved hvilken programrække det hører til', fromCard.slot === 'bench_press');
+    ok('Den nuværende øvelse er markeret', fromCard.current === 'bench_press');
+
+    // Vælg en anden øvelse fra kortet: byttet skal ramme programrækken og huskes
+    await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.querySelector(".exercise-name-btn") && c.querySelector(".exercise-name-btn").textContent.includes("Bench Press"));
+        [...card.querySelectorAll(".swap-option")].find(o => o.dataset.swapId === "chest_press_machine").click();
+        return true;
+    `);
+    await sleep(300);
+    ok('Kortet viser den byttede øvelse', (await evaluate(`
+        const t = document.getElementById("exercise-list").innerText;
+        return t.includes("Chest Press (Machine)") && !t.includes("Bench Press");
+    `)) === true);
+    ok('Programrækken følger med', (await evaluate('return document.querySelector("#program-content .program-exercise").dataset.exerciseId')) === 'chest_press_machine');
+    ok('Byttet huskes, selv om det blev sat fra kortet', (await evaluate(`return programItems("upper","A")[0].exerciseId`)) === 'chest_press_machine');
+    ok('Dagen har stadig kun sine egne øvelser (ingen dublet)', (await evaluate(`
+        const names = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
+        return new Set(names).size === names.length && names.length === getProgram("upper", "A").length;
+    `)) === true);
+    ok('Kortet viser den nye øvelses anbefaling', (await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")]
+            .find(e => e.textContent.includes("Chest Press (Machine)"));
+        return /Recommended: \\d+ × \\d+/.test(card.closest(".exercise-card").querySelector(".exercise-target").textContent);
+    `)) === true);
+
+    // Et kort der ikke er en del af programmet (hentet ind i hånden) har intet at bytte.
+    // Invarianten er derfor: hver bytte-knap peger på en række der findes i programmet.
+    ok('Alle kort i dagens træning peger på en programrække', (await evaluate(`
+        const slots = [...document.querySelectorAll("#program-content .program-exercise")].map(r => r.dataset.slotId);
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        return cards.every(c => {
+            const btn = c.querySelector(".exercise-name-btn");
+            return !btn || slots.includes(btn.dataset.swapSlot);
+        });
+    `)) === true);
+
+    // Tilbage til udgangspunktet for resten af forløbet
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
+    await sleep(300);
     // Del-rapportens "per hand"/"per leg"-linje afhænger af om de delte træninger
     // indeholder en øvelse med en loadNote. Programmerne indeholder ingen, så der
     // lægges en træning ind med den første øvelse i databasen der har en. Datadrevet,
@@ -833,13 +919,13 @@ async function main() {
     await evaluate('document.getElementById("close-history").click(); return true;');
     await sleep(200);
 
-    // ─── 13. Filtrering i Næste uge-listen ────────────────────────
-    // Programmets øvelser er dagens træning og bliver ikke filtreret. Det er
-    // "Næste uge"-listen der viser hele databasen skåret ned til det man laver.
-    console.log('\n── 13. Filtrering: kun øvelser man har udført (Næste uge-listen)');
+    // ─── 13. Programmet er dagens træning, uanset historik ────────
+    // Programmets øvelser ER dagens træning. Historikken bestemmer kun hvilke vægte
+    // der er lagt ind — ikke hvilke øvelser man ser.
+    console.log('\n── 13. Programmet er dagens træning, uanset historik');
 
-    // Fixture: én Upper-A-træning med KUN to af programmets øvelser. Resten er
-    // dermed "aldrig udført" og skal skjules i Næste uge-listen.
+    // Fixture: én Upper-A-træning med KUN to af programmets øvelser. Resten har
+    // dermed ingen historik og skal alligevel stå både i programmet og i dagens træning.
     await evaluate('localStorage.clear(); return true;');
     await evaluate(`
         localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
@@ -855,7 +941,6 @@ async function main() {
 
     ok('Appens databaser er globale i browseren (som i test-harnesset)', (await evaluate('return typeof ALL_EXERCISES')) === 'object');
     const progA = await evaluate('return getProgram("upper","A").length');
-    const upperDb = await evaluate('return ALL_EXERCISES.upper.length');
 
     // Rotationen foreslår nu B (sidste upper var A) — vis A, som har historikken
     await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
@@ -866,55 +951,30 @@ async function main() {
     ok('Dagens træning er programmets øvelser, ikke kun dem med historik',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === progA);
     ok('Der er ikke længere en "Vis alle"-knap i programmet', (await evaluate('return document.getElementById("program-toggle")')) === null);
-
-    // Næste uge-listen: samme regel som før, og det var ønsket #1
-    const progItems = await evaluate('return [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId)');
-    ok('Næste-uge-listen viser øvelserne med historik', progItems.includes('bench_press') && progItems.includes('lat_pulldown'), JSON.stringify(progItems));
-    // Reglen er nu: med historik ELLER med i dagens program. Alt andet skal være væk —
-    // derfor tjekkes det datadrevet i stedet for på et par håndskrevne id'er.
-    const progAudit = await evaluate(`
-        const listed = [...document.querySelectorAll("#progressive-list .progressive-item")].map(i => i.dataset.exerciseId);
-        const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
-        const sessionIds = ALL_EXERCISES.upper.filter(e => inSession.includes(e.name)).map(e => e.id);
-        const history = loadWorkouts().flatMap(w => (w.exercises || []).map(e => e.exerciseId));
+    // Den gamle "Næste uge"-liste er fjernet helt, med sin sektion og sin knap.
+    ok('Næste-uge-sektionen findes ikke længere',
+        (await evaluate('return document.getElementById("progressive-section") || document.getElementById("progressive-list") || document.getElementById("progressive-toggle")')) === null);
+    // Historikken vises i stedet der hvor den hører: tallene på kortet. Programmets
+    // anbefaling (65 kg) står ved siden af den vægt der er lagt ind fra sidst (60 kg).
+    const prefill = await evaluate(`
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
+        const card = cards.find(c => c.querySelector(".exercise-name, .exercise-name-btn").textContent.includes("Bench Press"));
         return {
-            hidden: listed.filter(id => !history.includes(id) && !sessionIds.includes(id)),
-            missing: sessionIds.filter(id => !listed.includes(id)),
-            absent: ALL_EXERCISES.upper.map(e => e.id).filter(id => !listed.includes(id)),
+            entered: card.querySelector(".set-weight").value,
+            recommended: card.querySelector(".exercise-target").textContent,
         };
     `);
-    ok('Lange lister af aldrig-udførte øvelser er væk',
-        progAudit.hidden.length === 0 && progAudit.absent.length > 0, JSON.stringify(progAudit));
-    ok('Dagens program-øvelser mangler ikke i Næste uge-listen', progAudit.missing.length === 0, JSON.stringify(progAudit.missing));
-    ok('Øvelserne i dagens træning står altid i listen', (await evaluate(`
-        const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
-        const listed = [...document.querySelectorAll("#progressive-list .progressive-ex-name")].map(e => e.textContent.trim());
-        return inSession.every(n => listed.some(l => l.startsWith(n)));
-    `)) === true);
-    ok(`Listen er gået fra ${upperDb} til ${progItems.length} poster`, progItems.length < upperDb);
-    ok('Knappen tilbyder de skjulte i Næste uge', /Show all \(\d+\)/.test(await evaluate('return document.getElementById("progressive-toggle").textContent')), await evaluate('return document.getElementById("progressive-toggle").textContent'));
-    await evaluate('document.getElementById("progressive-toggle").click(); return true;');
-    await sleep(250);
-    ok('"Vis alle" i Næste uge viser hele databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === upperDb);
-    await evaluate('document.getElementById("progressive-toggle").click(); return true;');
-    await sleep(250);
-    ok('Filtret slås til igen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === progItems.length);
+    ok('Kortet åbner med sidste uges vægt (60 kg) fra historikken', prefill.entered === '60', JSON.stringify(prefill));
+    ok('Og anbefalingen fra programmet står ved siden af (65 kg)',
+        /Recommended: 3 × 8 @ 65 kg/.test(prefill.recommended), prefill.recommended);
 
-    // Dags-skift henter den nye dags program, og uden historik filtreres der ikke
+    // Dags-skift henter den nye dags program
     await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
     await sleep(300);
     const lowerShown = await evaluate('return document.querySelectorAll("#program-content .program-exercise").length');
     const lowerActive = await evaluate('return getProgram("lower", document.querySelector(".variant-btn.active").dataset.variant).length');
     ok('Lower viser hele sit program', lowerShown === lowerActive && lowerShown > 0, `${lowerShown} af ${lowerActive}`);
     ok('Dagens træning følger med til Lower', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === lowerActive);
-    ok('Næste uge viser hele lower-databasen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === (await evaluate('return ALL_EXERCISES.lower.length')));
-    ok('Ingen "Vis alle"-knap i Næste uge uden historik', (await evaluate('return document.getElementById("progressive-toggle").classList.contains("hidden")')) === true);
-
-    await evaluate(`document.querySelector('.day-btn[data-day="upper"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
-    await sleep(250);
-    ok('Tilbage i Upper A er filtreringen der igen', (await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length')) === progItems.length);
 
     // Den nye knap (øvelsesnavnet) må ikke sprænge rækken på de smalle bredder.
     //
@@ -931,7 +991,7 @@ async function main() {
             const header = document.querySelector(".program-header").getBoundingClientRect();
             const btn = document.querySelector(".program-ex-name-btn");
             const spill = [];
-            for (const sel of ["#progressive-list", "#program-content", ".program-header", ".progressive-header", "#exercise-list"]) {
+            for (const sel of ["#program-content", ".program-header", "#exercise-list"]) {
                 for (const el of document.querySelectorAll(sel + " *")) {
                     const r = el.getBoundingClientRect();
                     if (r.width > 0 && r.right > client + 1) {
@@ -1020,11 +1080,19 @@ async function main() {
     ok('Begge dage får historik', seeded.days === 'lower,upper', seeded.days);
     ok('Knappen skifter til at kunne rydde igen', /Clear sample data/.test(await evaluate('return document.getElementById("sample-btn").textContent')));
 
-    // Pointen med funktionen: filtreringen kan nu ses i en frisk browser, hvor der
-    // ellers ikke ville være noget at filtrere på.
-    const seededList = await evaluate('return document.querySelectorAll("#progressive-list .progressive-item").length');
-    const upperDbSize = await evaluate('return ALL_EXERCISES.upper.length');
-    ok('Næste-uge-listen er filtreret med eksempeldata', seededList > 0 && seededList < upperDbSize, `${seededList} af ${upperDbSize}`);
+    // Pointen med funktionen: med historik kan man se virkningen med det samme i en
+    // frisk browser — programmet åbner med sidste (eksempel-)uges vægte, og rotationen
+    // foreslår den næste variant.
+    await load(URL_UNDER_TEST);
+    const seededPrefill = await evaluate(`
+        const card = document.querySelector("#exercise-list .exercise-card");
+        return {
+            entered: Number(card.querySelector(".set-weight").value),
+            hint: document.getElementById("variant-hint").textContent,
+        };
+    `);
+    ok('Med eksempeldata åbner programmet med vægte fra historikken', seededPrefill.entered > 0, JSON.stringify(seededPrefill));
+    ok('Og rotationen foreslår den næste variant (ikke et selvvalgt)', seededPrefill.hint === 'suggested', seededPrefill.hint);
 
     // Sikkerheden: så snart der ligger én rigtig træning, må knappen ikke kunne bruges
     await evaluate('localStorage.clear(); return true;');
@@ -1071,7 +1139,7 @@ async function main() {
 
                 // Kortene: cue, opvarmning og anbefaling skal være det reglerne siger
                 for (const card of document.querySelectorAll("#exercise-list .exercise-card")) {
-                    const name = card.querySelector(".exercise-name").textContent.trim();
+                    const name = card.querySelector(".exercise-name, .exercise-name-btn").textContent.replace("\u25be", "").trim();
                     const ex = ALL_EXERCISES[day].find(e => e.name === name);
                     const weight = Number(card.querySelector(".set-weight").value);
                     out.cards.push({
@@ -1097,7 +1165,7 @@ async function main() {
                 for (const id of rowIds) {
                     const row = rowById(id);
                     const ex = ALL_EXERCISES[day].find(e => e.id === id);
-                    const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name")].map(e => e.textContent.trim());
+                    const inSession = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
                     const expected = ALL_EXERCISES[day]
                         .filter(e => e.muscle === ex.muscle && (e.id === id || !inSession.includes(e.name)))
                         .map(e => e.id);

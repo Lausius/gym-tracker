@@ -54,9 +54,9 @@ vm.runInContext(
     globalThis.__app = { EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant,
         getCurrentVariant, calculateProgressiveOverload, programKey, formatDate, saveWorkouts, loadWorkouts,
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
-    markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
-        isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-        lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor,
+    markShareScopeAsShared, CHAR_LIMIT,
+        buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
+        lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise,
         loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
         warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
         NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes };
@@ -68,8 +68,8 @@ const {
     EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentVariant,
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
-    getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-    lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor,
+    buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
+    lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise,
     loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
     warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
     NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
@@ -231,22 +231,12 @@ ok('Kun row-varianten er markeret per hånd',
     ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => e.id).join(',') === 'cable_row_per_hand',
     ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => `${e.id}=${e.loadNote}`).join(', '));
 
-// Konsekvensen af filtreringen, som er værd at kende: en ny øvelse uden historik er
-// skjult i listerne indtil man har udført den én gang. Den kan altid vælges manuelt.
-store['gym_tracker_workouts'] = JSON.stringify([
-    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [{ exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] }] },
-]);
-const beforeFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-ok('En ny øvelse er skjult i listerne indtil den er udført', !beforeFirst.visible.some(e => e.id === 'cable_lateral_raise'));
+// Cable og håndvægt skal have hver sin progression, ellers giver forslaget ingen mening
 store['gym_tracker_workouts'] = JSON.stringify([
     { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [
         { exerciseId: 'bench_press', sets: [{ weight: 60, reps: 8 }] },
         { exerciseId: 'cable_lateral_raise', sets: [{ weight: 7, reps: 12 }] }] },
 ]);
-const afterFirst = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-ok('Efter det første udførte sæt vises den', afterFirst.visible.some(e => e.id === 'cable_lateral_raise'));
-
-// Cable og håndvægt skal have hver sin progression, ellers giver forslaget ingen mening
 const cableProg = calculateProgressiveOverload('cable_lateral_raise', 'upper');
 const dbProg = calculateProgressiveOverload('lateral_raise', 'upper');
 ok('Cable lateral raise foreslår ud fra sin egen historik (7 → 9,5 kg)', cableProg.suggestion === '9.5 kg × 12 reps', `fik "${cableProg.suggestion}"`);
@@ -420,108 +410,40 @@ ok('En tom visning giver en forklarende tekst', generateShareText('week:2026-W99
 store['gym_tracker_workouts'] = JSON.stringify([]);
 ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('No workouts saved yet'));
 
-// ─── 9. Filtrering: kun øvelser man har udført ────────────────────
-// Formålet er at listerne ikke skal fyldes med øvelser man aldrig laver. Reglen er
-// "nogensinde udført for den dag", og filtreringen slår kun til når der ER noget at
-// filtrere efter — ellers ville en ny bruger stå med tomme lister.
-console.log('\n── 9. Filtrering: kun øvelser man har udført');
+// ─── 9. Sidste træning for en dag+variant ─────────────────────────
+// Grundlaget for at programmet kan åbne med sidste gangs vægte: den nyeste gemte
+// træning for netop den dag OG variant.
+console.log('\n── 9. Sidste træning for en dag+variant');
 
 const ex = (id, sets = 3) => ({ exerciseId: id, sets: Array.from({ length: sets }, () => ({ weight: 60, reps: 8 })) });
 const asDone = list => JSON.stringify(list);
 
 store['gym_tracker_workouts'] = asDone([]);
-const noHistory = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-ok('Uden historik er ingen øvelser markeret som udført', getTrainedExerciseIds('upper').size === 0);
-ok('Uden historik filtreres der ikke', noHistory.visible.length === ALL_EXERCISES.upper.length);
-ok('Uden historik skjules intet', noHistory.hidden.length === 0);
-ok('Uden historik markeres resultatet som ufiltreret', noHistory.filtered === false);
-ok('Uden historik kan der slet ikke filtreres', noHistory.canFilter === false);
+ok('Uden historik findes ingen sidste træning', lastWorkoutFor('upper', 'A') === null);
 
 store['gym_tracker_workouts'] = asDone([
     { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
 ]);
-ok('Kun de udførte øvelser tælles med', getTrainedExerciseIds('upper').size === 2);
-ok('En udført øvelse er med', getTrainedExerciseIds('upper').has('bench_press'));
-ok('En øvelse man aldrig har lavet er ikke med', !getTrainedExerciseIds('upper').has('shoulder_press'));
-ok('Historik for lower smitter ikke af på upper', getTrainedExerciseIds('lower').size === 0);
 ok('Sidste træning for varianten kan findes', (lastWorkoutFor('upper', 'A') || {}).id === 'u1');
 ok('En variant uden træninger giver ingen sidste træning', lastWorkoutFor('upper', 'B') === null);
-
-// En øvelse man tilføjede men aldrig førte tal ind i, er ikke "udført"
-store['gym_tracker_workouts'] = asDone([
-    { id: 'u2', date: '2026-09-29', day: 'upper', variant: 'A', exercises: [ex('bench_press', 0)] },
-]);
-ok('Tom sæt-liste tæller ikke som udført', getTrainedExerciseIds('upper').size === 0);
+ok('Historik for lower smitter ikke af på upper', lastWorkoutFor('lower', 'A') === null);
 
 store['gym_tracker_workouts'] = asDone([
-    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
+    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press')] },
+    { id: 'u2', date: '2026-10-05', day: 'upper', variant: 'A', exercises: [ex('bench_press')] },
 ]);
-const filtered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-const filteredIds = filtered.visible.map(e => e.id);
-ok('Udførte øvelser bliver synlige', filteredIds.includes('bench_press') && filteredIds.includes('lat_pulldown'));
-ok('En aldrig udført øvelse er ikke i den synlige liste', !filteredIds.includes('shoulder_press'));
-// Relation frem for hardcodede tal: de synlige er de udførte PLUS kropsvægtøvelserne,
-// og synlige + skjulte skal tilsammen give hele listen.
-ok('Resten af databasen skjules', filtered.hidden.length === ALL_EXERCISES.upper.length - filteredIds.length, `${filteredIds.length} synlige, ${filtered.hidden.length} skjulte af ${ALL_EXERCISES.upper.length}`);
-ok('Synlige og skjulte udgør tilsammen hele listen', filteredIds.length + filtered.hidden.length === ALL_EXERCISES.upper.length);
-ok('Resultatet markeres som filtreret', filtered.filtered === true);
+ok('Den nyeste af flere træninger for samme dag+variant bruges', (lastWorkoutFor('upper', 'A') || {}).id === 'u2');
 
-const shownAll = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, true);
-ok('"Vis alle" viser hele listen', shownAll.visible.length === ALL_EXERCISES.upper.length);
-ok('"Vis alle" er ikke længere filtreret', shownAll.filtered === false);
-// Hvis den skjulte mængde blev tømt her, ville knappen skjule sig selv i det øjeblik
-// man trykkede på den — og der var ingen vej tilbage til den filtrerede visning.
-ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === filtered.hidden.length, `${shownAll.hidden.length} skjulte`);
-ok('Den skjulte mængde er den samme som da filtret var slået til', shownAll.hidden.length === filtered.hidden.length);
+store['gym_tracker_workouts'] = asDone([]);
 
-// Kropsvægtøvelser kan slet ikke føre vægthistorik: saveWorkout gemmer kun sæt med
-// vægt > 0, så de optræder aldrig i en gemt træning. Uden undtagelsen ville de
-// forsvinde fra programmet for bestandigt efter første gem. Reglen læses af dataen:
+// Kropsvægtøvelser kan ikke føre vægthistorik: saveWorkout gemmer kun sæt med
+// vægt > 0, så de optræder aldrig i en gemt træning. Reglen læses af dataen:
 // en programrække uden vægt ER en kropsvægtøvelse.
 const zeroWeightRows = Object.entries(PROGRAMS).flatMap(([key, list]) => {
     const day = key.startsWith('upper') ? 'upper' : 'lower';
     return list.filter(i => !(i.weight > 0)).map(i => ({ day, id: i.exerciseId }));
 });
-ok('Der findes en kropsvægtrække i programmerne (ellers tester vi ikke reglen)', zeroWeightRows.length > 0);
-ok('En programrække uden vægt regnes som kropsvægt',
-    zeroWeightRows.every(({ day, id }) => isBodyweightExercise(day, id) === true),
-    zeroWeightRows.filter(({ day, id }) => !isBodyweightExercise(day, id)).map(({ id }) => id).join(', '));
-ok('En programrække med vægt er ikke kropsvægt',
-    Object.entries(PROGRAMS).every(([key, list]) => {
-        const day = key.startsWith('upper') ? 'upper' : 'lower';
-        return list.filter(i => i.weight > 0).every(i => isBodyweightExercise(day, i.exerciseId) === false);
-    }));
-ok('Opslaget er afgrænset til den rigtige dag',
-    zeroWeightRows.every(({ day, id }) => isBodyweightExercise(day === 'upper' ? 'lower' : 'upper', id) === false));
-
-// Kropsvægtrækken overlever filtreringen, også når man aldrig har ført tal ind på den
-const bwRow = zeroWeightRows[0];
-store['gym_tracker_workouts'] = asDone([
-    { id: 'l1', date: '2026-09-29', day: bwRow.day, variant: 'A',
-      exercises: getProgram(bwRow.day, 'A').filter(i => i.weight > 0).map(i => ex(i.exerciseId)) },
-]);
-const lowerSaved = filterTrained(getProgram(bwRow.day, 'A'), bwRow.day, i => i.exerciseId, false);
-ok('Kropsvægtøvelsen overlever i programmet trods ingen historik',
-    lowerSaved.visible.some(i => i.exerciseId === bwRow.id), JSON.stringify(lowerSaved.visible.map(i => i.exerciseId)));
-ok('Den tælles ikke som skjult', !lowerSaved.hidden.some(i => i.exerciseId === bwRow.id));
-const lowerDb = filterTrained(ALL_EXERCISES[bwRow.day], bwRow.day, e => e.id, false);
-ok('Den er også synlig i Næste uge-listen', lowerDb.visible.some(e => e.id === bwRow.id));
-ok('Øvelser uden historik og med vægt filtreres stadig',
-    lowerDb.visible.every(e => getTrainedExerciseIds(bwRow.day).has(e.id) || e.equipment === 'Bodyweight'));
-
-// Programmet filtreres efter samme regel som databasen — antallet af synlige er
-// antallet af udførte (plus evt. kropsvægtrækker), ikke et håndskrevet tal.
-store['gym_tracker_workouts'] = asDone([
-    { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
-]);
-const progA = getProgram('upper', 'A');
-const progFiltered = filterTrained(progA, 'upper', i => i.exerciseId, false);
-ok(`Programmet filtreres ned til det man har kørt (${progA.length} → 2)`, progFiltered.visible.length === 2, `${progFiltered.visible.length} af ${progA.length}`);
-ok('Netop de udførte programøvelser står tilbage', progFiltered.visible.every(i => ['bench_press', 'lat_pulldown'].includes(i.exerciseId)));
-ok('shoulder_press er skjult i programmet', !progFiltered.visible.some(i => i.exerciseId === 'shoulder_press'));
-ok('Synlige og skjulte udgør tilsammen skabelonen', progFiltered.visible.length + progFiltered.hidden.length === progA.length);
-
-store['gym_tracker_workouts'] = asDone([]);
+ok('Der findes en kropsvægtrække i programmerne (ellers tester vi ikke reglen nedenfor)', zeroWeightRows.length > 0);
 
 // ─── 10. Eksempeldata ─────────────────────────────────────────────
 // Eksempeldata skal ligne RIGTIGE data: samme sæt-regel som saveWorkout (kun sæt
@@ -580,15 +502,6 @@ ok('realWorkouts filtrerer eksempeldata fra', realWorkouts(samples).length === 0
 ok('Én rigtig træning tæller som rigtige data', realWorkouts([{ id: 'rigtig', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [] }, ...samples]).length === 1);
 ok('En tom log giver ingen rigtige data', realWorkouts([]).length === 0);
 ok('En tilfældig post uden flaget tælles som rigtig', realWorkouts([{ id: 'x' }]).length === 1);
-
-// Pointen: eksempeldata skal gøre filtreringen demonstrerbar i en frisk browser,
-// hvor der ellers ikke ville være noget at filtrere på.
-store['gym_tracker_workouts'] = JSON.stringify(samples);
-ok('Eksempeldata giver historik på begge dage', getTrainedExerciseIds('upper').size > 0 && getTrainedExerciseIds('lower').size > 0,
-    `upper=${getTrainedExerciseIds('upper').size} lower=${getTrainedExerciseIds('lower').size}`);
-const sampleFiltered = filterTrained(ALL_EXERCISES.upper, 'upper', e => e.id, false);
-ok('Filtreringen har noget at filtrere på med eksempeldata', sampleFiltered.filtered === true && sampleFiltered.hidden.length > 0,
-    `${sampleFiltered.hidden.length} skjulte`);
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
 
@@ -732,6 +645,21 @@ state.exercises = state.exercises.filter(e => e.exerciseId !== 'hip_thrust');
 swapExercise('hip_thrust', 'glute_bridge');
 ok('Et bytte genopliver ikke en række man har fjernet', !state.exercises.some(e => e.exerciseId === 'glute_bridge'));
 ok('Men programmet viser den nye øvelse', programItems('lower', 'A').some(i => i.exerciseId === 'glute_bridge'));
+
+// Øvelseskortet kan sætte samme bytte i gang som programrækken: slotten findes ud
+// fra øvelsen, så kortet ved hvilken række det hører til — også efter et bytte.
+state.currentDay = 'lower';
+state.programVariant = 'A';
+store['gym_tracker_program_swaps'] = JSON.stringify({});
+loadProgram();
+ok('En programøvelse peger på sin egen række', slotForExercise('leg_press') === 'leg_press');
+setSwap('lower', 'A', 'calf_raise', 'calf_raise_leg_press');
+loadProgram();
+ok('Efter et bytte peger den byttede øvelse stadig på den oprindelige række',
+    slotForExercise('calf_raise_leg_press') === 'calf_raise');
+ok('Den øvelse der blev byttet væk har ingen række mere', slotForExercise('calf_raise') === null);
+ok('En øvelse uden for programmet har ingen række at bytte på', slotForExercise('dips') === null);
+ok('Opslaget følger den viste dag', slotForExercise('bench_press') === null);
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
 store['gym_tracker_program_swaps'] = JSON.stringify({});
