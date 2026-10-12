@@ -855,29 +855,114 @@
 
         }
 
-        /* ===== PROGRAM SECTION ===== */
-        .program-section {
+        /* ===== DAGENS PAS (bjælke) ===== */
+        /* Navn, fokus, ugens fire pas og A/B. Øvelserne står kun på kortene
+           nedenfor, så bjælken er bevidst lav: to linjer og et felt pr. pas. */
+        .session-bar {
             margin-top: 16px;
-            padding: 14px;
+            padding: 12px 14px;
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: var(--radius);
         }
-        .program-header {
+        .session-top {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 12px;
+            gap: 8px;
         }
-        .program-title {
+        .session-title {
             display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.85rem;
+            flex-direction: column;
+            min-width: 0;
+        }
+        .session-label {
+            font-size: 0.9rem;
             font-weight: 700;
             color: var(--text);
         }
-        .program-title svg { color: var(--accent); }
+        /* Hvad passet er til, fx "Heavy press · vertical pull" */
+        .session-focus {
+            font-size: 0.7rem;
+            color: var(--accent);
+        }
+
+        /* Ugen: ét felt pr. pas, ✓ for dem der er klaret, "next" for det næste */
+        .week-strip {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .week-label {
+            font-size: 0.68rem;
+            color: var(--text-dim);
+            margin-right: 2px;
+            white-space: nowrap;
+        }
+        .week-chip {
+            padding: 3px 7px;
+            min-height: 28px;
+            display: inline-flex;
+            align-items: center;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-dim);
+            font-family: inherit;
+            font-size: 0.66rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+        .week-chip:hover { border-color: var(--accent); }
+        .week-chip.done {
+            color: var(--text-muted);
+            text-decoration: line-through;
+        }
+        .week-chip.current { border-color: var(--accent); color: var(--text); }
+        .week-chip.next { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+        /* Varianten er klaret i ugen: markeret på selve A/B-knappen også */
+        .variant-btn.done::after {
+            content: '✓';
+            font-size: 0.6rem;
+            margin-left: 2px;
+            color: var(--accent);
+        }
+
+        /* Låsen: samme pas to gange i samme uge */
+        .session-warning {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: var(--bg-input);
+            border: 1px solid var(--warning, var(--accent));
+            border-radius: var(--radius-sm);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        .session-warn-text { display: block; margin-bottom: 6px; }
+        .btn-next-session,
+        .btn-log-anyway {
+            padding: 4px 10px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-right: 6px;
+        }
+        .btn-next-session {
+            background: var(--accent);
+            border: 1px solid var(--accent);
+            color: var(--bg);
+            font-weight: 600;
+        }
+        .btn-log-anyway {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
 
         .header-actions {
             display: flex;
@@ -885,86 +970,31 @@
             gap: 8px;
             flex-shrink: 0;
         }
-        /* Fortæller at programmet nedenfor er din egen sidste træning og ikke
-           skabelonen. Bevidst dæmpet — det er en forklaring, ikke en handling. */
+        /* Fortæller at programmet er din egen sidste træning og ikke skabelonen.
+           Bevidst dæmpet — det er en forklaring, ikke en handling. */
         .program-memory {
             font-size: 0.72rem;
             color: var(--text-dim);
-            margin: -6px 0 10px;
+            margin-top: 8px;
         }
-        .program-content {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 10px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .program-exercise {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+
+        /* Linjen over øvelseslisten når man har fjernet noget fra dagens træning */
+        .restore-row { margin-bottom: 8px; }
+        .btn-restore {
+            width: 100%;
             padding: 8px 10px;
             background: var(--bg-input);
-            border: 1px solid var(--border);
+            border: 1px dashed var(--border);
             border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all var(--transition);
-            gap: 8px;
-        }
-        .program-exercise:hover { border-color: var(--accent); background: var(--bg-hover); }
-        .program-ex-name {
-            font-size: 0.82rem;
-            font-weight: 600;
-            flex: 1;
-        }
-        .program-ex-meta {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            margin-top: 1px;
-        }
-        .program-ex-note {
-            font-size: 0.68rem;
             color: var(--text-muted);
-            margin-top: 1px;
-        }
-        .program-ex-planned {
-            font-size: 0.75rem;
-            color: var(--accent);
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        /* Rækken er lagt ind i dagens træning — tallet er det anbefalede */
-        .program-ex-added {
-            font-size: 0.75rem;
-            color: var(--accent);
-            font-weight: 700;
-            white-space: nowrap;
-        }
-        /* En række man har fjernet fra dagens træning */
-        .program-exercise.not-added { opacity: 0.6; }
-
-        /* Navnet er en knap: tryk for at bytte øvelsen til en anden i samme
-           muskelgruppe. Rækker uden alternativer har ingen knap. Knappen er et
-           tap-target i samme højdeklasse som de øvrige knapper. */
-        .program-ex-name-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            min-height: 28px;
-            padding: 0;
-            background: none;
-            border: none;
-            color: var(--text);
             font-family: inherit;
-            font-size: 0.82rem;
-            font-weight: 600;
-            text-align: left;
+            font-size: 0.72rem;
             cursor: pointer;
         }
-        .program-ex-name-btn:hover { color: var(--accent); }
+        .btn-restore:hover { border-color: var(--accent); color: var(--accent); }
+
         .swap-caret { color: var(--text-dim); font-size: 0.7rem; }
-        .program-ex-name-btn.open .swap-caret { color: var(--accent); }
+        .exercise-name-btn.open .swap-caret { color: var(--accent); }
 
         /* Byttelisten: kun øvelser i samme muskelgruppe, den nuværende markeret */
         .swap-menu {

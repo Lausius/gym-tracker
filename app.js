@@ -139,41 +139,59 @@
     // det ved åbning og ved skift af dag/variant — man bygger det ikke op selv.
     const MAX_PER_DAY = 6;
 
-    // Programmerne er de øvelser der faktisk bliver løftet (uge 41), ikke et
-    // gammelt skabelon-udkast. `weight` er den vægt der sidst er løftet, så
-    // anbefalingen tager udgangspunkt i virkeligheden. Har man historik for
-    // varianten, bruges den i stedet (se sessionEntryFor).
+    // Hvad de fire pas er til. Fokus står i øverste bjælke, så man ikke skal gætte
+    // hvad forskellen på A og B er: A er de tunge, få gentagelser med stang/maskine,
+    // B er volumen med kabel og maskine, og benene er delt i bagkæde og forlår.
+    const SESSION_FOCUS = {
+        upperA: 'Heavy press · vertical pull',
+        upperB: 'Volume · delts, arms & cables',
+        lowerA: 'Hamstrings, glutes & hinge',
+        lowerB: 'Quads, glutes & calves',
+    };
+
+    // Rækkefølgen de fire pas lægges i. Bruges til at se hvad der mangler i ugen, og
+    // til at foreslå det næste pas (se nextSessionInWeek).
+    const SESSION_ORDER = ['upperA', 'upperB', 'lowerA', 'lowerB'];
+
+    // Programmerne er bygget ud fra det han faktisk løfter (uge 41), og vægtene er
+    // næste målsætning efter dobbelt-progression: 3 sæt over 8 gentagelser giver
+    // mere vægt (2,5 kg overkrop / 5 kg ben), ellers tages gentagelserne først.
+    // Har man historik for varianten, bruges *den* til tallene på kortet (se
+    // sessionEntryFor) — skabelonens vægt er det man skal løfte, ikke det man løftede.
     //
-    // Romanian Deadlift er bevidst væk: den belaster hans lænd, og den skal
-    // hverken stå her eller tilbydes som bytte-alternativ.
+    // Romanian Deadlift er bevidst ude: den belaster lænden. Cable Pull-Through står
+    // i stedet i Lower A som hofte-hinge med kabel (lav aksial belastning), så
+    // bevægelsesmønsteret ikke er væk.
     const PROGRAMS = {
         upperA: [
-            { exerciseId: 'bench_press',        sets: 3, reps: 8,  weight: 65,  note: 'Chest' },
-            { exerciseId: 'shoulder_press',     sets: 3, reps: 8,  weight: 40,  note: 'Shoulders' },
-            { exerciseId: 'lat_pulldown',       sets: 3, reps: 10, weight: 66,  note: 'Back' },
-            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 24, note: 'Back' },
-            { exerciseId: 'overhead_tricep',    sets: 3, reps: 10, weight: 25,  note: 'Triceps' },
-            { exerciseId: 'ez_bar_curl',        sets: 3, reps: 12, weight: 25,  note: 'Biceps' },
+            { exerciseId: 'bench_press',        sets: 3, reps: 8,  weight: 67.5, note: 'Chest' },
+            { exerciseId: 'shoulder_press',     sets: 3, reps: 8,  weight: 40,   note: 'Shoulders' },
+            { exerciseId: 'lat_pulldown',       sets: 3, reps: 10, weight: 66,   note: 'Back' },
+            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 15,  note: 'Back' },
+            { exerciseId: 'overhead_tricep',    sets: 3, reps: 10, weight: 27.5, note: 'Triceps' },
+            { exerciseId: 'ez_bar_curl',        sets: 3, reps: 10, weight: 27.5, note: 'Biceps' },
         ],
         upperB: [
-            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 24, note: 'Back' },
-            { exerciseId: 'cable_lateral_raise', sets: 3, reps: 12, weight: 8, note: 'Shoulders' },
-            { exerciseId: 'dual_bicep_cable_curl', sets: 3, reps: 12, weight: 10, note: 'Biceps' },
-            { exerciseId: 'tricep_pushdown',    sets: 3, reps: 10, weight: 30,  note: 'Triceps' },
+            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 24,  note: 'Back' },
+            { exerciseId: 'cable_lateral_raise', sets: 3, reps: 12, weight: 8,   note: 'Shoulders' },
+            { exerciseId: 'face_pull',          sets: 3, reps: 12, weight: 15,   note: 'Shoulders/Back' },
             { exerciseId: 'cable_crossover',    sets: 3, reps: 10, weight: 12.5, note: 'Chest' },
-            { exerciseId: 'face_pull',          sets: 3, reps: 12, weight: 15,  note: 'Shoulders/Back' },
+            { exerciseId: 'dual_bicep_cable_curl', sets: 3, reps: 12, weight: 10, note: 'Biceps' },
+            { exerciseId: 'tricep_pushdown',    sets: 3, reps: 10, weight: 30,   note: 'Triceps' },
         ],
         lowerA: [
+            { exerciseId: 'cable_pull_through', sets: 3, reps: 12, weight: 20,  note: 'Hinge' },
             { exerciseId: 'leg_curl',           sets: 3, reps: 15, weight: 41,  note: 'Hamstrings' },
-            { exerciseId: 'back_extension',     sets: 3, reps: 12, weight: 0,   note: 'Lower back' },
-            { exerciseId: 'leg_press',          sets: 3, reps: 10, weight: 225, note: 'Quads' },
+            { exerciseId: 'back_extension',     sets: 3, reps: 12, weight: 1,   note: 'Lower back' },
+            { exerciseId: 'leg_press',          sets: 3, reps: 12, weight: 225, note: 'Quads' },
             { exerciseId: 'hip_thrust',         sets: 3, reps: 10, weight: 90,  note: 'Glutes' },
             { exerciseId: 'calf_raise',         sets: 3, reps: 15, weight: 130, note: 'Calves' },
         ],
         lowerB: [
             { exerciseId: 'leg_curl',           sets: 3, reps: 15, weight: 45,  note: 'Hamstrings' },
-            { exerciseId: 'leg_extension',      sets: 3, reps: 12, weight: 66,  note: 'Quads' },
+            { exerciseId: 'leg_extension',      sets: 3, reps: 12, weight: 70,  note: 'Quads' },
             { exerciseId: 'leg_press',          sets: 3, reps: 12, weight: 225, note: 'Quads' },
+            { exerciseId: 'hip_thrust',         sets: 3, reps: 12, weight: 90,  note: 'Glutes' },
             { exerciseId: 'calf_raise_leg_press', sets: 3, reps: 15, weight: 215, note: 'Calves' },
         ],
     };
@@ -187,8 +205,47 @@
         return PROGRAMS[programKey(day, variant)] || [];
     }
 
-    // Foreslår næste variant ud fra seneste gemte træning for den pågældende dag
-    function getSuggestedVariant(day) {
+    // Foreslår næste variant ud fra hvad der mangler i den aktuelle uge, og ellers
+    // ud fra rotationen. Ugen er delt i fire pas (SESSION_ORDER), og et pas tælles
+    // som klaret hvis der ligger en gemt træning med samme dag+variant i ugen.
+    function weekDone(today = getTodayStr()) {
+        const key = isoWeekKey(today);
+        const done = {};
+        for (const w of loadWorkouts()) {
+            if (!w.variant || isoWeekKey(w.date) !== key) continue;
+            const k = programKey(w.day, w.variant);
+            if (!SESSION_ORDER.includes(k)) continue;
+            if (!done[k] || w.date > done[k].date) done[k] = { date: w.date, id: w.id };
+        }
+        return done;
+    }
+
+    function isDoneThisWeek(day, variant, today = getTodayStr()) {
+        return !!weekDone(today)[programKey(day, variant)];
+    }
+
+    // Det næste pas der mangler i ugen, med skift mellem overkrop og ben, så man
+    // ikke kommer til at køre to overkrops-pas i træk. null = ugen er fuld.
+    function nextSessionInWeek(today = getTodayStr()) {
+        const done = weekDone(today);
+        const pending = SESSION_ORDER.filter(k => !done[k]);
+        if (pending.length === 0) return null;
+        const performed = loadWorkouts().filter(w => w.variant).sort((a, b) => a.date.localeCompare(b.date));
+        const lastDay = performed.length ? performed[performed.length - 1].day : null;
+        if (lastDay) {
+            const other = pending.find(k => !k.startsWith(lastDay));
+            if (other) return other;
+        }
+        return pending[0];
+    }
+
+    function getSuggestedVariant(day, today = getTodayStr()) {
+        // 1. Det pas for dagen der ikke er klaret i ugen endnu.
+        const done = weekDone(today);
+        const pending = SESSION_ORDER.filter(k => k.startsWith(day) && !done[k]);
+        if (pending.length) return pending[0].slice(-1);
+        // 2. Begge pas for dagen er klaret: fald tilbage til rotationen, så man kan
+        //    se den anden variant uden at skulle tænke over det.
         const workouts = loadWorkouts().filter(w => w.day === day && w.variant);
         if (workouts.length === 0) return 'A';
         workouts.sort((a, b) => a.date.localeCompare(b.date));
@@ -208,6 +265,7 @@
         sessionVariant: null, // varianten programmet blev indlæst fra (gemmes med træningen)
         editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
         openSwap: null, // skabelon-id på den øvelse hvis bytte-liste er åben
+        allowDuplicateWeek: false, // sat når man bevidst gemmer samme pas to gange i ugen
     };
 
     // ─── Storage ──────────────────────────────────────────────────
@@ -533,12 +591,17 @@
     // Hvad en øvelse kan byttes til: samme muskelgruppe, og ikke en der allerede står
     // i dagens træning. Reglen læser muskelgruppen i EXERCISES, så en ny øvelse
     // kommer med i listerne af sig selv.
+    // Øvelser der ikke må tilbydes som alternativ, selv om de deler muskelgruppe.
+    // Romanian Deadlift belaster hans lænd, og skal ikke kunne vælges ved et uheld.
+    const NEVER_OFFERED = ['romanian_deadlift'];
+
     function swapCandidates(day, exerciseId) {
         const ex = getExerciseById(day, exerciseId);
         if (!ex) return [];
         const inSession = new Set(state.exercises.map(e => e.exerciseId));
         return ALL_EXERCISES[day].filter(e =>
-            e.muscle === ex.muscle && (e.id === exerciseId || !inSession.has(e.id)));
+            e.muscle === ex.muscle && !NEVER_OFFERED.includes(e.id) &&
+            (e.id === exerciseId || !inSession.has(e.id)));
     }
 
     // Hvilken programrække en øvelse hører til i dag. Et bytte kan sættes i gang både
@@ -707,58 +770,83 @@
     }
 
     // ─── Render Functions ─────────────────────────────────────────
-    function renderProgram() {
+    // Øverste bjælke: hvad passet er, hvilke af ugens fire pas der er klaret, og en
+    // advarsel hvis man er ved at gemme det samme pas to gange i samme uge.
+    // Selve øvelserne står kun ét sted: på kortene i listen nedenfor.
+    function sessionHasKey(key) { return SESSION_ORDER.indexOf(key) !== -1; }
+
+    // 'upperA' → { day: 'upper', variant: 'A', label: 'Upper A' }
+    function parseKey(key) {
+        return { day: key.slice(0, -1), variant: key.slice(-1), label: sessionLabel(key) };
+    }
+
+    function sessionLabel(key) {
+        const day = key.slice(0, -1);
+        return `${day === 'upper' ? 'Upper' : 'Lower'} ${key.slice(-1)}`;
+    }
+
+    function renderSessionBar() {
         const variant = getCurrentVariant();
-        const items = programItems(state.currentDay, variant);
-        const content = document.getElementById('program-content');
+        const key = programKey(state.currentDay, variant);
+        const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
+        const label = document.getElementById('session-label');
+        const focusEl = document.getElementById('session-focus');
         const hint = document.getElementById('variant-hint');
         const memory = document.getElementById('program-memory');
+        const strip = document.getElementById('week-strip');
+        const warning = document.getElementById('session-warning');
         const last = lastWorkoutFor(state.currentDay, variant);
-        const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
 
         document.querySelectorAll('.variant-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.variant === variant);
+            const v = btn.dataset.variant;
+            btn.classList.toggle('active', v === variant);
+            // Marker varianten som klaret i ugen, så det ses før man vælger den.
+            btn.classList.toggle('done', isDoneThisWeek(state.currentDay, v));
         });
+        if (label) label.textContent = `${dayLabel} ${variant}`;
+        if (focusEl) focusEl.textContent = SESSION_FOCUS[key] || '';
         if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
 
-        if (items.length === 0) {
-            content.innerHTML = '<div class="program-ex-meta">No program found</div>';
-            if (memory) memory.classList.add('hidden');
-            return;
+        // Ugen: ét felt pr. pas, med ✓ og dato for dem der allerede ligger der.
+        const done = weekDone();
+        const next = nextSessionInWeek();
+        const week = isoWeekInfo(getTodayStr());
+        if (strip) {
+            strip.innerHTML = `<span class="week-label">Week ${week.week}</span>` + SESSION_ORDER.map(k => {
+                const info = parseKey(k);
+                const d = done[k];
+                const cls = ['week-chip', d ? 'done' : '', k === key ? 'current' : '', next === k ? 'next' : '']
+                    .filter(Boolean).join(' ');
+                const tail = d ? '✓' : (next === k ? 'next' : '');
+                return `<button class="${cls}" data-session="${k}">${info.label}${tail ? ' ' + tail : ''}</button>`;
+            }).join('');
         }
 
-        // Fortæl hvor tallene kommer fra, og at navnet kan trykkes på.
+        // Hvor tallene kommer fra.
         if (memory) {
             memory.classList.remove('hidden');
             memory.textContent = last
-                ? `↩︎ Same exercises and weights as your ${dayLabel} ${variant} on ${formatDate(last.date)}. Tap an exercise name — here or in the list below — to swap it.`
-                : `Your ${dayLabel} ${variant} program. Tap an exercise name — here or in the list below — to swap it.`;
+                ? `↩︎ Same exercises and weights as your ${dayLabel} ${variant} on ${formatDate(last.date)}.`
+                : `Your ${dayLabel} ${variant} program — ready to go.`;
         }
 
-        content.innerHTML = items.map(item => {
-            const ex = getExerciseById(state.currentDay, item.exerciseId);
-            if (!ex) return '';
-            const slotId = item.swappedFrom || item.exerciseId;
-            const candidates = swapCandidates(state.currentDay, item.exerciseId);
-            const open = state.openSwap === slotId;
-            const added = state.exercises.some(e => e.exerciseId === item.exerciseId);
-            const plan = `${item.sets} × ${item.reps}${item.weight > 0 ? ' @ ' + item.weight + ' kg' : ''}`;
-            const name = candidates.length > 1
-                ? `<button class="program-ex-name-btn${open ? ' open' : ''}" data-swap-slot="${slotId}"
-                           aria-expanded="${open}" title="Change exercise">${escapeHtml(ex.name)}<span class="swap-caret">▾</span></button>`
-                : `<div class="program-ex-name">${escapeHtml(ex.name)}</div>`;
-            return `
-                <div class="program-exercise${added ? '' : ' not-added'}" data-exercise-id="${item.exerciseId}" data-slot-id="${slotId}">
-                    <div style="flex:1; min-width:0;">
-                        ${name}
-                        <div class="program-ex-meta">${ex.muscle}${ex.equipment ? ' · ' + ex.equipment : ''}${ex.loadNote ? ' · ' + ex.loadNote : ''}</div>
-                        ${item.note ? `<div class="program-ex-note">${item.note}</div>` : ''}
-                        ${open ? renderSwapMenu(slotId, ex, candidates) : ''}
-                    </div>
-                    <span class="program-ex-${added ? 'added' : 'planned'}">${added ? '✓ ' : ''}${plan}</span>
-                </div>
-            `;
-        }).join('');
+        // Lås: samme dag+variant to gange i samme uge. Man kan se passet, men ikke
+        // gemme det, før man enten skifter pas eller siger "log anyway".
+        const conflict = weekConflict();
+        if (warning) {
+            if (!conflict) {
+                warning.classList.add('hidden');
+                warning.innerHTML = '';
+            } else {
+                warning.classList.remove('hidden');
+                const nextLabel = next ? sessionLabel(next) : null;
+                warning.innerHTML = `
+                    <span class="session-warn-text">⚠️ ${dayLabel} ${variant} is already logged this week (${weekdayOf(conflict.date)} ${shortDate(conflict.date)})${nextLabel ? ` — ${nextLabel} is next` : ''}.</span>
+                    ${nextLabel ? `<button class="btn-next-session" id="btn-next-session">Go to ${nextLabel}</button>` : ''}
+                    <button class="btn-log-anyway" id="btn-log-anyway">Log anyway</button>
+                `;
+            }
+        }
     }
 
     // Bytte-listen under øvelsesnavnet. Kun øvelser i samme muskelgruppe (se
@@ -799,6 +887,8 @@
             `;
             count.textContent = '0';
             if (hint) hint.textContent = '';
+            const restoreEmpty = document.getElementById('exercise-restore');
+            if (restoreEmpty) { restoreEmpty.classList.add('hidden'); restoreEmpty.innerHTML = ''; }
             return;
         }
 
@@ -812,6 +902,18 @@
             return slot && swapCandidates(state.currentDay, ex.exerciseId).length > 1;
         });
         if (hint) hint.textContent = swappable ? 'Tap a name to swap' : '';
+
+        // Er der fjernet noget fra dagens træning, kan det hentes tilbage her —
+        // det var før programlisten der gjorde det.
+        const removed = missingExerciseCount();
+        const restore = document.getElementById('exercise-restore');
+        if (restore) {
+            restore.classList.toggle('hidden', removed === 0);
+            restore.innerHTML = removed === 0 ? '' : `
+                <button class="btn-restore" id="btn-restore">
+                    ↩︎ ${removed === 1 ? '1 exercise removed' : removed + ' exercises removed'} — restore
+                </button>`;
+        }
 
         list.innerHTML = state.exercises.map((ex, idx) => {
             const exercise = getExerciseById(state.currentDay, ex.exerciseId);
@@ -837,7 +939,7 @@
                 : `<div class="exercise-name">${exercise.name}</div>`;
 
             return `
-                <div class="exercise-card" data-index="${idx}">
+                <div class="exercise-card" data-index="${idx}" data-exercise-id="${ex.exerciseId}">
                     <div class="exercise-card-header">
                         <div class="exercise-card-main">
                             ${nameMarkup}
@@ -933,6 +1035,9 @@
 
         const exerciseCount = state.exercises.length;
         const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
+        // Låst pas: samme dag+variant ligger allerede i ugen. Knappen er aktiv, så
+        // man kan se hvorfor den ikke virker — den viser fejlen i stedet for at gemme.
+        const conflict = weekConflict();
 
         if (exerciseCount === 0) {
             info.innerHTML = 'No exercises in today&#39;s program';
@@ -947,6 +1052,10 @@
             info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
             btn.disabled = false;
         }
+
+        if (conflict && btn.disabled === false) {
+            info.innerHTML = `🔒 ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${getCurrentVariant()} is already logged this week · tap Save to see the options`;
+        }
     }
 
     // Velkomstlinjen: programmet er allerede lagt ind, så den vises kun når loggen
@@ -960,11 +1069,53 @@
 
     function renderAll() {
         renderDaySelector();
-        renderProgram();
+        renderSessionBar();
         renderExerciseList();
         renderSaveBar();
         renderFirstUseBanner();
         renderSampleControls();
+    }
+
+    // ─── Ugen: hvad der er klaret, og hvad der mangler ────────────
+    // Låsen: man kan ikke gemme samme dag+variant to gange i samme uge. Man kan
+    // stadig se passet og rette tallene; det er først ved gem at det bremser, og
+    // "Log anyway" i bjælken lukker op hvis man bevidst vil køre et pas igen.
+    function weekConflict(today = getTodayStr()) {
+        if (state.editing || state.allowDuplicateWeek) return null;
+        const variant = getCurrentVariant();
+        const found = weekDone(today)[programKey(state.currentDay, variant)];
+        if (!found) return null;
+        // Samme dag: det er den træning man er ved at overskrive/rette (den adfærd er
+        // bekræftet ønsket). Låsen gælder kun et pas fra en anden dag i ugen.
+        if (found.date === today) return null;
+        return found;
+    }
+
+    // Henter de programrækker tilbage man har fjernet fra dagens træning, på deres
+    // plads i programmet, uden at røre de tal der allerede er skrevet ind.
+    function restoreMissingExercises() {
+        const variant = getCurrentVariant();
+        const items = programItems(state.currentDay, variant);
+        let restored = 0;
+        items.forEach((item, idx) => {
+            if (restored + state.exercises.length >= MAX_PER_DAY) return;
+            if (state.exercises.some(e => e.exerciseId === item.exerciseId)) return;
+            const entry = sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant));
+            // Læg den på programmets plads, så rækkefølgen følger programmet.
+            const at = Math.min(idx, state.exercises.length);
+            state.exercises.splice(at, 0, entry);
+            restored++;
+        });
+        renderAll();
+        showToast(restored === 1 ? '1 exercise restored' : `${restored} exercises restored`, 'success');
+        return restored;
+    }
+
+    // Antal programrækker der mangler i dagens træning (til "hent tilbage"-linjen).
+    function missingExerciseCount() {
+        const variant = getCurrentVariant();
+        return programItems(state.currentDay, variant)
+            .filter(item => !state.exercises.some(e => e.exerciseId === item.exerciseId)).length;
     }
 
     // ─── Program handling (A/B) ───────────────────────────────────
@@ -1125,6 +1276,19 @@
         const today = getTodayStr();
         let workouts = loadWorkouts();
 
+        // Lås: samme dag+variant to gange i samme uge. Bremser her (efter tallene er
+        // skrevet ind), så man får en forklaring i stedet for bare at kunne gemme.
+        const conflict = weekConflict();
+        if (conflict) {
+            const next = nextSessionInWeek();
+            showToast(
+                `${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${getCurrentVariant()} is already logged ${weekdayOf(conflict.date)}` +
+                (next ? ` — do ${sessionLabel(next)} instead (or tap "Log anyway")` : ' — tap "Log anyway" to save a second pass'),
+                'info'
+            );
+            return;
+        }
+
         const cleanExercises = state.exercises
             .map(ex => ({
                 exerciseId: ex.exerciseId,
@@ -1191,6 +1355,7 @@
         // og den indlæses med det samme — programmet ER dagens træning.
         state.programVariant = null;
         state.sessionVariant = null;
+        state.allowDuplicateWeek = false; // passet ligger nu i ugen; låsen gælder igen
         loadProgram();
         renderAll();
     }
@@ -1471,6 +1636,7 @@
                 saveCurrentDay(state.currentDay);
                 state.programVariant = null; // Følg forslået A/B-variant for den nye dag
                 state.editing = null; // En anden dags træning kan ikke redigeres herfra
+                state.allowDuplicateWeek = false; // Låsen gælder det pas man står på
                 loadProgram(); // Den nye dags program bliver dagens træning
                 renderAll();
             });
@@ -1483,29 +1649,48 @@
             if (!btn) return;
             state.programVariant = btn.dataset.variant;
             state.editing = null;
+            state.allowDuplicateWeek = false;
             loadProgram();
             renderAll();
         });
-        document.getElementById('program-content').addEventListener('click', (e) => {
-            // Byttelisten: vælg en anden øvelse i samme muskelgruppe.
-            const option = e.target.closest('.swap-option');
-            if (option) {
-                swapExercise(option.dataset.swapSlot, option.dataset.swapId);
-                return;
-            }
-            // Navnet åbner/lukker byttelisten. Menuen findes både her og på
-            // øvelseskortet, så begge steder tegnes om.
-            const nameBtn = e.target.closest('.program-ex-name-btn');
-            if (nameBtn) {
-                const slot = nameBtn.dataset.swapSlot;
-                state.openSwap = state.openSwap === slot ? null : slot;
+        // Event: ugebjælken. Felterne skifter pas, og advarslen kan sende en videre
+        // til det pas der mangler — eller lukke op for at gemme alligevel.
+        document.getElementById('session-bar').addEventListener('click', (e) => {
+            const chip = e.target.closest('.week-chip');
+            if (chip) {
+                const info = parseKey(chip.dataset.session);
+                state.currentDay = info.day;
+                saveCurrentDay(info.day);
+                state.programVariant = info.variant;
+                state.editing = null;
+                state.allowDuplicateWeek = false;
+                loadProgram();
                 renderAll();
                 return;
             }
-            // Resten af rækken henter en fjernet øvelse tilbage i dagens træning.
-            const row = e.target.closest('.program-exercise');
-            if (!row) return;
-            addExerciseToSession(row.dataset.exerciseId);
+            if (e.target.closest('#btn-next-session')) {
+                const next = nextSessionInWeek();
+                if (!next) return;
+                const info = parseKey(next);
+                state.currentDay = info.day;
+                saveCurrentDay(info.day);
+                state.programVariant = info.variant;
+                state.editing = null;
+                state.allowDuplicateWeek = false;
+                loadProgram();
+                renderAll();
+                showToast(`${info.label} loaded`, 'success');
+                return;
+            }
+            if (e.target.closest('#btn-log-anyway')) {
+                state.allowDuplicateWeek = true;
+                renderAll();
+                showToast('Saving a second pass this week — tap Save', 'info');
+            }
+        });
+        // Event: hent fjernede øvelser tilbage (linjen står lige over listen)
+        document.getElementById('exercise-restore').addEventListener('click', (e) => {
+            if (e.target.closest('#btn-restore')) restoreMissingExercises();
         });
         document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
 
