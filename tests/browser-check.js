@@ -108,6 +108,17 @@ async function main() {
         await sleep(400); // lad init() og DOMContentLoaded køre færdigt
     }
 
+    // Ugebjælkens felter er den eneste måde at skifte pas på: der er ingen særskilt
+    // dag- eller A/B-vælger mere. Et felt hedder sin nøgle: upperA, upperB, lowerA, lowerB.
+    async function openSession(key) {
+        await evaluate(`document.querySelector('#week-strip .week-chip[data-session="${key}"]').click(); return true;`);
+        await sleep(350);
+    }
+    // Hvilket pas står på skærmen lige nu
+    const currentSession = () => evaluate('return (document.querySelector("#week-strip .week-chip.current") || {dataset:{}}).dataset.session');
+    // Hvilket pas appen foreslår som det næste
+    const nextSession = () => evaluate('return (document.querySelector("#week-strip .week-chip.next") || {dataset:{}}).dataset.session');
+
     // ─── 1. Indlæsning ────────────────────────────────────────────
     console.log('── 1. Indlæsning og initial visning');
     // Start altid fra rene data: browserens localStorage overlever mellem kørsler,
@@ -121,9 +132,13 @@ async function main() {
         return document.getElementById("session-label").textContent === "Upper A"
             && document.getElementById("session-focus").textContent.length > 3;
     `)) === true, await evaluate('return document.getElementById("session-focus").textContent'));
-    ok('Ingen historik → foreslår Upper A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
+    ok('Ingen historik → foreslår Upper A', (await currentSession()) === 'upperA');
+    ok('Der er ingen dag- eller A/B-vælger mere (ugens felter gør det)', (await evaluate(`
+        return document.getElementById("day-selector") === null && document.getElementById("variant-selector") === null
+            && document.getElementById("first-use-banner") === null;
+    `)) === true);
     ok('Hint siger "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested',
-        JSON.stringify(await evaluate('return { hint: document.getElementById("variant-hint").textContent, programVariant: state.programVariant, active: document.querySelector(".variant-btn.active").dataset.variant }')));
+        JSON.stringify(await evaluate('return { hint: document.getElementById("variant-hint").textContent, programVariant: state.programVariant }')));
 
     // ─── 2. Programmet er dagens træning (ingen "tilføj"-knap) ─────
     console.log('\n── 2. Programmet ligger klart ved åbning');
@@ -223,9 +238,8 @@ async function main() {
 
     // ─── 3. A/B-skift ─────────────────────────────────────────────
     console.log('\n── 3. Skift til B-varianten');
-    await evaluate('document.querySelector(\'.variant-btn[data-variant="B"]\').click(); return true;');
-    await sleep(150);
-    ok('B-knappen er aktiv', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'B');
+    await openSession('upperB');
+    ok('Ugebjælkens felt for Upper B er nu det aktive pas', (await currentSession()) === 'upperB');
     ok('Hint skifter til "valgt"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'chosen');
     ok('Upper B viser Face Pull', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Face Pull")')) === true);
     ok('Upper B viser ikke Bench Press', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Bench Press")')) === false);
@@ -235,9 +249,8 @@ async function main() {
         const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name);
         return cards.length === want.length && cards.every((n, i) => n === want[i]);
     `)) === true);
-    await evaluate('document.querySelector(\'.variant-btn[data-variant="A"]\').click(); return true;');
-    await sleep(150);
-    ok('A-knappen skifter tilbage til A', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
+    await openSession('upperA');
+    ok('Og feltet for Upper A skifter tilbage', (await currentSession()) === 'upperA');
     ok('Og dagens øvelser følger med tilbage til Upper A', (await evaluate(`
         const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         return cards.length === getProgram("upper", "A").length && cards[0] === "Bench Press";
@@ -283,11 +296,11 @@ async function main() {
 
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(300);
-    ok('Efter gem er næste variant i rotationen lagt klar som dagens træning', (await evaluate(`
+    ok('Efter gem er det næste pas i ugen lagt klar som dagens træning', (await evaluate(`
         const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\u25be", "").trim());
         const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name);
-        return document.querySelector(".variant-btn.active").dataset.variant === "B"
-            && cards.length === want.length && cards.every((n, i) => n === want[i]);
+        const current = (document.querySelector("#week-strip .week-chip.current") || {dataset:{}}).dataset.session;
+        return current === "upperB" && cards.length === want.length && cards.every((n, i) => n === want[i]);
     `)) === true);
     ok('Træningen ligger i localStorage', (await evaluate(`
         const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
@@ -308,7 +321,7 @@ async function main() {
     console.log('\n── 5. Reload: persistens og A/B-rotation');
     await load(URL_UNDER_TEST);
     ok('Data overlever reload', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1);
-    ok('Næste forslag er nu Upper B (rotation virker)', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === "B");
+    ok('Næste pas i ugen står klar (rotationen virker)', (await currentSession()) === "upperB");
     ok('Foreslået variant er igen markeret "foreslået"', (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested');
     // Fremgangen vises ikke længere i en liste for sig: den ligger som tal på kortet,
     // hvor man kan se den mens man retter vægten. Programmets plan står uændret.
@@ -344,9 +357,11 @@ async function main() {
 
     // ─── 7. Lower day + mobillayout ───────────────────────────────
     console.log('\n── 7. Lower day og mobillayout');
-    await evaluate('document.querySelector(\'.day-btn[data-day="lower"]\').click(); return true;');
-    await sleep(250);
-    ok('Lower-variant foreslås A (upper-historik påvirker ikke)', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'A');
+    // Upper A er klaret i ugen, så det næste pas skal være et ben-pas — og det vælges
+    // direkte i ugebjælken (der er ingen særskilt dag-vælger mere).
+    ok('Næste pas i ugen er et ben-pas (upper-historik smitter ikke)', (await nextSession()) === 'lowerA');
+    await openSession('lowerA');
+    ok('Ugebjælkens felt skifter til Lower A', (await currentSession()) === 'lowerA');
     ok('Lower-programmet viser Leg Press', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Leg Press")')) === true);
     ok('Lower A lægges ind med sine øvelser', (await evaluate(`
         return document.querySelectorAll("#exercise-list .exercise-card").length === getProgram("lower", "A").length;
@@ -362,9 +377,14 @@ async function main() {
         return true;
     `);
     await load(URL_UNDER_TEST);
-    await evaluate('document.querySelector(\'.day-btn[data-day="lower"]\').click(); return true;');
-    await sleep(250);
-    ok('Efter Lower A → foreslår Lower B', (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'B');
+    // Begge A-pas er klaret i ugen (upper i dag, lower i mandags). Både Upper B og
+    // Lower B mangler altså; hvilken af dem der vises som "næste" afhænger af hvilken
+    // dag der blev trænet sidst, og de to pas ligger her på samme dato.
+    ok('Kun de to B-pas mangler i ugen', (await evaluate(`
+        const left = SESSION_ORDER.filter(k => !weekDone()[k]);
+        return left.length === 2 && left.join(",") === "upperB,lowerB";
+    `)) === true);
+    await openSession('lowerB');
     ok('Lower B viser Calf Raise (Leg Press)', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Calf Raise (Leg Press)")')) === true);
 
     // Mobillayout: gentagne rækker skal have knapper i samme faste position ude i siden,
@@ -480,8 +500,7 @@ async function main() {
 
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate('document.querySelector(\'.day-btn[data-day="upper"]\').click(); return true;');
-    await sleep(300);
+    await openSession('upperA');
 
     ok('Navnet på et øvelseskort er en knap', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-name-btn").length')) > 0);
     await evaluate(`
@@ -552,11 +571,9 @@ async function main() {
     ok('Efter reload står den byttede øvelse der stadig', (await evaluate(`
         return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId)[0] === "chest_press_machine";
     `)) === true);
-    await evaluate('document.querySelector(\'.variant-btn[data-variant="B"]\').click(); return true;');
-    await sleep(250);
+    await openSession('upperB');
     ok('Byttet gælder kun Upper A (ikke B)', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Chest Press (Machine)")')) === false);
-    await evaluate('document.querySelector(\'.variant-btn[data-variant="A"]\').click(); return true;');
-    await sleep(250);
+    await openSession('upperA');
 
     // Byt tilbage til programmets øvelse: overriden fjernes
     await evaluate(`
@@ -576,8 +593,7 @@ async function main() {
         (await evaluate('return JSON.stringify(JSON.parse(localStorage.getItem("gym_tracker_program_swaps") || "{}"))')) === '{}');
 
     // En øvelse uden alternativer (Leg Curl er alene i sin muskelgruppe) får ingen menu
-    await evaluate('document.querySelector(\'.day-btn[data-day="lower"]\').click(); return true;');
-    await sleep(300);
+    await openSession('lowerA');
     ok('Leg Curl har ingen bytte-knap (den er alene i sin gruppe)',
         (await evaluate(`
             const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
@@ -596,10 +612,7 @@ async function main() {
 
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="upper"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
-    await sleep(300);
+    await openSession('upperA');
 
     ok('Navnet på øvelseskortet er en knap', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-name-btn").length')) > 0);
     ok('Sektionshovedet siger at navnene kan trykkes på',
@@ -675,8 +688,7 @@ async function main() {
     // Tilbage til udgangspunktet for resten af forløbet
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
+    await openSession('lowerA');
     // Del-rapportens "per hand"/"per leg"-linje afhænger af om de delte træninger
     // indeholder en øvelse med en loadNote. Programmerne indeholder ingen, så der
     // lægges en træning ind med den første øvelse i databasen der har en. Datadrevet,
@@ -724,8 +736,7 @@ async function main() {
     // man gik hjem før den) og gem. Bagefter hentes den ind igen under redigering.
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate('document.querySelector(\'.day-btn[data-day="upper"]\').click(); return true;');
-    await sleep(300);
+    await openSession('upperA');
     await evaluate(`
         const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
         cards[cards.length - 1].querySelector(".remove-btn").click();
@@ -746,8 +757,8 @@ async function main() {
         return { count: w.length, id: w[0] && w[0].id, date: w[0] && w[0].date, ex: w[0] ? w[0].exercises.length : 0, day: w[0] && w[0].day, variant: w[0] && w[0].variant };
     `);
     ok('Træningen blev gemt (1 træning, 5 øvelser)', afterSave.count === 1 && afterSave.ex === 5, JSON.stringify(afterSave));
-    ok('Efter gem lægges den næste variant klar som dagens træning',
-        (await evaluate('return document.querySelector(".variant-btn.active").dataset.variant')) === 'B');
+    ok('Efter gem lægges det næste pas i ugen klar som dagens træning',
+        (await currentSession()) === 'upperB');
 
     // Historikken: én træning, med Rediger-knap
     await evaluate('document.getElementById("btn-history").click(); return true;');
@@ -768,7 +779,7 @@ async function main() {
         return !b.classList.contains("hidden") && b.textContent.includes("Editing Upper");
     `)) === true);
     ok('Knappen skifter til "Update workout"', (await evaluate('return document.getElementById("save-btn").textContent.includes("Update workout")')) === true);
-    ok('Dagen følger træningen der redigeres', (await evaluate('return document.querySelector(".day-btn.active").dataset.day')) === 'upper');
+    ok('Passet på skærmen er det pas der redigeres (Upper)', (await currentSession()) === 'upperA');
     ok('Sættene er indlæst med vægt og reps', (await evaluate(`
         const inputs = [...document.querySelectorAll("#exercise-list input[type=number]")];
         return inputs.length > 0 && inputs.every(i => Number(i.value) > 0);
@@ -837,7 +848,7 @@ async function main() {
     // A/B-variant, så den overskrevne træning får det program man indlæste.
     console.log('\n── 11. Gem igen samme dag overskriver i stedet for at dublere');
     await sleep(250);
-    const variantNow = await evaluate('return document.querySelector(".variant-btn.active").dataset.variant');
+    const variantNow = await evaluate('return (document.querySelector("#week-strip .week-chip.current")||{dataset:{}}).dataset.session.slice(-1)');
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(300);
     const afterResave = await evaluate(`
@@ -985,8 +996,7 @@ async function main() {
     const progA = await evaluate('return getProgram("upper","A").length');
 
     // Rotationen foreslår nu B (sidste upper var A) — vis A, som har historikken
-    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
-    await sleep(300);
+    await openSession('upperA');
 
     ok('Der er ingen særskilt programliste mere — bjælken viser pas, fokus og uge',
         (await evaluate('return document.getElementById("program-content") === null && !!document.getElementById("week-strip")')) === true);
@@ -1013,10 +1023,9 @@ async function main() {
         `${prefill.plan.weight}` !== prefill.entered, prefill.recommended.trim());
 
     // Dags-skift henter den nye dags program
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
+    await openSession('lowerA');
     const lowerShown = await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length');
-    const lowerActive = await evaluate('return getProgram("lower", document.querySelector(".variant-btn.active").dataset.variant).length');
+    const lowerActive = await evaluate('return getProgram("lower", (document.querySelector("#week-strip .week-chip.current")||{dataset:{}}).dataset.session.slice(-1)).length');
     ok('Lower viser hele sit program', lowerShown === lowerActive && lowerShown > 0, `${lowerShown} af ${lowerActive}`);
     ok('Dagens træning følger med til Lower', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === lowerActive);
 
@@ -1064,8 +1073,7 @@ async function main() {
     // gemmes som en helt almindelig række i stedet for at falde ud af loggen.
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
+    await openSession('lowerA');
     ok('Lower A er indlæst med Back Extension', (await evaluate('return document.getElementById("exercise-list").innerText.includes("Back Extension")')) === true);
     ok('Kortet er præfyldt med mærket fra skabelonen (1 kg)', (await evaluate(`
         const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "back_extension");
@@ -1078,10 +1086,7 @@ async function main() {
         return w.exercises.length > 0 && w.exercises.some(e => e.exerciseId === "back_extension");
     `)) === true);
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="A"]').click(); return true;`);
-    await sleep(300);
+    await openSession('lowerA');
     const lowerAfter = await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId)');
     ok('Back Extension står stadig i programmet efter et gem', lowerAfter.includes('back_extension'), JSON.stringify(lowerAfter));
     ok('De udførte lower-øvelser er stadig med', lowerAfter.includes('leg_curl') && lowerAfter.includes('leg_press'), JSON.stringify(lowerAfter));
@@ -1170,12 +1175,10 @@ async function main() {
     await load(URL_UNDER_TEST);
 
     for (const day of ['upper', 'lower']) {
-        await evaluate(`document.querySelector('.day-btn[data-day="${day}"]').click(); return true;`);
-        await sleep(350);
-
         for (const variant of ['A', 'B']) {
-            await evaluate(`document.querySelector('.variant-btn[data-variant="${variant}"]').click(); return true;`);
-            await sleep(350);
+            // Ugebjælkens felt er både dag og variant: at gå gennem alle fire pas
+            // er det samme som at gå gennem hele programmet.
+            await openSession(`${day}${variant}`);
 
             const sweep = await evaluate(`
                 const day = ${JSON.stringify(day)};
@@ -1291,10 +1294,7 @@ async function main() {
 
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
-    await sleep(350);
+    await openSession('lowerB');
 
     ok('Uden historik vises skabelonens tal', (await evaluate(`
         const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
@@ -1328,10 +1328,7 @@ async function main() {
 
     // Næste gang: samme øvelser og vægte som sidst — uden at man bygger noget op
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="lower"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
-    await sleep(350);
+    await openSession('lowerB');
     ok('Programmet er stadig hele skabelonen (den fjernede øvelse er tilbage)',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === templateCount);
     ok('Den rettede vægt er husket (99 kg)',
@@ -1385,7 +1382,7 @@ async function main() {
         return chip.classList.contains("done") && chip.textContent.includes("✓");
     `)) === true, await evaluate('return document.getElementById("week-strip").innerText'));
     ok('A/B-knappen for den variant viser også at den er klaret', (await evaluate(`
-        return document.querySelector('.variant-btn[data-variant="A"]').classList.contains("done");
+        return document.querySelector('#week-strip .week-chip[data-session="upperA"]').classList.contains("done");
     `)) === true);
     ok('Næste pas i ugen er et ben-pas (overkrop lige lavet)', (await evaluate(`
         const next = document.querySelector("#week-strip .week-chip.next");
@@ -1404,10 +1401,7 @@ async function main() {
         return isoDate(d);
     `);
     await load(URL_UNDER_TEST);
-    await evaluate(`document.querySelector('.day-btn[data-day="upper"]').click(); return true;`);
-    await sleep(300);
-    await evaluate(`document.querySelector('.variant-btn[data-variant="B"]').click(); return true;`);
-    await sleep(350);
+    await openSession('upperB');
     ok('Upper B er markeret som klaret i ugen', (await evaluate(`
         return document.querySelector('#week-strip .week-chip[data-session="upperB"]').classList.contains("done");
     `)) === true);
@@ -1457,8 +1451,7 @@ async function main() {
     await sleep(350);
     ok('Et chip i ugebjælken skifter til det pas', (await evaluate(`
         return document.getElementById("session-label").textContent === "Lower B"
-            && document.querySelector(".day-btn.active").dataset.day === "lower"
-            && document.querySelector(".variant-btn.active").dataset.variant === "B";
+            && (document.querySelector("#week-strip .week-chip.current")||{dataset:{}}).dataset.session === "lowerB";
     `)) === true, await evaluate('return document.getElementById("session-label").textContent'));
     ok('Fokus-linjen skifter med passet', (await evaluate(`
         return document.getElementById("session-focus").textContent === SESSION_FOCUS.lowerB;
@@ -1527,8 +1520,9 @@ async function main() {
     ok('Og appen virker stadig bagefter (dagens øvelser tegnes, knapperne svarer)',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) > 0
         && (await evaluate(`
-            document.querySelector('.variant-btn[data-variant="B"]').click();
-            return document.querySelector('.variant-btn[data-variant="B"]').classList.contains('active');
+            const chip = document.querySelector('#week-strip .week-chip[data-session="lowerB"]');
+            chip.click();
+            return document.querySelector("#session-label").textContent === 'Lower B';
         `)) === true);
     await evaluate('document.getElementById("close-notes").click(); return true;');
     await sleep(250);

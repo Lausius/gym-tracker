@@ -797,12 +797,6 @@
         const warning = document.getElementById('session-warning');
         const last = lastWorkoutFor(state.currentDay, variant);
 
-        document.querySelectorAll('.variant-btn').forEach(btn => {
-            const v = btn.dataset.variant;
-            btn.classList.toggle('active', v === variant);
-            // Marker varianten som klaret i ugen, så det ses før man vælger den.
-            btn.classList.toggle('done', isDoneThisWeek(state.currentDay, v));
-        });
         if (label) label.textContent = `${dayLabel} ${variant}`;
         if (focusEl) focusEl.textContent = SESSION_FOCUS[key] || '';
         if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
@@ -863,13 +857,6 @@
                 `).join('')}
             </div>
         `;
-    }
-
-    function renderDaySelector() {
-        const btns = document.querySelectorAll('.day-btn');
-        btns.forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.day === state.currentDay);
-        });
     }
 
     function renderExerciseList() {
@@ -1058,21 +1045,10 @@
         }
     }
 
-    // Velkomstlinjen: programmet er allerede lagt ind, så den vises kun når loggen
-    // er helt tom (en frisk browser), i stedet for "vælg en øvelse nedenfor".
-    function renderFirstUseBanner() {
-        const banner = document.getElementById('first-use-banner');
-        if (!banner) return;
-        if (loadWorkouts().length === 0) banner.classList.remove('hidden');
-        else banner.classList.add('hidden');
-    }
-
     function renderAll() {
-        renderDaySelector();
         renderSessionBar();
         renderExerciseList();
         renderSaveBar();
-        renderFirstUseBanner();
         renderSampleControls();
     }
 
@@ -1621,43 +1597,19 @@
 
     // ─── Bootstrap / Init ─────────────────────────────────────────
     function init() {
-        // Restore current day
+        // Dagen huskes mellem besøg. Den skiftes med ugebjælkens felter: der er ingen
+        // særskilt dag- eller A/B-vælger mere — "Lower A" ER valget af dag og variant.
         state.currentDay = loadCurrentDay();
 
-        // Set day selector
-        document.querySelectorAll('.day-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.day === state.currentDay);
-        });
-
-        // Event: Day selector
-        document.querySelectorAll('.day-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.currentDay = btn.dataset.day;
-                saveCurrentDay(state.currentDay);
-                state.programVariant = null; // Følg forslået A/B-variant for den nye dag
-                state.editing = null; // En anden dags træning kan ikke redigeres herfra
-                state.allowDuplicateWeek = false; // Låsen gælder det pas man står på
-                loadProgram(); // Den nye dags program bliver dagens træning
-                renderAll();
-            });
-        });
-
-        // Event: Program (A/B). Skift af variant indlæser den variant som dagens
-        // træning — programmet er dagens træning, ikke en liste man tilføjer fra.
-        document.getElementById('variant-selector').addEventListener('click', (e) => {
-            const btn = e.target.closest('.variant-btn');
-            if (!btn) return;
-            state.programVariant = btn.dataset.variant;
-            state.editing = null;
-            state.allowDuplicateWeek = false;
-            loadProgram();
-            renderAll();
-        });
         // Event: ugebjælken. Felterne skifter pas, og advarslen kan sende en videre
         // til det pas der mangler — eller lukke op for at gemme alligevel.
         document.getElementById('session-bar').addEventListener('click', (e) => {
             const chip = e.target.closest('.week-chip');
             if (chip) {
+                // Et tryk på det pas man allerede står på gør ingenting: det ville bare
+                // skrive "valgt" på noget man ikke har valgt. Sammenlign med det viste
+                // pas FØR dagen skiftes — ellers er det nye pas altid "det forslåede".
+                if (chip.dataset.session === programKey(state.currentDay, getCurrentVariant())) return;
                 const info = parseKey(chip.dataset.session);
                 state.currentDay = info.day;
                 saveCurrentDay(info.day);

@@ -127,43 +127,6 @@
         .icon-btn.share-btn svg { width: 16px; height: 16px; }
         .icon-btn.active { background: var(--accent); border-color: var(--accent); color: #000; }
 
-        /* ===== DAY SELECTOR ===== */
-        .day-selector {
-            display: flex;
-            gap: 8px;
-            padding: 12px 0;
-            margin-bottom: 8px;
-        }
-        .day-btn {
-            flex: 1;
-            padding: 12px 16px;
-            border-radius: var(--radius);
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            transition: all var(--transition);
-        }
-        .day-btn:hover { background: var(--bg-card-hover); }
-        .day-btn.active {
-            background: var(--accent);
-            color: #000;
-            border-color: var(--accent);
-            box-shadow: 0 2px 12px var(--accent-glow);
-        }
-        .day-btn .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            opacity: 0.4;
-        }
-        .day-btn.active .dot { opacity: 1; }
-
         /* ===== SECTION HEADERS ===== */
         .section-header {
             display: flex;
@@ -923,14 +886,6 @@
         }
         .week-chip.current { border-color: var(--accent); color: var(--text); }
         .week-chip.next { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-        /* Varianten er klaret i ugen: markeret på selve A/B-knappen også */
-        .variant-btn.done::after {
-            content: '✓';
-            font-size: 0.6rem;
-            margin-left: 2px;
-            color: var(--accent);
-        }
-
         /* Låsen: samme pas to gange i samme uge */
         .session-warning {
             margin-top: 8px;
@@ -1029,31 +984,6 @@
         .swap-option-name { font-weight: 600; }
         .swap-option-meta { font-size: 0.68rem; color: var(--text-dim); }
 
-        /* ===== A/B VARIANT SELECTOR ===== */
-        .variant-selector {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .variant-btn {
-            flex: 1;
-            padding: 9px 12px;
-            background: var(--bg-input);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            color: var(--text-dim);
-            font-size: 0.82rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all var(--transition);
-        }
-        .variant-btn.active {
-            background: var(--accent);
-            color: #000;
-            border-color: var(--accent);
-        }
         .variant-hint {
             font-size: 0.68rem;
             color: var(--text-dim);
@@ -1280,27 +1210,6 @@
         }
         .share-close-btn:hover { background: var(--bg-hover); color: var(--text); }
 
-        /* ===== EMPTY STATE OVERLAY ===== */
-        .first-use-banner {
-            background: linear-gradient(135deg, rgba(78,205,196,0.08), rgba(78,205,196,0.02));
-            border: 1px solid var(--accent);
-            border-radius: var(--radius);
-            padding: 14px 16px;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-        .first-use-banner .icon {
-            font-size: 1.5rem;
-            flex-shrink: 0;
-        }
-        .first-use-banner p {
-            font-size: 0.85rem;
-            color: var(--text-dim);
-            line-height: 1.4;
-        }
-
         /* ===== RESPONSIVE ===== */
         @media (min-width: 600px) {
             .app-container { padding: 0 20px 100px; }
@@ -1311,7 +1220,6 @@
         @media (max-width: 380px) {
             .form-row { flex-direction: column; gap: 4px; }
             .form-row label { min-width: auto; }
-            .day-btn { font-size: 0.8rem; padding: 10px 12px; }
         }
 
         /* ===== UTILITY ===== */

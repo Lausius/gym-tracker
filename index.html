@@ -35,22 +35,6 @@
             </div>
         </header>
 
-        <!-- Day Selector -->
-        <div class="day-selector" id="day-selector">
-            <button class="day-btn active" data-day="upper">
-                <span class="dot"></span> Upper Body
-            </button>
-            <button class="day-btn" data-day="lower">
-                <span class="dot"></span> Lower Body
-            </button>
-        </div>
-
-        <!-- First use banner -->
-        <div id="first-use-banner" class="first-use-banner hidden">
-            <span class="icon">✨</span>
-            <p><strong>Welcome!</strong> Your program is loaded below — adjust the weights and log your sets. Everything is stored locally on your phone.</p>
-        </div>
-
         <!-- Eksempeldata (kun synlig når loggen er tom) -->
         <div class="sample-section hidden" id="sample-section">
             <div class="sample-title">🧪 Try the app with sample data</div>
@@ -83,19 +67,16 @@
         </div>
 
 
-        <!-- Dagens pas: navn, fokus, ugens fire pas og A/B. Øvelserne står kun
-             nedenfor — de er allerede lagt ind, så der er ingen liste at bygge. -->
+        <!-- Dagens pas: navn, fokus og ugens fire pas. Felterne i ugebjælken ER
+             valget af pas — en "Lower A" er både dagen og varianten. Øvelserne står
+             kun nedenfor; de er allerede lagt ind. -->
         <div class="session-bar" id="session-bar">
             <div class="session-top">
                 <div class="session-title">
                     <span class="session-label" id="session-label">Upper A</span>
                     <span class="session-focus" id="session-focus"></span>
                 </div>
-                <div class="variant-selector" id="variant-selector">
-                    <button class="variant-btn active" data-variant="A">🅰️ A</button>
-                    <button class="variant-btn" data-variant="B">🅱️ B</button>
-                    <span class="variant-hint" id="variant-hint"></span>
-                </div>
+                <span class="variant-hint" id="variant-hint"></span>
             </div>
             <div class="week-strip" id="week-strip"></div>
             <div class="session-warning hidden" id="session-warning"></div>
