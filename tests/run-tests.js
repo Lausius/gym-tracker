@@ -33,6 +33,7 @@ const localStorage = {
 };
 
 const document = {
+    body: makeEl('body'),
     getElementById: id => makeEl(id),
     querySelector: () => null,
     querySelectorAll: () => [],
@@ -55,7 +56,8 @@ vm.runInContext(
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
     markShareScopeAsShared, CHAR_LIMIT, getTrainedExerciseIds, filterTrained,
         isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-        programView, lastWorkoutFor, rememberedItems,
+        lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor,
+        loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
         warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
         NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes };
     `,
@@ -67,7 +69,8 @@ const {
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
     getTrainedExerciseIds, filterTrained, isBodyweightExercise, buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-    programView, lastWorkoutFor, rememberedItems,
+    lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor,
+    loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
     warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
     NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
 } = ctx.__app;
@@ -90,6 +93,15 @@ for (const key of Object.keys(PROGRAMS)) {
     }
 }
 ok('programKey mapper korrekt', programKey('upper', 'B') === 'upperB' && programKey('lower', 'A') === 'lowerA');
+ok(`Ingen dag har mere end ${MAX_PER_DAY} øvelser`,
+    Object.values(PROGRAMS).every(list => list.length <= MAX_PER_DAY),
+    Object.entries(PROGRAMS).filter(([, l]) => l.length > MAX_PER_DAY).map(([k, l]) => `${k}=${l.length}`).join(', '));
+ok('Hver programrække har sæt, reps og vægt',
+    Object.values(PROGRAMS).flat().every(i => i.sets > 0 && i.reps > 0 && typeof i.weight === 'number' && i.weight >= 0));
+ok('Samme øvelse står ikke to gange i samme program',
+    Object.values(PROGRAMS).every(list => new Set(list.map(i => i.exerciseId)).size === list.length));
+ok('Ingen skabelon byder Romanian Deadlift (hans lænd)',
+    !Object.values(PROGRAMS).flat().some(i => i.exerciseId === 'romanian_deadlift'));
 
 console.log('\n── 2. A/B-rotation (foreslået variant)');
 store['gym_tracker_workouts'] = JSON.stringify([]);
@@ -218,11 +230,6 @@ const newIds = Object.keys(NEW_CABLE);
 ok('Kun row-varianten er markeret per hånd',
     ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => e.id).join(',') === 'cable_row_per_hand',
     ALL_EXERCISES.upper.filter(e => newIds.includes(e.id) && e.loadNote).map(e => `${e.id}=${e.loadNote}`).join(', '));
-
-// De er bevidst IKKE lagt ind i programmerne — de vælges manuelt
-const programExerciseIds = Object.keys(PROGRAMS).flatMap(k => PROGRAMS[k].map(i => i.exerciseId));
-ok('Ingen af de nye er lagt ind i programmerne', newIds.every(id => !programExerciseIds.includes(id)),
-    newIds.filter(id => programExerciseIds.includes(id)).join(', '));
 
 // Konsekvensen af filtreringen, som er værd at kende: en ny øvelse uden historik er
 // skjult i listerne indtil man har udført den én gang. Den kan altid vælges manuelt.
@@ -378,7 +385,7 @@ ok('Eksporten har uge-overskrift med antal og volumen', /2 workouts · 1 Upper �
 const text41 = generateShareText('week:2026-W41');
 ok('En anden uge giver en anden eksport', text41 !== text40 && text41.includes('WEEK 41'));
 ok('All-time-bedste følger med i en uge-eksport (trenden bevares)', text40.includes('🏆 Best ever'));
-ok('All-time-bedste dækker også øvelser uden for den viste uge', text40.includes('Squat') && text40.includes('Bench Press'));
+ok('All-time-bedste dækker også øvelser uden for den viste uge', text40.includes('Leg Press') && text40.includes('Bench Press'));
 ok('Fremgang vises som headline, ikke én linje pr. øvelse', /📈 Progress: \d+ up/.test(text40), text40.match(/📈 Progress:.*/)?.[0]);
 
 // Det vigtigste krav: en uge skal kunne sendes som ÉN Discord-besked (2.000 tegn).
@@ -467,51 +474,52 @@ ok('"Vis alle" er ikke længere filtreret', shownAll.filtered === false);
 ok('"Vis alle" husker hvad der er skjult, så knappen kan skifte tilbage', shownAll.hidden.length === filtered.hidden.length, `${shownAll.hidden.length} skjulte`);
 ok('Den skjulte mængde er den samme som da filtret var slået til', shownAll.hidden.length === filtered.hidden.length);
 
-// En variant man aldrig har kørt må ikke blive tømt. Det er nu "Dagens program"
-// der står for den regel: uden en gemt træning at huske falder den tilbage til
-// skabelonen, så Lower B ikke forsvinder bare fordi man hidtil kun har kørt Lower A.
-const untouchedProgram = programView('lower', 'B', false);
-ok('En variant uden historik viser hele skabelonen',
-    untouchedProgram.last === null && untouchedProgram.shown.length === getProgram('lower', 'B').length,
-    `${untouchedProgram.shown.length} af ${getProgram('lower', 'B').length}`);
-ok('Derfor skjules intet i den variant', untouchedProgram.hiddenCount === 0);
-
 // Kropsvægtøvelser kan slet ikke føre vægthistorik: saveWorkout gemmer kun sæt med
-// vægt > 0, så plank og pull-up optræder aldrig i en gemt træning. Uden denne
-// undtagelse ville de forsvinde fra programmet for bestandigt efter første gem.
-ok('Plank er kropsvægtøvelse', isBodyweightExercise('lower', 'plank') === true);
-ok('Pull-up er kropsvægtøvelse', isBodyweightExercise('upper', 'pull_up') === true);
-ok('En øvelse med vægt er ikke kropsvægt', isBodyweightExercise('lower', 'squat') === false);
-ok('Opslaget er afgrænset til den rigtige dag', isBodyweightExercise('upper', 'plank') === false);
+// vægt > 0, så de optræder aldrig i en gemt træning. Uden undtagelsen ville de
+// forsvinde fra programmet for bestandigt efter første gem. Reglen læses af dataen:
+// en programrække uden vægt ER en kropsvægtøvelse.
+const zeroWeightRows = Object.entries(PROGRAMS).flatMap(([key, list]) => {
+    const day = key.startsWith('upper') ? 'upper' : 'lower';
+    return list.filter(i => !(i.weight > 0)).map(i => ({ day, id: i.exerciseId }));
+});
+ok('Der findes en kropsvægtrække i programmerne (ellers tester vi ikke reglen)', zeroWeightRows.length > 0);
+ok('En programrække uden vægt regnes som kropsvægt',
+    zeroWeightRows.every(({ day, id }) => isBodyweightExercise(day, id) === true),
+    zeroWeightRows.filter(({ day, id }) => !isBodyweightExercise(day, id)).map(({ id }) => id).join(', '));
+ok('En programrække med vægt er ikke kropsvægt',
+    Object.entries(PROGRAMS).every(([key, list]) => {
+        const day = key.startsWith('upper') ? 'upper' : 'lower';
+        return list.filter(i => i.weight > 0).every(i => isBodyweightExercise(day, i.exerciseId) === false);
+    }));
+ok('Opslaget er afgrænset til den rigtige dag',
+    zeroWeightRows.every(({ day, id }) => isBodyweightExercise(day === 'upper' ? 'lower' : 'upper', id) === false));
 
+// Kropsvægtrækken overlever filtreringen, også når man aldrig har ført tal ind på den
+const bwRow = zeroWeightRows[0];
 store['gym_tracker_workouts'] = asDone([
-    { id: 'l1', date: '2026-09-29', day: 'lower', variant: 'A',
-      exercises: ['squat', 'romanian_deadlift', 'leg_press', 'hip_thrust', 'leg_curl'].map(id => ex(id)) },
+    { id: 'l1', date: '2026-09-29', day: bwRow.day, variant: 'A',
+      exercises: getProgram(bwRow.day, 'A').filter(i => i.weight > 0).map(i => ex(i.exerciseId)) },
 ]);
-const lowerSaved = filterTrained(getProgram('lower', 'A'), 'lower', i => i.exerciseId, false);
-ok('Plank overlever i programmet trods ingen historik', lowerSaved.visible.some(i => i.exerciseId === 'plank'), JSON.stringify(lowerSaved.visible.map(i => i.exerciseId)));
-ok('Plank tælles ikke som skjult', !lowerSaved.hidden.some(i => i.exerciseId === 'plank'));
-const lowerDb = filterTrained(ALL_EXERCISES.lower, 'lower', e => e.id, false);
-ok('Plank er også synlig i Næste uge-listen', lowerDb.visible.some(e => e.id === 'plank'));
-ok('Øvelser uden historik og med vægt filtreres stadig', !lowerDb.visible.some(e => e.id === 'leg_extension'));
+const lowerSaved = filterTrained(getProgram(bwRow.day, 'A'), bwRow.day, i => i.exerciseId, false);
+ok('Kropsvægtøvelsen overlever i programmet trods ingen historik',
+    lowerSaved.visible.some(i => i.exerciseId === bwRow.id), JSON.stringify(lowerSaved.visible.map(i => i.exerciseId)));
+ok('Den tælles ikke som skjult', !lowerSaved.hidden.some(i => i.exerciseId === bwRow.id));
+const lowerDb = filterTrained(ALL_EXERCISES[bwRow.day], bwRow.day, e => e.id, false);
+ok('Den er også synlig i Næste uge-listen', lowerDb.visible.some(e => e.id === bwRow.id));
+ok('Øvelser uden historik og med vægt filtreres stadig',
+    lowerDb.visible.every(e => getTrainedExerciseIds(bwRow.day).has(e.id) || e.equipment === 'Bodyweight'));
 
-// Programmet filtreres efter samme regel som databasen
+// Programmet filtreres efter samme regel som databasen — antallet af synlige er
+// antallet af udførte (plus evt. kropsvægtrækker), ikke et håndskrevet tal.
 store['gym_tracker_workouts'] = asDone([
     { id: 'u1', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [ex('bench_press'), ex('lat_pulldown')] },
 ]);
 const progA = getProgram('upper', 'A');
 const progFiltered = filterTrained(progA, 'upper', i => i.exerciseId, false);
-ok('Programmet filtreres (7 skabelon-øvelser → 2)', progA.length === 7 && progFiltered.visible.length === 2, `${progFiltered.visible.length} af ${progA.length}`);
+ok(`Programmet filtreres ned til det man har kørt (${progA.length} → 2)`, progFiltered.visible.length === 2, `${progFiltered.visible.length} af ${progA.length}`);
 ok('Netop de udførte programøvelser står tilbage', progFiltered.visible.every(i => ['bench_press', 'lat_pulldown'].includes(i.exerciseId)));
 ok('shoulder_press er skjult i programmet', !progFiltered.visible.some(i => i.exerciseId === 'shoulder_press'));
-ok('De skjulte er dem man ikke laver', progFiltered.hidden.length === 5 && progFiltered.hidden.some(i => i.exerciseId === 'shoulder_press'));
-
-// Upper B er et stærkt tilfælde: ingen af øvelserne er udført, men pull-up skal
-// alligevel overleve, fordi den ikke kan føre vægthistorik.
-const progB = getProgram('upper', 'B');
-const progBFiltered = filterTrained(progB, 'upper', i => i.exerciseId, false);
-ok('Upper B indeholder pull-up', progB.some(i => i.exerciseId === 'pull_up'));
-ok('Pull-up overlever i et program hvor intet er udført', progBFiltered.visible.length === 1 && progBFiltered.visible[0].exerciseId === 'pull_up', JSON.stringify(progBFiltered.visible.map(i => i.exerciseId)));
+ok('Synlige og skjulte udgør tilsammen skabelonen', progFiltered.visible.length + progFiltered.hidden.length === progA.length);
 
 store['gym_tracker_workouts'] = asDone([]);
 
@@ -543,8 +551,18 @@ ok('Hver trænings øvelser findes i dens program', samples.every(w =>
     w.exercises.every(e => getProgram(w.day, w.variant).some(item => item.exerciseId === e.exerciseId))));
 ok('Hvert gemte sæt har vægt over 0 og reps', samples.every(w => w.exercises.every(e => e.sets.every(s => s.weight > 0 && s.reps > 0))));
 // Kropsvægtøvelser falder ud af loggen her, ligesom de gør i virkeligheden
-ok('Kropsvægtøvelser er ikke i loggen (som ved et rigtigt gem)', samples.every(w => !w.exercises.some(e => e.exerciseId === 'plank' || e.exerciseId === 'pull_up')));
-ok('Lower-træningerne har derfor en øvelse mindre end skabelonen', sampleVariant('lowerA')[0].exercises.length === getProgram('lower', 'A').length - 1);
+const bodyweightIds = new Set(zeroWeightRows.map(r => r.id));
+ok('Kropsvægtøvelser er ikke i loggen (som ved et rigtigt gem)',
+    samples.every(w => !w.exercises.some(e => bodyweightIds.has(e.exerciseId))),
+    [...bodyweightIds].join(', '));
+ok('En træning har derfor lige så mange øvelser som skabelonen minus kropsvægtrækkerne',
+    Object.entries(PROGRAMS).every(([key, list]) => {
+        const day = key.startsWith('upper') ? 'upper' : 'lower';
+        const variant = key.slice(-1);
+        const bw = list.filter(i => !(i.weight > 0)).length;
+        const sample = samples.find(w => w.day === day && w.variant === variant);
+        return sample && sample.exercises.length === list.length - bw;
+    }));
 
 // Fremgang: samme variant skal være tungere i uge 3 end i uge 1
 const weightOf = (w, id) => w.exercises.find(e => e.exerciseId === id).sets[0].weight;
@@ -554,8 +572,8 @@ ok('Vægten stiger fra første til sidste uge', weightOf(lastUpperA, 'bench_pres
     `${weightOf(firstUpperA, 'bench_press')} → ${weightOf(lastUpperA, 'bench_press')}`);
 const firstLowerA = sampleVariant('lowerA')[0];
 const lastLowerA = sampleVariant('lowerA').slice(-1)[0];
-ok('Ben stiger hurtigere end overkrop', (weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')) > (weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')),
-    `squat +${weightOf(lastLowerA, 'squat') - weightOf(firstLowerA, 'squat')} vs bench +${weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')}`);
+ok('Ben stiger hurtigere end overkrop', (weightOf(lastLowerA, 'leg_press') - weightOf(firstLowerA, 'leg_press')) > (weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')),
+    `leg press +${weightOf(lastLowerA, 'leg_press') - weightOf(firstLowerA, 'leg_press')} vs bench +${weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')}`);
 
 // Sikkerheden: rigtige træninger må ikke kunne rammes
 ok('realWorkouts filtrerer eksempeldata fra', realWorkouts(samples).length === 0);
@@ -574,80 +592,153 @@ ok('Filtreringen har noget at filtrere på med eksempeldata', sampleFiltered.fil
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
 
-// ─── 11. Dagens program husker sidste træning ────────────────────
-// Kernen i ønsket: har man kørt fx Lower B før, skal "Dagens program" vise DEN
-// træning — samme øvelser og vægte — så man kan gentage den uden at bygge den op.
-// Skabelonen er kun et udgangspunkt når der ikke er noget at huske.
-console.log('\n── 11. Dagens program husker sidste træning');
+// ─── 11. Programmet er dagens træning ────────────────────────────
+// Kernen i ønsket: programmet ligger klart når man åbner appen — man bygger det
+// ikke op ved at klikke øvelser ind. Hver dag har højst MAX_PER_DAY øvelser, og en
+// øvelse kan byttes til en anden i samme muskelgruppe. Byttet huskes for netop den
+// dag+variant.
+console.log('\n── 11. Programmet er dagens træning (husk + byt)');
 
-const progWorkout = (id, date, day, variant, exs) => ({ id, date, day, variant, exercises: exs.map(e => ({ exerciseId: e[0], sets: e[1] })) });
 const set = (w, r) => Array.from({ length: 3 }, () => ({ weight: w, reps: r }));
-
-// Ingen historik for lower B -> skabelonen
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('la', '2026-09-20', 'lower', 'A', [['squat', set(60, 8)], ['leg_curl', set(40, 12)]]),
-]);
-const vBefore = programView('lower', 'B', false);
-ok('Uden historik for varianten vises skabelonen', vBefore.last === null && vBefore.shown.length === getProgram('lower', 'B').length);
-ok('Skabelonen har ingen "husker"-markør', vBefore.hiddenCount === 0);
-
-// Nu en gemt Lower B med et ØNSKET udvalg: kun to øvelser, hvoraf den ene ikke er i skabelonen
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('la', '2026-09-20', 'lower', 'A', [['squat', set(60, 8)]]),
-    progWorkout('lb1', '2026-09-22', 'lower', 'B', [['deadlift', set(70, 6)], ['cable_lateral_raise', set(7, 12)]]),
-]);
-const v1 = programView('lower', 'B', false);
-ok('Med historik vises den gemte træning, ikke skabelonen', v1.last !== null && v1.last.id === 'lb1');
-ok('Den husker øvelserne i samme rækkefølge',
-    v1.shown.map(i => i.exerciseId).join(',') === 'deadlift,cable_lateral_raise',
-    v1.shown.map(i => i.exerciseId).join(','));
-ok('Den husker vægten fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').weight === 70);
-ok('Den husker reps fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').reps === 6);
-ok('Den husker antal sæt fra sidste gang', v1.shown.find(i => i.exerciseId === 'deadlift').sets === 3);
-ok('En øvelse der ikke står i skabelonen huskes også', v1.shown.some(i => i.exerciseId === 'cable_lateral_raise'));
-ok('De skabelon-øvelser man ikke havde med tælles som skjulte',
-    v1.hiddenCount === getProgram('lower', 'B').length - 1 && v1.hiddenCount === 5,
-    `${v1.hiddenCount} skjulte (deadlift er den ene skabelon-øvelse der blev husket)`);
-const v1All = programView('lower', 'B', true);
-ok('"Vis alle" lægger skabelonen oveni uden at fjerne noget', v1All.shown.some(i => i.exerciseId === 'deadlift') && v1All.shown.some(i => i.exerciseId === 'front_squat'));
-ok('"Vis alle" skjuler intet', programView('lower', 'B', true).hiddenCount === v1.hiddenCount, 'antallet skal være det samme, ellers skjuler knappen sig selv');
-
-// Den NYESTE træning for varianten vinder, ikke den ældste
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('lb1', '2026-09-22', 'lower', 'B', [['deadlift', set(70, 6)]]),
-    progWorkout('lb2', '2026-09-29', 'lower', 'B', [['front_squat', set(42, 8)]]),
-]);
-const v2 = programView('lower', 'B', false);
-ok('Den nyeste træning for varianten bruges', v2.last.id === 'lb2' && v2.shown[0].exerciseId === 'front_squat',
-    `${v2.last.id}: ${v2.shown.map(i => i.exerciseId).join(',')}`);
-
-// En variant man har kørt KUN for den anden dag må ikke smitte af
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('uB', '2026-09-23', 'upper', 'B', [['cable_row', set(40, 12)]]),
-]);
-ok('Historik for upper smitter ikke af på lower', lastWorkoutFor('lower', 'B') === null);
-ok('Og omvendt findes upper B', lastWorkoutFor('upper', 'B').id === 'uB');
-
-// Kropsvægt kan ikke huskes (saveWorkout gemmer ikke sæt med vægt 0), så plank skal
-// lægges tilbage fra skabelonen — ellers ville den forsvinde fra programmet for altid.
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('laNoPlank', '2026-09-21', 'lower', 'A', [['squat', set(60, 8)], ['leg_curl', set(40, 12)]]),
-]);
-const vA = programView('lower', 'A', false);
-ok('Plank er ikke i loggen (som i virkeligheden)', vA.last.exercises.every(e => e.exerciseId !== 'plank'));
-ok('Plank lægges alligevel tilbage fra skabelonen', vA.shown.some(i => i.exerciseId === 'plank'),
-    vA.shown.map(i => i.exerciseId).join(','));
-
-// Sæt med vægt 0 må ikke give et misvisende forslag — vi tager det bedste sæt
-store['gym_tracker_workouts'] = JSON.stringify([
-    progWorkout('mix', '2026-09-30', 'lower', 'B', [['deadlift', [{ weight: 60, reps: 8 }, { weight: 75, reps: 5 }, { weight: 75, reps: 6 }]]]),
-]);
-const v3 = programView('lower', 'B', false);
-ok('Det bedste sæt fra sidst bruges som udgangspunkt', v3.shown[0].weight === 75 && v3.shown[0].reps === 6,
-    `${v3.shown[0].weight} kg × ${v3.shown[0].reps}`);
-ok('Antal sæt er antallet der blev løftet', v3.shown[0].sets === 3);
+const progWorkout = (id, date, day, variant, exs) => ({ id, date, day, variant, exercises: exs.map(e => ({ exerciseId: e[0], sets: e[1] })) });
+const idsOf = list => list.map(i => i.exerciseId).join(',');
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
+store['gym_tracker_program_swaps'] = JSON.stringify({});
+state.exercises = [];
+
+// Uden bytter er programmet skabelonen, række for række
+ok('Uden bytter er programmet skabelonen', idsOf(programItems('upper', 'A')) === idsOf(getProgram('upper', 'A')));
+ok('Ingen række er markeret som byttet', programItems('upper', 'A').every(i => !i.swappedFrom));
+
+// Et bytte: Bench Press → Dumbbell Bench Press (samme muskelgruppe: Chest)
+setSwap('upper', 'A', 'bench_press', 'dumbbell_press');
+const swapped = programItems('upper', 'A');
+ok('Byttet slår igennem i programmet', swapped[0].exerciseId === 'dumbbell_press', swapped[0].exerciseId);
+ok('Rækken husker hvad den blev byttet fra (så nøglen er stabil)', swapped[0].swappedFrom === 'bench_press');
+ok('Resten af programmet er urørt', idsOf(swapped.slice(1)) === idsOf(getProgram('upper', 'A').slice(1)));
+ok('Byttet gemmes i localStorage', JSON.parse(store['gym_tracker_program_swaps']).upperA.bench_press === 'dumbbell_press');
+ok('Byttet gælder kun den dag+variant det blev lavet i',
+    idsOf(programItems('upper', 'B')) === idsOf(getProgram('upper', 'B')) && idsOf(programItems('lower', 'A')) === idsOf(getProgram('lower', 'A')));
+
+// Tilbage til skabelon-øvelsen: overriden fjernes helt
+setSwap('upper', 'A', 'bench_press', 'bench_press');
+ok('Bytte tilbage til skabelon-øvelsen fjerner overriden', !JSON.parse(store['gym_tracker_program_swaps']).upperA);
+ok('Programmet er skabelonen igen', programItems('upper', 'A')[0].exerciseId === 'bench_press');
+
+// Byttelisterne: kun samme muskelgruppe, og aldrig Romanian Deadlift
+const allRows = Object.entries(PROGRAMS).flatMap(([key, list]) => {
+    const day = key.startsWith('upper') ? 'upper' : 'lower';
+    return list.map(item => ({ day, item }));
+});
+const offMuscle = [];
+const noSelf = [];
+const offersRdl = [];
+for (const { day, item } of allRows) {
+    const ex = ALL_EXERCISES[day].find(e => e.id === item.exerciseId);
+    const cands = swapCandidates(day, item.exerciseId);
+    if (cands.some(c => c.muscle !== ex.muscle)) offMuscle.push(item.exerciseId);
+    if (!cands.some(c => c.id === item.exerciseId)) noSelf.push(item.exerciseId);
+    if (cands.some(c => c.id === 'romanian_deadlift')) offersRdl.push(item.exerciseId);
+}
+ok('Bytte-listerne rummer kun øvelser i samme muskelgruppe', offMuscle.length === 0, offMuscle.join(', '));
+ok('Bytte-listen rummer altid øvelsen selv (man kan se hvad der står)', noSelf.length === 0, noSelf.join(', '));
+ok('Romanian Deadlift bliver aldrig tilbudt som bytte', offersRdl.length === 0, offersRdl.join(', '));
+
+// En øvelse der allerede står i dagens træning tilbydes ikke igen
+state.exercises = [{ exerciseId: 'dumbbell_press', plan: null, sets: [], targetReps: 8 }];
+const withSession = swapCandidates('upper', 'bench_press');
+ok('Bytte-listen udelader det der allerede står i dagens træning',
+    !withSession.some(c => c.id === 'dumbbell_press') && withSession.some(c => c.id === 'bench_press'),
+    withSession.map(c => c.id).join(', '));
+state.exercises = [];
+
+// Dagens træning: samme vægt og sæt som sidst, ellers skabelonens anbefaling
+const lpItem = getProgram('lower', 'A').find(i => i.exerciseId === 'leg_press');
+const fresh = sessionEntryFor(lpItem, null);
+ok('Uden historik bruges skabelonens tal',
+    fresh.sets.length === lpItem.sets && fresh.sets.every(s => s.weight === lpItem.weight && s.reps === lpItem.reps));
+ok('Anbefalingen følger med som plan (den vises på kortet)',
+    fresh.plan.sets === lpItem.sets && fresh.plan.weight === lpItem.weight && fresh.plan.reps === lpItem.reps);
+
+const remembered = sessionEntryFor(lpItem, progWorkout('lp', '2026-10-05', 'lower', 'A',
+    [['leg_press', [{ weight: 200, reps: 10 }, { weight: 225, reps: 10 }, { weight: 230, reps: 8 }]]]));
+ok('Med historik huskes det bedste sæt', remembered.sets.every(s => s.weight === 230 && s.reps === 8),
+    JSON.stringify(remembered.sets[0]));
+ok('Antallet af sæt huskes også', remembered.sets.length === 3);
+ok('Anbefalingen står stadig ved siden af de huskede tal', remembered.plan.weight === lpItem.weight);
+
+// loadProgram: hele dagen lægges ind, for enhver dag+variant
+let programFits = true;
+for (const [key, list] of Object.entries(PROGRAMS)) {
+    state.currentDay = key.startsWith('upper') ? 'upper' : 'lower';
+    state.programVariant = key.slice(-1);
+    loadProgram();
+    if (state.exercises.length !== list.length || state.exercises.length > MAX_PER_DAY) programFits = false;
+}
+ok(`Hele programmet lægges ind, og ingen dag overstiger ${MAX_PER_DAY} øvelser`, programFits);
+
+state.currentDay = 'upper';
+state.programVariant = null;
+loadProgram();
+ok('Dagens træning er programmets øvelser i programmets rækkefølge',
+    idsOf(state.exercises) === idsOf(getProgram('upper', 'A')));
+// sessionVariant er den variant træningen gemmes med; programVariant er "brugeren har
+// selv valgt". Uden et valg følger visningen rotationens forslag, og de to er derfor
+// kun ens så længe forslaget står ved magt.
+ok('Sessionen kender sin variant (den gemmes med træningen)',
+    state.sessionVariant === 'A' && !!state.sessionVariant,
+    JSON.stringify({ sessionVariant: state.sessionVariant, programVariant: state.programVariant }));
+ok('Uden et selvvalgt variant følger visningen forslaget (programVariant forbliver null)',
+    state.programVariant === null);
+state.programVariant = 'B';
+loadProgram();
+ok('Et selvvalgt variant vinder over forslaget, og sessionsvarianten følger med',
+    state.sessionVariant === 'B' && state.programVariant === 'B');
+state.programVariant = null;
+loadProgram();
+ok('Hver øvelse i dagens træning har en anbefaling at vise på kortet',
+    state.exercises.every(e => e.plan && e.plan.sets > 0 && e.plan.reps > 0));
+
+// Taget: en fuld dag afviser flere øvelser i stedet for at vokse
+state.exercises = Array.from({ length: MAX_PER_DAY }, () => ({ exerciseId: 'bench_press', plan: null, sets: [], targetReps: 8 }));
+const before = state.exercises.length;
+const rejected = addExerciseToSession('dips');
+ok(`En dag med ${MAX_PER_DAY} øvelser afviser flere`, rejected === false && state.exercises.length === before);
+state.exercises = [];
+
+// Et bytte holder antallet: den nye øvelse overtager pladsen
+store['gym_tracker_program_swaps'] = JSON.stringify({});
+state.currentDay = 'lower';
+state.programVariant = 'A';
+loadProgram();
+const beforeSwap = state.exercises.map(e => e.exerciseId);
+swapExercise('calf_raise', 'calf_raise_leg_press');
+ok('Et bytte ændrer ikke antallet af øvelser', state.exercises.length === beforeSwap.length);
+ok('Den nye øvelse står på den byttede øvelses plads',
+    state.exercises[beforeSwap.indexOf('calf_raise')].exerciseId === 'calf_raise_leg_press',
+    idsOf(state.exercises));
+ok('Byttet huskes for Lower A', JSON.parse(store['gym_tracker_program_swaps']).lowerA.calf_raise === 'calf_raise_leg_press');
+ok('Lower B er urørt af byttet', idsOf(programItems('lower', 'B')) === idsOf(getProgram('lower', 'B')));
+
+// Et bytte til en øvelse der allerede står i dagens træning afvises (ingen dubletter)
+swapExercise('hip_thrust', 'leg_press');
+ok('Bytte til en øvelse der allerede er i dagens træning afvises',
+    state.exercises.filter(e => e.exerciseId === 'leg_press').length === 1 &&
+    state.exercises.some(e => e.exerciseId === 'hip_thrust'));
+
+// Har man fjernet en række fra dagens træning, bliver den ikke lagt ind igen af et bytte
+state.exercises = state.exercises.filter(e => e.exerciseId !== 'hip_thrust');
+swapExercise('hip_thrust', 'glute_bridge');
+ok('Et bytte genopliver ikke en række man har fjernet', !state.exercises.some(e => e.exerciseId === 'glute_bridge'));
+ok('Men programmet viser den nye øvelse', programItems('lower', 'A').some(i => i.exerciseId === 'glute_bridge'));
+
+store['gym_tracker_workouts'] = JSON.stringify([]);
+store['gym_tracker_program_swaps'] = JSON.stringify({});
+state.exercises = [];
+state.programVariant = null;
+state.currentDay = 'upper';
+
 
 console.log('\n── 12. Filopdeling (index.html + styles.css + app.js)');
 const root = path.join(__dirname, '..');
@@ -840,7 +931,7 @@ const DA_CHARS = /[æøåÆØÅ]/;
 // Ord uden æ/ø/å — de fanges ikke af tegn-tjekket, så de listes eksplicit. Listen er et
 // net, ikke en garanti: kun danske ord der ikke også findes i engelsk tekst (derfor ikke
 // fx "for", "over", "under", "med", "se"). Tegn-tjekket ovenfor fanger alt med æ/ø/å.
-const DA_WORDS = /\b(uge|uger|vis|skjul|gem|gemt|volumen|fremgang|husker|rampe|antal|historik|eksempeldata|delt|sidst|totalt|tegn|beskeder|markeret|sprunget|skjult|filtreringen|kun|nyt|bedste|nogensinde|stang|dag|dage|mave|ryg|bryst|rumpe|kalve|skulder|op|ned|ingen|vaelg|annuller|kopier|fjern|ryd|fyld|samlet|tilfoej|sammensat|intet|fundet|udklip|udklipsholderen|kopieret|endnu|ikke|eller|bliver|bruger|dato|gennem|havde|hvordan|kan|komme|kunne|meget|skal|sammen|sin|som|stor|til|viser|nederst|sidste|nye|gamle|hurtig|langsom|mellem|uden|hvis|selv|noget|nogen|mange|lidt|gerne|altid|aldrig|igen|snart|alle)\b/i;
+const DA_WORDS = /\b(uge|uger|vis|skjul|gem|gemt|volumen|fremgang|husker|rampe|antal|historik|eksempeldata|delt|sidst|totalt|tegn|beskeder|markeret|sprunget|skjult|filtreringen|kun|nyt|bedste|nogensinde|stang|dag|dage|mave|ryg|bryst|rumpe|kalve|skulder|op|ned|ingen|vaelg|annuller|kopier|fjern|ryd|fyld|samlet|tilfoej|sammensat|intet|fundet|udklip|udklipsholderen|kopieret|endnu|ikke|eller|bliver|bruger|dato|gennem|havde|hvordan|kan|komme|kunne|meget|skal|sammen|sin|som|stor|til|viser|nederst|sidste|nye|gamle|hurtig|langsom|mellem|uden|hvis|selv|noget|nogen|mange|lidt|gerne|altid|aldrig|igen|snart|alle|fra|rediger|redigerer|anbefaling)\b/i;
 
 const appCode = stripComments(script);
 const htmlCode = html.replace(/<!--[\s\S]*?-->/g, '');

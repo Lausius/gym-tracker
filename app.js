@@ -135,40 +135,46 @@
     const ALL_EXERCISES = { upper: EXERCISES.upper, lower: EXERCISES.lower };
 
     // ─── Træningsprogrammer (A/B Split) ───────────────────────────────
+    // Højst så mange øvelser pr. dag. Programmet ER dagens træning: appen indlæser
+    // det ved åbning og ved skift af dag/variant — man bygger det ikke op selv.
+    const MAX_PER_DAY = 6;
+
+    // Programmerne er de øvelser der faktisk bliver løftet (uge 41), ikke et
+    // gammelt skabelon-udkast. `weight` er den vægt der sidst er løftet, så
+    // anbefalingen tager udgangspunkt i virkeligheden. Har man historik for
+    // varianten, bruges den i stedet (se sessionEntryFor).
+    //
+    // Romanian Deadlift er bevidst væk: den belaster hans lænd, og den skal
+    // hverken stå her eller tilbydes som bytte-alternativ.
     const PROGRAMS = {
         upperA: [
-            { exerciseId: 'bench_press',       sets: 3, reps: 8,  weight: 60, note: 'Chest' },
-            { exerciseId: 'lat_pulldown',      sets: 3, reps: 10, weight: 59, note: 'Back' },
-            { exerciseId: 'shoulder_press',    sets: 3, reps: 8,  weight: 30, note: 'Shoulders' },
-            { exerciseId: 'cable_row',         sets: 3, reps: 12, weight: 40, note: 'Back' },
-            { exerciseId: 'lateral_raise',     sets: 3, reps: 12, weight: 7,  note: 'Shoulders' },
-            { exerciseId: 'tricep_pushdown',   sets: 3, reps: 12, weight: 19, note: 'Triceps' },
-            { exerciseId: 'ez_bar_curl',       sets: 3, reps: 12, weight: 19, note: 'Biceps (EZ-bar)' },
+            { exerciseId: 'bench_press',        sets: 3, reps: 8,  weight: 65,  note: 'Chest' },
+            { exerciseId: 'shoulder_press',     sets: 3, reps: 8,  weight: 40,  note: 'Shoulders' },
+            { exerciseId: 'lat_pulldown',       sets: 3, reps: 10, weight: 66,  note: 'Back' },
+            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 24, note: 'Back' },
+            { exerciseId: 'overhead_tricep',    sets: 3, reps: 10, weight: 25,  note: 'Triceps' },
+            { exerciseId: 'ez_bar_curl',        sets: 3, reps: 12, weight: 25,  note: 'Biceps' },
         ],
         upperB: [
-            { exerciseId: 'incline_dumbbell',  sets: 3, reps: 8,  weight: 25, note: 'Upper chest' },
-            { exerciseId: 'pull_up',           sets: 3, reps: 8,  weight: 0,  note: 'Back (bodyweight)' },
-            { exerciseId: 'dumbbell_shoulder_press', sets: 3, reps: 10, weight: 15, note: 'Shoulders' },
-            { exerciseId: 'barbell_row',       sets: 3, reps: 8,  weight: 50, note: 'Back' },
-            { exerciseId: 'reverse_fly',       sets: 3, reps: 12, weight: 8,  note: 'Shoulders/Back' },
-            { exerciseId: 'skull_crusher',     sets: 3, reps: 12, weight: 19, note: 'Triceps' },
-            { exerciseId: 'hammer_curl',       sets: 3, reps: 10, weight: 15, note: 'Biceps' },
+            { exerciseId: 'chest_supported_row', sets: 3, reps: 12, weight: 24, note: 'Back' },
+            { exerciseId: 'cable_lateral_raise', sets: 3, reps: 12, weight: 8, note: 'Shoulders' },
+            { exerciseId: 'dual_bicep_cable_curl', sets: 3, reps: 12, weight: 10, note: 'Biceps' },
+            { exerciseId: 'tricep_pushdown',    sets: 3, reps: 10, weight: 30,  note: 'Triceps' },
+            { exerciseId: 'cable_crossover',    sets: 3, reps: 10, weight: 12.5, note: 'Chest' },
+            { exerciseId: 'face_pull',          sets: 3, reps: 12, weight: 15,  note: 'Shoulders/Back' },
         ],
         lowerA: [
-            { exerciseId: 'squat',             sets: 3, reps: 8,  weight: 60, note: 'Quads' },
-            { exerciseId: 'romanian_deadlift', sets: 3, reps: 8,  weight: 50, note: 'Hip hinge' },
-            { exerciseId: 'leg_press',         sets: 3, reps: 10, weight: 80, note: 'Quads' },
-            { exerciseId: 'hip_thrust',        sets: 3, reps: 12, weight: 50, note: 'Glutes' },
-            { exerciseId: 'leg_curl',          sets: 3, reps: 12, weight: 40, note: 'Hamstrings' },
-            { exerciseId: 'plank',             sets: 3, reps: 1,  weight: 0,  note: 'Abs — hold 30-60 seconds' },
+            { exerciseId: 'leg_curl',           sets: 3, reps: 15, weight: 41,  note: 'Hamstrings' },
+            { exerciseId: 'back_extension',     sets: 3, reps: 12, weight: 0,   note: 'Lower back' },
+            { exerciseId: 'leg_press',          sets: 3, reps: 10, weight: 225, note: 'Quads' },
+            { exerciseId: 'hip_thrust',         sets: 3, reps: 10, weight: 90,  note: 'Glutes' },
+            { exerciseId: 'calf_raise',         sets: 3, reps: 15, weight: 130, note: 'Calves' },
         ],
         lowerB: [
-            { exerciseId: 'front_squat',       sets: 3, reps: 8,  weight: 40, note: 'Quads (front focus)' },
-            { exerciseId: 'deadlift',          sets: 3, reps: 6,  weight: 70, note: 'Back/Hips' },
-            { exerciseId: 'bulgarian_split',   sets: 3, reps: 8,  weight: 20, note: 'Quads/Glutes (per leg)' },
-            { exerciseId: 'glute_bridge',      sets: 3, reps: 12, weight: 40, note: 'Glutes' },
-            { exerciseId: 'leg_extension',     sets: 3, reps: 12, weight: 40, note: 'Quad isolation' },
-            { exerciseId: 'cable_crunch',      sets: 3, reps: 15, weight: 30, note: 'Abs' },
+            { exerciseId: 'leg_curl',           sets: 3, reps: 15, weight: 45,  note: 'Hamstrings' },
+            { exerciseId: 'leg_extension',      sets: 3, reps: 12, weight: 66,  note: 'Quads' },
+            { exerciseId: 'leg_press',          sets: 3, reps: 12, weight: 225, note: 'Quads' },
+            { exerciseId: 'calf_raise_leg_press', sets: 3, reps: 15, weight: 215, note: 'Calves' },
         ],
     };
 
@@ -196,13 +202,13 @@
     // ─── State ────────────────────────────────────────────────────
     const state = {
         currentDay: 'upper',
-        exercises: [], // { exerciseId, sets: [{weight, reps}], targetReps }
+        exercises: [], // { exerciseId, plan, sets: [{weight, reps}], targetReps }
         savedWorkouts: [], // loaded from localStorage
         programVariant: null, // null = brug foreslået variant, ellers 'A' | 'B'
         sessionVariant: null, // varianten programmet blev indlæst fra (gemmes med træningen)
         editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
         showAllProgressive: false, // "Vis alle" i Næste uge-listen (nulstilles ved dagskift)
-        showAllProgram: false, // "Vis alle" i Dagens program (nulstilles ved dagskift)
+        openSwap: null, // skabelon-id på den programrække hvis bytte-liste er åben
     };
 
     // ─── Storage ──────────────────────────────────────────────────
@@ -522,48 +528,90 @@
         return mine.reduce((a, b) => (a.date >= b.date ? a : b));
     }
 
-    // Bygger program-linjer ud fra en gemt træning: samme øvelser i samme rækkefølge,
-    // med antal sæt og det bedste sæt der blev løftet. Det er dét "husk" betyder —
-    // man skal kunne gentage sin træning uden at bygge den op forfra.
-    function rememberedItems(day, workout, template) {
-        const items = [];
-        for (const ex of (workout.exercises || [])) {
-            const best = ex.sets.reduce((b, s) =>
-                (!b || s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps)) ? s : b, null);
-            const t = template.find(i => i.exerciseId === ex.exerciseId);
-            items.push({
-                exerciseId: ex.exerciseId,
-                sets: ex.sets.length,
-                reps: best ? best.reps : 8,
-                weight: best ? best.weight : 0,
-                note: t ? t.note : null, // skabelonens note, hvis øvelsen står i den
-            });
-        }
-        // Kropsvægtøvelser kan ikke føre vægthistorik og ville ellers forsvinde helt
-        // fra programmet, selv om de står i skabelonen. De lægges til bagefter.
-        for (const t of template) {
-            if (isBodyweightExercise(day, t.exerciseId) && !items.some(i => i.exerciseId === t.exerciseId)) {
-                items.push(t);
-            }
-        }
-        return items;
+    // ─── Programmet for en dag+variant ────────────────────────────
+    // Programmet ER dagens træning. Har man byttet en øvelse, huskes byttet for
+    // netop den dag+variant. Nøglen er skabelon-øvelsens id, så en senere rettelse
+    // i skabelonen ikke bliver overskrevet af et gammelt bytte.
+    const SWAP_KEY = 'gym_tracker_program_swaps';
+
+    function loadSwaps() {
+        try {
+            const data = localStorage.getItem(SWAP_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch { return {}; }
     }
 
-    // Hvad "Dagens program" skal vise for en dag+variant.
-    //
-    // Er varianten kørt før, vises DEN træning — ikke skabelonen. Skabelonen bruges
-    // kun når der ikke er noget at huske endnu. `extra` er de skabelon-øvelser man
-    // ikke havde med sidst; de kan hentes frem med "Vis alle".
-    function programView(day, variant, showAll) {
-        const template = getProgram(day, variant);
-        const last = lastWorkoutFor(day, variant);
-        const base = last ? rememberedItems(day, last, template) : template;
-        const extra = template.filter(t => !base.some(i => i.exerciseId === t.exerciseId));
+    function saveSwaps(swaps) {
+        localStorage.setItem(SWAP_KEY, JSON.stringify(swaps));
+    }
+
+    // Programmet som det ser ud for mig: skabelonen med mine bytter lagt ind.
+    function programItems(day, variant) {
+        const swaps = loadSwaps()[programKey(day, variant)] || {};
+        return getProgram(day, variant).slice(0, MAX_PER_DAY).map(item => {
+            const wanted = swaps[item.exerciseId];
+            const replacement = wanted && wanted !== item.exerciseId ? getExerciseById(day, wanted) : null;
+            return replacement
+                ? { ...item, exerciseId: replacement.id, swappedFrom: item.exerciseId }
+                : { ...item };
+        });
+    }
+
+    // Hvad en øvelse kan byttes til: samme muskelgruppe, og ikke en der allerede står
+    // i dagens træning. Reglen læser muskelgruppen i EXERCISES, så en ny øvelse
+    // kommer med i listerne af sig selv.
+    function swapCandidates(day, exerciseId) {
+        const ex = getExerciseById(day, exerciseId);
+        if (!ex) return [];
+        const inSession = new Set(state.exercises.map(e => e.exerciseId));
+        return ALL_EXERCISES[day].filter(e =>
+            e.muscle === ex.muscle && (e.id === exerciseId || !inSession.has(e.id)));
+    }
+
+    // Gemmer byttet for dag+variant. Bytter man tilbage til skabelon-øvelsen,
+    // fjernes overriden igen.
+    function setSwap(day, variant, slotId, exerciseId) {
+        const key = programKey(day, variant);
+        const swaps = loadSwaps();
+        const forKey = { ...(swaps[key] || {}) };
+        if (exerciseId === slotId) delete forKey[slotId];
+        else forKey[slotId] = exerciseId;
+        if (Object.keys(forKey).length === 0) delete swaps[key];
+        else swaps[key] = forKey;
+        saveSwaps(swaps);
+    }
+
+    // Dagens træning ud fra programmet: samme vægt og antal sæt som sidst, ellers
+    // skabelonens anbefaling. `plan` er anbefalingen og bliver vist på kortet, uanset
+    // hvad man selv retter tallene til.
+    function sessionEntryFor(item, last) {
+        const remembered = last && (last.exercises || []).find(e =>
+            e.exerciseId === item.exerciseId && e.sets.some(s => s.weight > 0 && s.reps > 0));
+        const best = remembered ? remembered.sets.reduce((b, s) =>
+            (!b || s.weight > b.weight || (s.weight === b.weight && s.reps > b.reps)) ? s : b, null) : null;
+        const reps = best ? best.reps : item.reps;
         return {
-            shown: showAll ? [...base, ...extra] : base,
-            hiddenCount: extra.length,
-            last,
+            exerciseId: item.exerciseId,
+            plan: { sets: item.sets, reps: item.reps, weight: item.weight },
+            sets: Array.from({ length: best ? remembered.sets.length : item.sets },
+                () => ({ weight: best ? best.weight : item.weight, reps })),
+            targetReps: reps,
         };
+    }
+
+    // Indlæser dagens program som dagens træning. Kaldes ved åbning og hver gang
+    // dag eller variant skifter — der er ingen "tilføj"-knap mere.
+    function loadProgram() {
+        const variant = getCurrentVariant();
+        const last = lastWorkoutFor(state.currentDay, variant);
+        state.exercises = programItems(state.currentDay, variant).map(item => sessionEntryFor(item, last));
+        // BEMÆRK: state.programVariant røres ikke her. Den betyder "brugeren har selv
+        // valgt", og er den null, følger visningen rotationens forslag (getCurrentVariant).
+        // Sættes den her til den udregnede variant, står der "chosen" i UI'et fra første
+        // sekund, og forslaget kan ikke længere skifte af sig selv.
+        state.sessionVariant = variant;
+        state.editing = null;
+        state.openSwap = null;
     }
 
     // Deler en liste i "har historik" og "har ikke". Bruges af "Næste uge"-listen, hvor
@@ -725,51 +773,72 @@
     // ─── Render Functions ─────────────────────────────────────────
     function renderProgram() {
         const variant = getCurrentVariant();
-        const view = programView(state.currentDay, variant, state.showAllProgram);
+        const items = programItems(state.currentDay, variant);
         const content = document.getElementById('program-content');
         const hint = document.getElementById('variant-hint');
         const memory = document.getElementById('program-memory');
+        const last = lastWorkoutFor(state.currentDay, variant);
+        const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
 
         document.querySelectorAll('.variant-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.variant === variant);
         });
         if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
 
-        if (view.shown.length === 0) {
+        if (items.length === 0) {
             content.innerHTML = '<div class="program-ex-meta">No program found</div>';
-            renderFilterToggle('program-toggle', false, 0);
             if (memory) memory.classList.add('hidden');
             return;
         }
 
-        // Fortæl hvad listen er: din egen sidste træning eller skabelonen.
+        // Fortæl hvor tallene kommer fra, og at navnet kan trykkes på.
         if (memory) {
-            if (view.last) {
-                memory.classList.remove('hidden');
-                memory.textContent = `↩︎ Remembering your ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant} from ${formatDate(view.last.date)} — same exercises and weights as last time.`;
-            } else {
-                memory.classList.add('hidden');
-                memory.textContent = '';
-            }
+            memory.classList.remove('hidden');
+            memory.textContent = last
+                ? `↩︎ Same exercises and weights as your ${dayLabel} ${variant} on ${formatDate(last.date)}. Tap an exercise name to swap it.`
+                : `Your ${dayLabel} ${variant} program. Tap an exercise name to swap it.`;
         }
-        renderFilterToggle('program-toggle', state.showAllProgram, view.hiddenCount);
 
-        content.innerHTML = view.shown.map(item => {
+        content.innerHTML = items.map(item => {
             const ex = getExerciseById(state.currentDay, item.exerciseId);
             if (!ex) return '';
+            const slotId = item.swappedFrom || item.exerciseId;
+            const candidates = swapCandidates(state.currentDay, item.exerciseId);
+            const open = state.openSwap === slotId;
             const added = state.exercises.some(e => e.exerciseId === item.exerciseId);
             const plan = `${item.sets} × ${item.reps}${item.weight > 0 ? ' @ ' + item.weight + ' kg' : ''}`;
+            const name = candidates.length > 1
+                ? `<button class="program-ex-name-btn${open ? ' open' : ''}" data-swap-slot="${slotId}"
+                           aria-expanded="${open}" title="Change exercise">${escapeHtml(ex.name)}<span class="swap-caret">▾</span></button>`
+                : `<div class="program-ex-name">${escapeHtml(ex.name)}</div>`;
             return `
-                <div class="program-exercise" data-exercise-id="${item.exerciseId}">
+                <div class="program-exercise${added ? '' : ' not-added'}" data-exercise-id="${item.exerciseId}" data-slot-id="${slotId}">
                     <div style="flex:1; min-width:0;">
-                        <div class="program-ex-name">${ex.name}</div>
+                        ${name}
                         <div class="program-ex-meta">${ex.muscle}${ex.equipment ? ' · ' + ex.equipment : ''}${ex.loadNote ? ' · ' + ex.loadNote : ''}</div>
                         ${item.note ? `<div class="program-ex-note">${item.note}</div>` : ''}
+                        ${open ? renderSwapMenu(slotId, ex, candidates) : ''}
                     </div>
-                    ${added ? '<span class="program-ex-added">✓ Added</span>' : `<span class="program-ex-planned">${plan}</span>`}
+                    <span class="program-ex-${added ? 'added' : 'planned'}">${added ? '✓ ' : ''}${plan}</span>
                 </div>
             `;
         }).join('');
+    }
+
+    // Bytte-listen under øvelsesnavnet. Kun øvelser i samme muskelgruppe (se
+    // swapCandidates), med den nuværende øverst markeret.
+    function renderSwapMenu(slotId, ex, candidates) {
+        return `
+            <div class="swap-menu" data-swap-slot="${slotId}">
+                ${candidates.map(c => `
+                    <button class="swap-option${c.id === ex.id ? ' current' : ''}"
+                            data-swap-slot="${slotId}" data-swap-id="${c.id}">
+                        <span class="swap-option-name">${escapeHtml(c.name)}</span>
+                        <span class="swap-option-meta">${c.equipment || ''}${c.loadNote ? ' · ' + c.loadNote : ''}</span>
+                    </button>
+                `).join('')}
+            </div>
+        `;
     }
 
     function renderDaySelector() {
@@ -787,8 +856,8 @@
             list.innerHTML = `
                 <div class="no-exercises-msg">
                     <span class="emoji">🏋️</span>
-                    <p> no exercises added yet</p>
-                    <p style="font-size:0.8rem; margin-top:4px;">Pick an exercise below to get started</p>
+                    <p>No exercises in today's program</p>
+                    <p style="font-size:0.8rem; margin-top:4px;">Pick another day above, or swap an exercise on the program list</p>
                 </div>
             `;
             count.textContent = '0';
@@ -803,6 +872,11 @@
 
             const totalVolume = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
             const maxVolume = Math.max(...ex.sets.map(s => s.weight * s.reps), 0);
+            // Anbefalingen fra programmet. Den bliver stående, også når man retter
+            // antal sæt, vægt eller reps — det er hele pointen med den.
+            const plan = ex.plan
+                ? `${ex.plan.sets} × ${ex.plan.reps}${ex.plan.weight > 0 ? ' @ ' + ex.plan.weight + ' kg' : ''}`
+                : '';
 
             return `
                 <div class="exercise-card" data-index="${idx}">
@@ -820,6 +894,7 @@
                         </div>
                         <button class="remove-btn" data-index="${idx}" aria-label="Remove exercise">✕</button>
                     </div>
+                    ${plan ? `<div class="exercise-target">🎯 Recommended: ${plan}</div>` : ''}
                     ${renderCueLine(exercise)}
                     <div class="warmup-holder">${renderWarmupBlock(exercise, workingWeightFor(ex))}</div>
                     <table class="sets-table">
@@ -862,9 +937,14 @@
                             `).join('')}
                         </tbody>
                     </table>
-                    <button class="add-set-btn" data-ex-index="${idx}">
-                        ＋ Add set
-                    </button>
+                    <div class="set-actions">
+                        <button class="add-set-btn" data-ex-index="${idx}">
+                            ＋ Add set
+                        </button>
+                        <button class="remove-set-btn" data-ex-index="${idx}" ${ex.sets.length <= 1 ? 'disabled' : ''}>
+                            − Remove set
+                        </button>
+                    </div>
                     <div class="exercise-volume">
                         <span>Total volume</span>
                         <span class="total">${totalVolume.toFixed(0)} kg</span>
@@ -924,7 +1004,7 @@
         if (state.editing) {
             banner.classList.remove('hidden');
             document.getElementById('edit-banner-text').textContent =
-                `✏️ Redigerer ${state.editing.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(state.editing.date)}`;
+                `✏️ Editing ${state.editing.day === 'upper' ? 'Upper' : 'Lower'} from ${formatDate(state.editing.date)}`;
             btn.textContent = '💾 Update workout';
             document.body.classList.add('editing');
         } else {
@@ -937,59 +1017,27 @@
         const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
 
         if (exerciseCount === 0) {
-            info.innerHTML = 'No exercises added';
+            info.innerHTML = 'No exercises in today&#39;s program';
             btn.disabled = true;
         } else if (!hasSets) {
-            info.innerHTML = `<strong>${exerciseCount}</strong> exercises · fill in the sets`;
+            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · fill in the sets`;
             btn.disabled = true;
         } else {
             const totalVolume = state.exercises.reduce((sum, ex) =>
                 sum + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
             );
-            info.innerHTML = `<strong>${exerciseCount}</strong> exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
+            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
             btn.disabled = false;
         }
     }
 
-    function renderAddExerciseDropdown() {
-        const select = document.getElementById('exercise-select');
-        const currentIds = new Set(state.exercises.map(e => e.exerciseId));
-        const available = ALL_EXERCISES[state.currentDay].filter(e => !currentIds.has(e.id));
-
-        // Grupperet efter muskelgruppe — listen vokser med redskabsvarianter
-        const groups = new Map();
-        for (const e of available) {
-            if (!groups.has(e.muscle)) groups.set(e.muscle, []);
-            groups.get(e.muscle).push(e);
-        }
-        select.innerHTML = '<option value="">— Choose exercise —</option>' +
-            [...groups.entries()].map(([muscle, list]) =>
-                `<optgroup label="${muscle}">` +
-                list.map(e => `<option value="${e.id}">${e.name}${e.loadNote ? ' (' + e.loadNote + ')' : ''}</option>`).join('') +
-                '</optgroup>'
-            ).join('');
-
-        // Show/hide the whole add section
-        const section = document.getElementById('add-exercise-section');
+    // Velkomstlinjen: programmet er allerede lagt ind, så den vises kun når loggen
+    // er helt tom (en frisk browser), i stedet for "vælg en øvelse nedenfor".
+    function renderFirstUseBanner() {
         const banner = document.getElementById('first-use-banner');
-
-        if (available.length === 0) {
-            section.classList.add('empty-state');
-            section.querySelector('.add-exercise-title').textContent = '✅ All exercises added';
-            section.querySelector('#add-exercise-btn').disabled = true;
-            section.querySelector('#add-exercise-btn').textContent = '✓ Done for today';
-        } else {
-            section.classList.remove('empty-state');
-            section.querySelector('.add-exercise-title').textContent = '＋ Add exercise';
-            section.querySelector('#add-exercise-btn').disabled = false;
-            section.querySelector('#add-exercise-btn').textContent = "＋ Add to today's workout";
-        }
-
-        if (state.exercises.length === 0 && available.length > 0) {
-            banner.classList.remove('hidden');
-        } else {
-            banner.classList.add('hidden');
-        }
+        if (!banner) return;
+        if (loadWorkouts().length === 0) banner.classList.remove('hidden');
+        else banner.classList.add('hidden');
     }
 
     function renderAll() {
@@ -998,107 +1046,84 @@
         renderExerciseList();
         renderProgressiveOverload();
         renderSaveBar();
-        renderAddExerciseDropdown();
+        renderFirstUseBanner();
         renderSampleControls();
     }
 
     // ─── Program handling (A/B) ───────────────────────────────────
-    function addExerciseWithPlan(exerciseId, sets, reps, weight) {
-        if (state.exercises.some(e => e.exerciseId === exerciseId)) return false;
+    // Lægger en øvelse ind i dagens træning: bruges når man henter en fjernet
+    // programrække tilbage, og fra "Næste uge"-listen. Der kan højst stå
+    // MAX_PER_DAY øvelser pr. dag — vil man have en anden, bytter man i stedet.
+    function addExerciseToSession(exerciseId) {
+        if (state.exercises.some(e => e.exerciseId === exerciseId)) {
+            showToast('Exercise is already in today\'s workout', 'info');
+            return false;
+        }
+        if (state.exercises.length >= MAX_PER_DAY) {
+            showToast(`Max ${MAX_PER_DAY} exercises a day — swap one instead`, 'info');
+            return false;
+        }
         const exercise = getExerciseById(state.currentDay, exerciseId);
         if (!exercise) return false;
-        state.exercises.push({
-            exerciseId,
-            sets: Array.from({ length: sets }, () => ({ weight, reps })),
-            targetReps: reps,
-        });
+
+        const variant = getCurrentVariant();
+        const item = programItems(state.currentDay, variant).find(i => i.exerciseId === exerciseId);
+        if (item) {
+            // Står øvelsen i programmet, er det programmets tal der gælder.
+            state.exercises.push(sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant)));
+        } else {
+            const prog = calculateProgressiveOverload(exerciseId, state.currentDay);
+            const weight = parseFloat((prog.suggestion.match(/([\d.]+)\s*kg/) || [])[1]) || prog.lastWeight || 20;
+            const reps = parseInt((prog.suggestion.match(/(\d+)\s*reps/) || [])[1]) || 8;
+            state.exercises.push({
+                exerciseId,
+                plan: { sets: 3, reps, weight },
+                sets: Array.from({ length: 3 }, () => ({ weight, reps })),
+                targetReps: reps,
+            });
+        }
+        renderAll();
+        showToast(`${exercise.name} added`, 'success');
         return true;
     }
 
-    function loadProgramAll() {
+    // Bytter øvelsen i en programrække. Byttet huskes for dag+variant, og den
+    // øvelse der stod i rækken skiftes ud på samme plads i dagens træning — med
+    // de tal der hører til den nye øvelse. Har man fjernet rækken fra dagens
+    // træning, bliver den ikke lagt ind igen af et bytte.
+    function swapExercise(slotId, exerciseId) {
         const variant = getCurrentVariant();
-        // Præcis det der står i "Dagens program" — husker man sin sidste træning,
-        // er det den der lægges ind, med samme vægte og sæt som sidst.
-        const view = programView(state.currentDay, variant, state.showAllProgram);
-        const list = view.shown;
-        state.editing = null; // Indlæsning af programmet erstatter sessionen
-        let added = 0;
-        for (const item of list) {
-            if (addExerciseWithPlan(item.exerciseId, item.sets, item.reps, item.weight)) added++;
-        }
-        state.programVariant = variant;
-        state.sessionVariant = variant;
-        renderAll();
-        const label = `${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${variant}`;
-        if (added > 0) {
-            const skipped = view.hiddenCount > 0 ? ` (${view.hiddenCount} hidden by the filter)` : '';
-            showToast(`${label} loaded — ${added} exercises added${skipped}`, 'success');
-        } else {
-            showToast('All exercises from the program are already added', 'info');
-        }
-    }
-
-    // ─── Actions ──────────────────────────────────────────────────
-    function addExercise(exerciseId) {
-        if (state.exercises.some(e => e.exerciseId === exerciseId)) {
-            showToast('Exercise is already added', 'info');
+        const before = programItems(state.currentDay, variant)
+            .find(i => (i.swappedFrom || i.exerciseId) === slotId);
+        const previousId = before ? before.exerciseId : null;
+        if (!previousId || previousId === exerciseId) {
+            state.openSwap = null;
+            renderAll();
             return;
         }
-        const exercise = getExerciseById(state.currentDay, exerciseId);
-        if (!exercise) return;
-
-        const setsNumber = parseInt(document.getElementById('sets-number').value) || 3;
-        const startWeight = parseFloat(document.getElementById('start-weight').value) || 20;
-        const targetReps = parseInt(document.getElementById('start-reps').value) || 8;
-
-        state.exercises.push({
-            exerciseId,
-            sets: Array.from({ length: setsNumber }, () => ({ weight: startWeight, reps: targetReps })),
-            targetReps,
-        });
-
-        renderAll();
-        showToast(`${exercise.name} added`, 'success');
-    }
-
-    function addExerciseFromSuggestion(exerciseId) {
-        // Check if already added
+        // Ingen dubletter: en øvelse der allerede står i dagens træning kan ikke
+        // byttes ind (bytte-listen tilbyder den heller ikke).
         if (state.exercises.some(e => e.exerciseId === exerciseId)) {
-            showToast('Exercise is already added', 'info');
+            state.openSwap = null;
+            renderAll();
+            showToast('That exercise is already in today\'s workout', 'info');
             return;
         }
 
-        const exercise = getExerciseById(state.currentDay, exerciseId);
-        if (!exercise) return;
+        setSwap(state.currentDay, variant, slotId, exerciseId);
 
-        // Get progressive overload recommendation
-        const prog = calculateProgressiveOverload(exerciseId, state.currentDay);
-
-        // Parse suggestion: "62.5 kg × 8 reps" or "10 reps med 65 kg"
-        let suggestedWeight = 20;
-        let suggestedReps = 8;
-
-        const weightMatch = prog.suggestion.match(/([\d.]+)\s*kg/);
-        const repsMatch = prog.suggestion.match(/([\d]+)\s*reps/);
-
-        if (weightMatch) suggestedWeight = parseFloat(weightMatch[1]);
-        if (repsMatch) suggestedReps = parseInt(repsMatch[1]);
-
-        // If it's a rep-focused suggestion, use the suggested reps as target
-        if (prog.status === 'rep_focus' || prog.status === 'rep_up') {
-            suggestedWeight = suggestedWeight || 20;
-            suggestedReps = suggestedReps || 8;
+        const idx = state.exercises.findIndex(e => e.exerciseId === previousId);
+        if (idx >= 0) {
+            const item = programItems(state.currentDay, variant).find(i => i.exerciseId === exerciseId);
+            if (item) {
+                state.exercises[idx] = sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant));
+            }
         }
-
-        // Add with 3 sets of the suggested values
-        state.exercises.push({
-            exerciseId,
-            sets: Array.from({ length: 3 }, () => ({ weight: suggestedWeight, reps: suggestedReps })),
-            targetReps: suggestedReps,
-        });
-
+        state.openSwap = null;
+        const ex = getExerciseById(state.currentDay, exerciseId);
+        const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
         renderAll();
-        showToast(`${exercise.name} added — ${suggestedWeight} kg × ${suggestedReps} reps`, 'success');
+        showToast(`${ex ? ex.name : 'Exercise'} swapped in — remembered for ${dayLabel} ${variant}`, 'success');
     }
 
     function removeExercise(index) {
@@ -1119,6 +1144,15 @@
             weight: lastSet ? lastSet.weight : 20,
             reps: lastSet ? lastSet.reps : 8,
         });
+        renderAll();
+    }
+
+    // Man må gerne løfte færre sæt end programmet anbefaler — anbefalingen blir
+    // stående på kortet, mens antallet af sæt er ens eget.
+    function removeSet(exIndex) {
+        const ex = state.exercises[exIndex];
+        if (!ex || ex.sets.length <= 1) return;
+        ex.sets.pop();
         renderAll();
     }
 
@@ -1200,9 +1234,9 @@
             }
             saveWorkouts(res.workouts);
             state.editing = null;
-            state.exercises = [];
-            state.sessionVariant = null;
             state.programVariant = null;
+            state.sessionVariant = null;
+            loadProgram();
             renderAll();
             if (res.added > 0) {
                 showToast(`Workout updated — ${res.added} exercise${res.added === 1 ? '' : 's'} added`, 'success');
@@ -1236,9 +1270,11 @@
         }
 
         saveWorkouts(workouts);
-        state.exercises = [];
-        state.sessionVariant = null;
+        // Efter et gem er det næste variant i rotationen der er dagens program,
+        // og den indlæses med det samme — programmet ER dagens træning.
         state.programVariant = null;
+        state.sessionVariant = null;
+        loadProgram();
         renderAll();
     }
 
@@ -1278,20 +1314,20 @@
         renderAll();
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        const label = `${workout.day === 'upper' ? 'Upper' : 'Lower'} fra ${formatDate(workout.date)}`;
+        const label = `${workout.day === 'upper' ? 'Upper' : 'Lower'} from ${formatDate(workout.date)}`;
         if (skipped.length > 0) {
             showToast(`Editing ${label} — ${skipped.length} unknown exercise skipped`, 'info');
         } else {
-            showToast(`Redigerer ${label}`, 'info');
+            showToast(`Editing ${label}`, 'info');
         }
     }
 
     function cancelEdit() {
         if (!state.editing) return;
         state.editing = null;
-        state.exercises = [];
-        state.sessionVariant = null;
         state.programVariant = null;
+        state.sessionVariant = null;
+        loadProgram();
         renderAll();
         showToast('Edit cancelled — the workout is unchanged', 'info');
     }
@@ -1339,7 +1375,7 @@
                                     <div class="history-workout-header">
                                         <span class="history-day-type ${w.day}">${w.day === 'upper' ? 'Upper' : 'Lower'}</span>
                                         <span class="history-workout-meta">${exCount} exercise${exCount === 1 ? '' : 's'} · ${totalVol.toFixed(0)} kg total${w.sharedAt ? ' · <span class="shared-badge">shared</span>' : ''}</span>
-                                        <button class="history-edit-btn" data-workout-id="${w.id}">✏️ Rediger</button>
+                                        <button class="history-edit-btn" data-workout-id="${w.id}">✏️ Edit</button>
                                     </div>
                                     ${w.exercises.map(ex => {
                                         const exercise = getExerciseById(w.day, ex.exerciseId);
@@ -1516,22 +1552,16 @@
             btn.addEventListener('click', () => {
                 state.currentDay = btn.dataset.day;
                 saveCurrentDay(state.currentDay);
-                state.exercises = []; // Clear exercises when switching day
                 state.programVariant = null; // Følg forslået A/B-variant for den nye dag
-                state.sessionVariant = null;
                 state.editing = null; // En anden dags træning kan ikke redigeres herfra
                 state.showAllProgressive = false; // Filtreringen er pr. dag — start forfra
-                state.showAllProgram = false;
+                loadProgram(); // Den nye dags program bliver dagens træning
                 renderAll();
             });
         });
 
-        // Event: Program (A/B)
-        document.getElementById('program-load').addEventListener('click', loadProgramAll);
-        document.getElementById('program-toggle').addEventListener('click', () => {
-            state.showAllProgram = !state.showAllProgram;
-            renderProgram();
-        });
+        // Event: Program (A/B). Skift af variant indlæser den variant som dagens
+        // træning — programmet er dagens træning, ikke en liste man tilføjer fra.
         document.getElementById('progressive-toggle').addEventListener('click', () => {
             state.showAllProgressive = !state.showAllProgressive;
             renderProgressiveOverload();
@@ -1540,49 +1570,43 @@
             const btn = e.target.closest('.variant-btn');
             if (!btn) return;
             state.programVariant = btn.dataset.variant;
-            renderProgram();
+            state.editing = null;
+            loadProgram();
+            renderAll();
         });
         document.getElementById('program-content').addEventListener('click', (e) => {
-            const row = e.target.closest('.program-exercise');
-            if (!row) return;
-            const variant = getCurrentVariant();
-            // Slå op i PRÆCIS den liste der vises — den kan komme fra din sidste træning
-            // og indeholde øvelser der ikke står i skabelonen.
-            const item = programView(state.currentDay, variant, state.showAllProgram).shown
-                .find(i => i.exerciseId === row.dataset.exerciseId);
-            if (!item) return;
-            if (addExerciseWithPlan(item.exerciseId, item.sets, item.reps, item.weight)) {
-                state.sessionVariant = variant;
-                renderAll();
-                showToast('Exercise added from the program', 'success');
-            } else {
-                showToast('Exercise is already added', 'info');
-            }
-        });
-        document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
-
-        // Event: Add exercise
-        document.getElementById('add-exercise-btn').addEventListener('click', () => {
-            const select = document.getElementById('exercise-select');
-            if (!select.value) {
-                showToast('Pick an exercise first', 'error');
+            // Byttelisten: vælg en anden øvelse i samme muskelgruppe.
+            const option = e.target.closest('.swap-option');
+            if (option) {
+                swapExercise(option.dataset.swapSlot, option.dataset.swapId);
                 return;
             }
-            addExercise(select.value);
-            select.value = '';
+            // Navnet åbner/lukker byttelisten.
+            const nameBtn = e.target.closest('.program-ex-name-btn');
+            if (nameBtn) {
+                const slot = nameBtn.dataset.swapSlot;
+                state.openSwap = state.openSwap === slot ? null : slot;
+                renderProgram();
+                return;
+            }
+            // Resten af rækken henter en fjernet øvelse tilbage i dagens træning.
+            const row = e.target.closest('.program-exercise');
+            if (!row) return;
+            addExerciseToSession(row.dataset.exerciseId);
         });
+        document.getElementById('sample-btn').addEventListener('click', toggleSampleData);
 
         // Event: Add exercise from progressive suggestion
         document.getElementById('progressive-list').addEventListener('click', (e) => {
             const addBtn = e.target.closest('.add-from-prog-btn');
             if (addBtn) {
                 e.stopPropagation();
-                addExerciseFromSuggestion(addBtn.dataset.exerciseId);
+                addExerciseToSession(addBtn.dataset.exerciseId);
                 return;
             }
             const card = e.target.closest('.progressive-item');
             if (card && !e.target.closest('.add-from-prog-btn')) {
-                addExerciseFromSuggestion(card.dataset.exerciseId);
+                addExerciseToSession(card.dataset.exerciseId);
             }
         });
 
@@ -1595,6 +1619,10 @@
             const addSetBtn = e.target.closest('.add-set-btn');
             if (addSetBtn) {
                 addSet(parseInt(addSetBtn.dataset.exIndex));
+            }
+            const removeSetBtn = e.target.closest('.remove-set-btn');
+            if (removeSetBtn && !removeSetBtn.disabled) {
+                removeSet(parseInt(removeSetBtn.dataset.exIndex));
             }
         });
 
@@ -1651,6 +1679,9 @@
                 closeShareModal();
             }
         });
+
+        // Dagens program er dagens træning — det ligger klart ved åbning.
+        loadProgram();
 
         // Initial render
         renderAll();

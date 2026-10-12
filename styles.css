@@ -395,6 +395,36 @@
         }
         .add-set-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 
+        /* Sæt-rækken: man må gerne løfte færre sæt end programmet anbefaler */
+        .set-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .set-actions .add-set-btn,
+        .set-actions .remove-set-btn { flex: 1; }
+        .remove-set-btn {
+            margin-top: 8px;
+            padding: 8px 14px;
+            background: transparent;
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+        .remove-set-btn:hover:not(:disabled) { border-color: var(--secondary); color: var(--secondary); }
+        .remove-set-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Anbefalingen fra programmet. Bliver stående når man retter tallene. */
+        .exercise-target {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin: 4px 0 0;
+        }
+
         .exercise-volume {
             margin-top: 10px;
             padding-top: 10px;
@@ -907,34 +937,70 @@
             font-weight: 600;
             white-space: nowrap;
         }
+        /* Rækken er lagt ind i dagens træning — tallet er det anbefalede */
         .program-ex-added {
-            font-size: 0.65rem;
-            background: var(--accent);
-            color: #000;
-            padding: 1px 6px;
-            border-radius: 10px;
+            font-size: 0.75rem;
+            color: var(--accent);
             font-weight: 700;
+            white-space: nowrap;
         }
-        .program-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .program-load-btn {
-            flex: 1;
-            padding: 10px 14px;
-            background: var(--accent);
-            color: #000;
+        /* En række man har fjernet fra dagens træning */
+        .program-exercise.not-added { opacity: 0.6; }
+
+        /* Navnet er en knap: tryk for at bytte øvelsen til en anden i samme
+           muskelgruppe. Rækker uden alternativer har ingen knap. Knappen er et
+           tap-target i samme højdeklasse som de øvrige knapper. */
+        .program-ex-name-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            min-height: 28px;
+            padding: 0;
+            background: none;
             border: none;
-            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: inherit;
             font-size: 0.82rem;
-            font-weight: 700;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+        }
+        .program-ex-name-btn:hover { color: var(--accent); }
+        .swap-caret { color: var(--text-dim); font-size: 0.7rem; }
+        .program-ex-name-btn.open .swap-caret { color: var(--accent); }
+
+        /* Byttelisten: kun øvelser i samme muskelgruppe, den nuværende markeret */
+        .swap-menu {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 6px;
+        }
+        .swap-option {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+            width: 100%;
+            padding: 6px 8px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.78rem;
+            text-align: left;
             cursor: pointer;
             transition: all var(--transition);
-            font-family: inherit;
         }
-        .program-load-btn:hover { background: var(--accent-dark); }
-        .program-load-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .swap-option:hover { border-color: var(--accent); }
+        .swap-option.current {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+            cursor: default;
+        }
+        .swap-option-name { font-weight: 600; }
+        .swap-option-meta { font-size: 0.68rem; color: var(--text-dim); }
 
         /* ===== A/B VARIANT SELECTOR ===== */
         .variant-selector {
