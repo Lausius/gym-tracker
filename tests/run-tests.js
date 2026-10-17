@@ -760,7 +760,21 @@ setSwap('lower', 'A', 'calf_raise', 'calf_raise_leg_press');
 loadProgram();
 ok('Efter et bytte peger den byttede øvelse stadig på den oprindelige række',
     slotForExercise('calf_raise_leg_press') === 'calf_raise');
-ok('Den øvelse der blev byttet væk har ingen række mere', slotForExercise('calf_raise') === null);
+// Den øvelse der blev byttet væk skal stadig pege på rækken: en ældre gemt træning
+// indeholder den, og kortet skal kunne byttes videre derfra.
+ok('Den øvelse der blev byttet væk peger stadig på sin række', slotForExercise('calf_raise') === 'calf_raise');
+state.exercises = [];
+ok('Den byttede-væk-øvelse har stadig en bytte-liste med alternativer',
+    swapCandidates('lower', 'calf_raise').length > 1, swapCandidates('lower', 'calf_raise').map(c => c.id).join(', '));
+// Og et bytte sat i gang fra den øvelse rammer det kort der står på skærmen, også
+// når kortet viser den øvelse rækken blev byttet væk fra (ældre gemt træning)
+state.exercises = [{ exerciseId: 'calf_raise', plan: null, sets: [{ weight: 100, reps: 12 }], targetReps: 12 }];
+swapExercise('calf_raise', 'calf_raise_leg_press');
+ok('Et bytte fra en ældre trænings kort skifter kortet på skærmen',
+    state.exercises.length === 1 && state.exercises[0].exerciseId === 'calf_raise_leg_press',
+    JSON.stringify(state.exercises.map(e => e.exerciseId)));
+state.exercises = [];
+
 ok('En øvelse uden for programmet har ingen række at bytte på', slotForExercise('dips') === null);
 ok('Opslaget følger den viste dag', slotForExercise('bench_press') === null);
 

@@ -1575,6 +1575,116 @@ async function main() {
     await sleep(250);
     ok('Ingen JS-fejl fra notes-panelet', pageErrors.length === 0, JSON.stringify(pageErrors));
 
+    // ─── 18. Byt en øvelse mens en gemt træning redigeres ─────────
+    // Klage: efter "Save" → historik → Rediger kunne Leg Press ikke byttes, mens
+    // det virkede fint i en ny træning. Redigeringstilstanden må ikke låse byttet.
+    console.log('\n── 18. Bytte under redigering af en gemt træning');
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await openSession('lowerB');
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(400);
+
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(250);
+    await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
+    await sleep(350);
+    ok('Redigering af Lower B indlæser træningen',
+        (await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).includes("leg_press")')) === true);
+
+    const editSwap = await evaluate(`
+        const byId = id => [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === id);
+        const card = byId("leg_press");
+        const btn = card && card.querySelector(".exercise-name-btn");
+        if (!btn) return { hasButton: false, opts: [] };
+        btn.click();
+        const after = byId("leg_press");
+        const opts = [...after.querySelectorAll(".swap-option")].map(o => o.dataset.swapId);
+        const option = [...after.querySelectorAll(".swap-option")].find(o => o.dataset.swapId === "bulgarian_split");
+        if (option) option.click();
+        return { hasButton: true, opts, clicked: !!option };
+    `);
+    ok('Leg Press har stadig en bytte-knap under redigering', editSwap.hasButton === true, JSON.stringify(editSwap));
+    ok('Bytte-listen under redigering rummer Bulgarian Split Squat', editSwap.opts.includes('bulgarian_split'), JSON.stringify(editSwap.opts));
+    await sleep(300);
+    ok('Valget skifter øvelsen på kortet under redigering',
+        (await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).includes("bulgarian_split")')) === true,
+        await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).join(",")'));
+
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(400);
+    ok('Opdateringen gemmer den byttede øvelse i den gemte træning',
+        (await evaluate(`
+            const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
+            return w.length === 1 && w[0].exercises.some(e => e.exerciseId === "bulgarian_split") &&
+                !w[0].exercises.some(e => e.exerciseId === "leg_press");
+        `)) === true,
+        await evaluate('return JSON.stringify((JSON.parse(localStorage.getItem("gym_tracker_workouts")||"[]")[0]||{}).exercises?.map(e=>e.exerciseId))'));
+
+    // ─── 18b. Husket bytte + gammel gemt træning ──────────────────
+    // Har man byttet Leg Press væk i programmet, viser et ældre gemt pas stadig Leg
+    // Press. Kortet skal kunne byttes alligevel — det var det der ikke virkede.
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await openSession('lowerB');
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(400);
+    // Efter gem rykker appen til næste pas i ugen — tilbage til Lower B, som er det
+    // gemte pas, byttet skal ramme.
+    await openSession('lowerB');
+    // Byt Leg Press væk i selve programmet (huskes for lowerB)
+    await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press");
+        card.querySelector(".exercise-name-btn").click();
+        return true;
+    `);
+    await sleep(250);
+    await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press");
+        [...card.querySelectorAll(".swap-option")].find(o => o.dataset.swapId === "lunges").click();
+        return true;
+    `);
+    await sleep(300);
+    const programSwapIds = await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).join(",")');
+    ok('Programmet husker byttet (Leg Press → Lunges)', programSwapIds.includes('lunges'), programSwapIds);
+
+    // Åbn den gamle træning (den indeholder stadig Leg Press) og prøv at bytte den
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(250);
+    await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
+    await sleep(350);
+    const oldSweep = await evaluate(`
+        const byId = id => [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === id);
+        const card = byId("leg_press");
+        const btn = card && card.querySelector(".exercise-name-btn");
+        if (!btn) return { hasButton: false, opts: [] };
+        btn.click();
+        const after = byId("leg_press");
+        return { hasButton: true, opts: [...after.querySelectorAll(".swap-option")].map(o => o.dataset.swapId) };
+    `);
+    ok('Leg Press i en ældre gemt træning har stadig en bytte-knap', oldSweep.hasButton === true, JSON.stringify(oldSweep));
+    ok('Bytte-listen virker selv om programmet er byttet videre', oldSweep.opts.includes('bulgarian_split'), JSON.stringify(oldSweep.opts));
+
+    // Og valget skal faktisk skifte kortet i den gemte træning
+    await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press");
+        [...card.querySelectorAll(".swap-option")].find(o => o.dataset.swapId === "bulgarian_split").click();
+        return true;
+    `);
+    await sleep(300);
+    ok('Valget skifter Leg Press i den ældre træning',
+        (await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).join(",")')) .includes('bulgarian_split'),
+        await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId).join(",")'));
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(400);
+    ok('Opdateringen gemmer det nye bytte i den ældre træning',
+        (await evaluate(`
+            const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
+            return w.length === 1 && w[0].exercises.some(e => e.exerciseId === "bulgarian_split") &&
+                !w[0].exercises.some(e => e.exerciseId === "leg_press");
+        `)) === true,
+        await evaluate('return JSON.stringify((JSON.parse(localStorage.getItem("gym_tracker_workouts")||"[]")[0]||{}).exercises?.map(e=>e.exerciseId))'));
+
     const smallBtns = await evaluate(`
         const btns = [...document.querySelectorAll("button")].filter(b => b.offsetParent !== null);
         return btns.filter(b => b.getBoundingClientRect().height < 28)
