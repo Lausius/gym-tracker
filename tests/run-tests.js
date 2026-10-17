@@ -646,6 +646,20 @@ ok('Back extension har alternativer',
     swapCandidates('lower', 'back_extension').map(c => c.id).join(', '));
 ok('Leg curl kan byttes til Nordic Hamstring Curl og Seated Leg Curl',
     ['nordic_curl', 'seated_leg_curl'].every(id => swapCandidates('lower', 'leg_curl').some(c => c.id === id)));
+// Håndvægt-RDL er tilføjet på hans egen anmodning og skal kunne vælges. Stang-RDL
+// er stadig udelukket, fordi den belaster lænden.
+const dbRdl = ALL_EXERCISES.lower.find(e => e.id === 'dumbbell_rdl');
+ok('Dumbbell Romanian Deadlift findes som håndvægtøvelse per hånd',
+    !!dbRdl && dbRdl.equipment === 'Dumbbell' && dbRdl.loadNote === 'per hand', JSON.stringify(dbRdl));
+ok('Dumbbell RDL er en hofte-hinge med hamstrings/glutes',
+    !!dbRdl && dbRdl.compound === true && dbRdl.muscle.split('/').includes('Hamstrings'));
+ok('Dumbbell RDL kan vælges som bytte',
+    swapCandidates('lower', 'cable_pull_through').some(c => c.id === 'dumbbell_rdl') &&
+    swapCandidates('lower', 'leg_curl').some(c => c.id === 'dumbbell_rdl'),
+    swapCandidates('lower', 'leg_curl').map(c => c.id).join(', '));
+ok('Stang-RDL bliver stadig ikke tilbudt ved siden af håndvægt-RDL',
+    swapCandidates('lower', 'cable_pull_through').some(c => c.id === 'dumbbell_rdl') &&
+    !swapCandidates('lower', 'cable_pull_through').some(c => c.id === 'romanian_deadlift'));
 
 // En øvelse der allerede står i dagens træning tilbydes ikke igen
 state.exercises = [{ exerciseId: 'dumbbell_press', plan: null, sets: [], targetReps: 8 }];
