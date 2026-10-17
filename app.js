@@ -642,9 +642,13 @@
     // Hvilken programrække en øvelse hører til i dag. Et bytte kan sættes i gang både
     // fra programrækken og fra øvelseskortet, så begge steder skal kunne finde slotten.
     // Er øvelsen ikke en del af programmet (fx hentet ind i hånden), er der intet at bytte.
+    // Kigger man på en ældre gemt træning, kan rækken være byttet videre i mellemtiden:
+    // rækken hedder så noget andet, men `swappedFrom` peger stadig på den øvelse
+    // træningen indeholder. Uden det sidste opslag ville netop det kort stå uden
+    // bytte-knap, fordi dets id ikke længere findes i programmet.
     function slotForExercise(exerciseId) {
         const item = programItems(state.currentDay, getCurrentVariant())
-            .find(i => i.exerciseId === exerciseId);
+            .find(i => i.exerciseId === exerciseId || i.swappedFrom === exerciseId);
         return item ? (item.swappedFrom || item.exerciseId) : null;
     }
 
@@ -1175,7 +1179,17 @@
         const before = programItems(state.currentDay, variant)
             .find(i => (i.swappedFrom || i.exerciseId) === slotId);
         const previousId = before ? before.exerciseId : null;
-        if (!previousId || previousId === exerciseId) {
+        if (!previousId) {
+            state.openSwap = null;
+            renderAll();
+            return;
+        }
+        // Hvad der faktisk står på kortet: normalt programmets øvelse, men i en ældre
+        // gemt træning kan det være den øvelse rækken senere er byttet væk fra.
+        let idx = state.exercises.findIndex(e => e.exerciseId === previousId);
+        const onCard = idx >= 0 ? previousId : slotId;
+        if (idx < 0) idx = state.exercises.findIndex(e => e.exerciseId === slotId);
+        if (onCard === exerciseId) {
             state.openSwap = null;
             renderAll();
             return;
@@ -1191,7 +1205,6 @@
 
         setSwap(state.currentDay, variant, slotId, exerciseId);
 
-        const idx = state.exercises.findIndex(e => e.exerciseId === previousId);
         if (idx >= 0) {
             const item = programItems(state.currentDay, variant).find(i => i.exerciseId === exerciseId);
             if (item) {
