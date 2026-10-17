@@ -342,6 +342,11 @@
             width: 32px;
             text-align: center;
         }
+        /* iOS Safari zoomer ind på siden, når et felt får fokus og har en font-size under
+           16px. 16px er derfor et krav til ALLE redigerbare felter (også dem der ser små
+           ud i designet) — maximum-scale/user-scalable=no er ingen løsning: det slår
+           pinch-zoom fra for alle og ignoreres alligevel af nyere iOS. Se test 19 i
+           tests/browser-check.js, der måler den beregnede font-size på hvert synligt felt. */
         .sets-table input[type="number"] {
             width: 100%;
             padding: 8px 10px;
@@ -349,7 +354,7 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             color: var(--text);
-            font-size: 0.9rem;
+            font-size: 16px;
             font-weight: 500;
             transition: all var(--transition);
             -moz-appearance: textfield;
@@ -471,7 +476,7 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             color: var(--text);
-            font-size: 0.9rem;
+            font-size: 16px; /* se kommentaren ved .sets-table: under 16px zoomer iOS ind */
             transition: all var(--transition);
         }
         .form-row input:focus, .form-row select:focus {
@@ -1141,7 +1146,7 @@
             border-radius: var(--radius-sm);
             color: var(--text);
             font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 0.75rem;
+            font-size: 16px; /* under 16px zoomer iOS ind, også når feltet er readonly */
             line-height: 1.5;
             padding: 12px;
             resize: vertical;
@@ -1170,7 +1175,7 @@
             border: 1px solid var(--border);
             color: var(--text);
             font-family: inherit;
-            font-size: 0.8rem;
+            font-size: 16px; /* se .sets-table: under 16px zoomer iOS ind ved fokus */
         }
         .share-size {
             font-size: 0.75rem;

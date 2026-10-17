@@ -1692,6 +1692,53 @@ async function main() {
     `);
     ok(`Alle synlige knapper er mindst 28px høje (${smallBtns.length} for små)`, smallBtns.length === 0, smallBtns.join(', '));
 
+    // ─── 19. Felt-fontstørrelse (iOS zoomer ind under 16px) ──────
+    // iOS Safari zoomer hele siden ind, når et felt med font-size under 16px får fokus,
+    // og bliver hængende i det zoom. Testen måler den BEREGNEDE størrelse (ikke kilden),
+    // så en fremtidig "lidt mindre font" i styles.css ikke kan genindføre zoomet i stilhed.
+    // Løsningen er fontstørrelsen, ikke user-scalable=no/maximum-scale: det slår
+    // pinch-zoom fra for alle og ignoreres alligevel af nyere iOS.
+    console.log('\n── 19. Felt-fontstørrelse (iOS fokus-zoom)');
+
+    const viewportMeta = await evaluate('return document.querySelector("meta[name=\\"viewport\\"]").content;');
+    ok('Viewporten forbyder ikke zoom (ingen maximum-scale/user-scalable=no)',
+        !/maximum-scale|user-scalable\s*=\s*no/i.test(viewportMeta), viewportMeta);
+
+    const maalFelter = async (hvor) => {
+        const fields = await evaluate(`
+            return [...document.querySelectorAll("input, select, textarea")]
+                .filter(f => f.offsetParent !== null)
+                .map(f => ({ felt: (f.id || f.className || f.tagName.toLowerCase()), px: parseFloat(getComputedStyle(f).fontSize) }));
+        `);
+        const smaa = fields.filter(x => !(x.px >= 16));
+        ok(`Intet synligt felt under 16px i "${hvor}" (${fields.length} målt)`, smaa.length === 0,
+            smaa.map(x => `${x.felt}=${x.px}px`).join(', '));
+        return fields.length;
+    };
+
+    const antalKortFelter = await maalFelter('træningskortene');
+    ok('Der blev faktisk målt nogle felter på kortene', antalKortFelter > 0, String(antalKortFelter));
+
+    // 16px i et sæt-tabel kan presse kolonnerne, så siden får vandret scroll — det ville
+    // være en dårligere kur end zoomet.
+    const overflow = await evaluate(`
+        return {
+            sideBredde: document.documentElement.scrollWidth,
+            viewport: window.innerWidth,
+            tabelOver: [...document.querySelectorAll("#exercise-list .sets-table")]
+                .filter(t => t.scrollWidth > t.clientWidth + 1)
+                .map(t => (t.closest(".exercise-card") || {}).dataset ? t.closest(".exercise-card").dataset.exerciseId : "tabel"),
+        };
+    `);
+    ok('De større felter giver ingen vandret overflow',
+        overflow.sideBredde <= overflow.viewport + 1 && overflow.tabelOver.length === 0, JSON.stringify(overflow));
+
+    await evaluate('document.getElementById("btn-share").click(); return true;');
+    await sleep(250);
+    await maalFelter('deling af træning');
+    await evaluate('document.getElementById("share-modal-close").click(); return true;');
+    await sleep(200);
+
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
