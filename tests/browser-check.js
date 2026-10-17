@@ -522,7 +522,8 @@ async function main() {
         };
     `);
     ok('Bytte-listen åbner når man trykker på navnet', menu.count > 1, JSON.stringify(menu));
-    ok('Alle valg er i samme muskelgruppe som Bench Press', menu.muscles.every(m => m === 'Chest'), JSON.stringify(menu.muscles));
+    ok('Alle valg deler muskelgruppe med Bench Press',
+        menu.muscles.every(m => m.split('/').map(s => s.trim()).includes('Chest')), JSON.stringify(menu.muscles));
     ok('Listen rummer ikke øvelser fra andre grupper', !menu.ids.includes('lat_pulldown') && !menu.ids.includes('ez_bar_curl'));
     ok('Den nuværende øvelse er markeret i listen', menu.current === 'bench_press');
     ok('Øvelser der allerede står i dagens træning tilbydes ikke', (await evaluate(`
@@ -592,12 +593,44 @@ async function main() {
     ok('Og så er overriden væk (ingen gammel husket bytte)',
         (await evaluate('return JSON.stringify(JSON.parse(localStorage.getItem("gym_tracker_program_swaps") || "{}"))')) === '{}');
 
-    // En øvelse uden alternativer (Leg Curl er alene i sin muskelgruppe) får ingen menu
+    // Leg Curl sad før alene i sin muskelgruppe og havde derfor ingen menu. Det var
+    // en fejl: den skal kunne byttes til de andre hamstring-øvelser.
     await openSession('lowerA');
-    ok('Leg Curl har ingen bytte-knap (den er alene i sin gruppe)',
+    const legCurlSwap = await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
+        const btn = card.querySelector(".exercise-name-btn");
+        if (!btn) return { has: false, opts: [] };
+        btn.click();
+        const after = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
+        const opts = [...after.querySelectorAll(".swap-option")].map(o => o.dataset.swapId);
+        after.querySelector(".exercise-name-btn").click();
+        return { has: true, opts };
+    `);
+    ok('Leg Curl har en bytte-knap', legCurlSwap.has === true, JSON.stringify(legCurlSwap));
+    ok('Leg Curl kan byttes til Nordic og Seated Leg Curl',
+        legCurlSwap.opts.includes('nordic_curl') && legCurlSwap.opts.includes('seated_leg_curl'),
+        JSON.stringify(legCurlSwap.opts));
+    ok('Back Extension kan byttes (Good Morning deler Lower back)',
         (await evaluate(`
-            const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
-            return !!card && !card.querySelector(".exercise-name-btn") && !!card.querySelector(".exercise-name");
+            const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "back_extension");
+            const btn = card && card.querySelector(".exercise-name-btn");
+            if (!btn) return false;
+            btn.click();
+            const after = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "back_extension");
+            const ids = [...after.querySelectorAll(".swap-option")].map(o => o.dataset.swapId);
+            after.querySelector(".exercise-name-btn").click();
+            return ids.includes("good_morning");
+        `)) === true);
+    ok('Leg Press kan byttes til Bulgarian Split Squat',
+        (await evaluate(`
+            const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press");
+            const btn = card && card.querySelector(".exercise-name-btn");
+            if (!btn) return false;
+            btn.click();
+            const after = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press");
+            const ids = [...after.querySelectorAll(".swap-option")].map(o => o.dataset.swapId);
+            after.querySelector(".exercise-name-btn").click();
+            return ids.includes("bulgarian_split");
         `)) === true);
     ok('Hip Thrust har en bytte-knap (Glute Bridge i samme gruppe)',
         (await evaluate(`
@@ -646,7 +679,8 @@ async function main() {
     ok('Kortets navn åbner bytte-listen', fromCard.inCard.length > 1, JSON.stringify(fromCard));
     ok('Bytte-listen er de samme kandidater som reglen giver', fromCard.ids.join(',') === fromCard.expected,
         `${fromCard.ids.join(',')} vs ${fromCard.expected}`);
-    ok('Kortets liste er også kun samme muskelgruppe', fromCard.muscles.every(m => m === 'Chest'), JSON.stringify(fromCard.muscles));
+    ok('Kortets liste deler muskelgruppe med øvelsen',
+        fromCard.muscles.every(m => m.split('/').map(s => s.trim()).includes('Chest')), JSON.stringify(fromCard.muscles));
     ok('Kortet ved hvilken programrække det hører til', fromCard.slot === 'bench_press');
     ok('Den nuværende øvelse er markeret', fromCard.current === 'bench_press');
 
@@ -1202,8 +1236,10 @@ async function main() {
                     });
                 }
 
-                // Øvelserne: bytte-listen skal være præcis samme muskelgruppe, minus
-                // det der allerede står i dagens træning.
+                // Øvelserne: bytte-listen skal være de øvelser der deler mindst én
+                // muskelgruppe (Quads og Quads/Glutes hører sammen), minus det der
+                // allerede står i dagens træning, med øvelsen selv øverst og fuld
+                // match før delvis match.
                 // Vigtigt: hvert klik på et navn tegner listen om, så elementerne fra en
                 // opsamlet liste er derefter løsrevet fra dokumentet — et klik på en
                 // løsrevet knap når ikke den delegerede lytter. Derfor slås kortet op
@@ -1214,9 +1250,16 @@ async function main() {
                 for (const id of programItems(day, variant).map(i => i.exerciseId)) {
                     const card = cardById(id);
                     const ex = ALL_EXERCISES[day].find(e => e.id === id);
+                    const groups = m => String(m).split("/").map(s => s.trim()).filter(Boolean);
+                    const shares = (a, b) => groups(b).some(g => groups(a).includes(g));
                     const expected = ALL_EXERCISES[day]
-                        .filter(e => e.muscle === ex.muscle && e.id !== "romanian_deadlift" &&
+                        .filter(e => shares(e.muscle, ex.muscle) && e.id !== "romanian_deadlift" &&
                             (e.id === id || !inSession.includes(e.id)))
+                        .sort((a, b) => {
+                            if (a.id === id) return -1;
+                            if (b.id === id) return 1;
+                            return (a.muscle === ex.muscle ? 0 : 1) - (b.muscle === ex.muscle ? 0 : 1);
+                        })
                         .map(e => e.id);
                     const btn = card.querySelector(".exercise-name-btn");
                     let opts = null;
@@ -1268,9 +1311,13 @@ async function main() {
             ok(`${day}${variant}: en bytte-knap findes kun når der er noget at bytte til`,
                 sweep.rows.every(r => r.hasButton === (r.expected.length > 1)),
                 sweep.rows.filter(r => r.hasButton !== (r.expected.length > 1)).map(r => r.id).join(', '));
-            ok(`${day}${variant}: alle valg i bytte-listen er samme muskelgruppe`,
+            ok(`${day}${variant}: alle valg i bytte-listen deler en muskelgruppe med øvelsen`,
                 sweep.rows.every(r => !r.hasButton ||
-                    r.opts.every(o => o.muscle === r.muscle)));
+                    r.opts.every(o => o.muscle.split('/').map(s => s.trim())
+                        .some(g => r.muscle.split('/').map(s => s.trim()).includes(g)))),
+                sweep.rows.filter(r => r.hasButton && r.opts.some(o => !o.muscle.split('/').map(s => s.trim())
+                    .some(g => r.muscle.split('/').map(s => s.trim()).includes(g))))
+                    .map(r => `${r.id}: ${r.opts.map(o => o.id + '=' + o.muscle).join(', ')}`).join(' · '));
             ok(`${day}${variant}: bytte-listen rummer ikke Romanian Deadlift`,
                 sweep.rows.every(r => !r.hasButton || !r.opts.some(o => o.id === 'romanian_deadlift')));
         }
