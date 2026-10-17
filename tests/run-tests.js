@@ -605,19 +605,47 @@ const allRows = Object.entries(PROGRAMS).flatMap(([key, list]) => {
     const day = key.startsWith('upper') ? 'upper' : 'lower';
     return list.map(item => ({ day, item }));
 });
+const groupsOf = m => String(m).split('/').map(s => s.trim()).filter(Boolean);
 const offMuscle = [];
 const noSelf = [];
 const offersRdl = [];
+const noAlternative = [];
 for (const { day, item } of allRows) {
     const ex = ALL_EXERCISES[day].find(e => e.id === item.exerciseId);
     const cands = swapCandidates(day, item.exerciseId);
-    if (cands.some(c => c.muscle !== ex.muscle)) offMuscle.push(item.exerciseId);
+    // Delvis match er nok: 'Quads' og 'Quads/Glutes' hører sammen.
+    if (cands.some(c => !groupsOf(c.muscle).some(g => groupsOf(ex.muscle).includes(g)))) offMuscle.push(item.exerciseId);
     if (!cands.some(c => c.id === item.exerciseId)) noSelf.push(item.exerciseId);
     if (cands.some(c => c.id === 'romanian_deadlift')) offersRdl.push(item.exerciseId);
+    if (cands.length < 2) noAlternative.push(`${item.exerciseId} (${ex.muscle})`);
 }
-ok('Bytte-listerne rummer kun øvelser i samme muskelgruppe', offMuscle.length === 0, offMuscle.join(', '));
+ok('Bytte-listerne rummer kun øvelser der deler en muskelgruppe', offMuscle.length === 0, offMuscle.join(', '));
 ok('Bytte-listen rummer altid øvelsen selv (man kan se hvad der står)', noSelf.length === 0, noSelf.join(', '));
 ok('Romanian Deadlift bliver aldrig tilbudt som bytte', offersRdl.length === 0, offersRdl.join(', '));
+ok('Hver øvelse i programmet har mindst ét reelt alternativ', noAlternative.length === 0, noAlternative.join(', '));
+ok('Den nuværende øvelse står øverst i bytte-listen',
+    allRows.every(({ day, item }) => swapCandidates(day, item.exerciseId)[0].id === item.exerciseId));
+ok('Fuld muskelmatch rangeres før delvis match',
+    allRows.every(({ day, item }) => {
+        const ex = ALL_EXERCISES[day].find(e => e.id === item.exerciseId);
+        const flags = swapCandidates(day, item.exerciseId)
+            .filter(c => c.id !== item.exerciseId)
+            .map(c => (c.muscle === ex.muscle ? 0 : 1));
+        return flags.every((f, i) => i === 0 || flags[i - 1] <= f);
+    }));
+// De tre klager: Bulgarian Split Squat skal kunne vælges, og leg curl / back
+// extension skal have alternativer på trods af en snæver muskelgruppe.
+ok('Leg Press kan byttes til Bulgarian Split Squat',
+    swapCandidates('lower', 'leg_press').some(c => c.id === 'bulgarian_split'),
+    swapCandidates('lower', 'leg_press').map(c => c.id).join(', '));
+ok('Leg curl har alternativer selv om muskelgruppen er smal',
+    swapCandidates('lower', 'leg_curl').length > 1,
+    swapCandidates('lower', 'leg_curl').map(c => c.id).join(', '));
+ok('Back extension har alternativer',
+    swapCandidates('lower', 'back_extension').length > 1,
+    swapCandidates('lower', 'back_extension').map(c => c.id).join(', '));
+ok('Leg curl kan byttes til Nordic Hamstring Curl og Seated Leg Curl',
+    ['nordic_curl', 'seated_leg_curl'].every(id => swapCandidates('lower', 'leg_curl').some(c => c.id === id)));
 
 // En øvelse der allerede står i dagens træning tilbydes ikke igen
 state.exercises = [{ exerciseId: 'dumbbell_press', plan: null, sets: [], targetReps: 8 }];

@@ -54,7 +54,10 @@
             { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Barbell' },
             { id: 'cable_pull_through', name: 'Cable Pull-Through',       muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Cable' },
             { id: 'back_extension',    name: 'Back Extension',           muscle: 'Lower back',      compound: false, equipment: 'Bodyweight' },
+            { id: 'good_morning',      name: 'Good Morning',              muscle: 'Hamstrings/Lower back', compound: true, equipment: 'Barbell' },
             { id: 'leg_curl',          name: 'Leg Curl',                 muscle: 'Hamstrings',      compound: false, equipment: 'Machine' },
+            { id: 'nordic_curl',       name: 'Nordic Hamstring Curl',     muscle: 'Hamstrings',      compound: false, equipment: 'Bodyweight' },
+            { id: 'seated_leg_curl',   name: 'Seated Leg Curl',           muscle: 'Hamstrings',      compound: false, equipment: 'Machine' },
             { id: 'leg_extension',     name: 'Leg Extension',            muscle: 'Quads',           compound: false, equipment: 'Machine' },
             { id: 'hip_thrust',        name: 'Hip Thrust',               muscle: 'Glutes',          compound: true,  equipment: 'Barbell' },
             { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Glutes',          compound: false, equipment: 'Barbell' },
@@ -120,6 +123,9 @@
         cable_pull_through: 'Hips back, rope close between the legs, glutes finish the rep — the spine stays still. A hinge, not a squat.',
         deadlift:           'Bar close to the legs, neutral spine, push the floor away — lock the hips, not the lower back.',
         leg_curl:           'Hips still, full stretch at the bottom, control the return.',
+        nordic_curl:        'Knees on a pad, ankles anchored, lower as slowly as you can — hips stay open, no piking.',
+        seated_leg_curl:    'Back against the pad, hips still, full stretch at the top of the movement, control the return.',
+        good_morning:       'Bar on the upper back, soft knees, hips back until the hamstrings stretch — the back stays flat, the weight is light.',
         leg_extension:      'Knees still, squeeze at the top, control the way down — no swinging.',
         hip_thrust:         'Chin tucked, ribs down, posterior pelvic tilt at the top, push through the heels, 1 s squeeze.',
         glute_bridge:       'Heels in the floor, posterior pelvic tilt at the top, 1 s squeeze.',
@@ -598,13 +604,35 @@
     // Romanian Deadlift belaster hans lænd, og skal ikke kunne vælges ved et uheld.
     const NEVER_OFFERED = ['romanian_deadlift'];
 
+    // Muskelgrupperne står som 'Quads/Glutes', så et bytte matches på de enkelte
+    // grupper og ikke på hele strengen: ellers fik fx Leg Press ('Quads') ingen
+    // alternativer, selv om Bulgarian Split Squat ('Quads/Glutes') deler Quads med
+    // den. Fuld match rangeres før delvis match, så listen bliver ved med at føles
+    // som samme øvelse først.
+    function muscleGroups(ex) {
+        return String(ex.muscle || '').split('/').map(s => s.trim()).filter(Boolean);
+    }
+
+    function sharesMuscle(a, b) {
+        const mine = muscleGroups(a);
+        return muscleGroups(b).some(g => mine.includes(g));
+    }
+
     function swapCandidates(day, exerciseId) {
         const ex = getExerciseById(day, exerciseId);
         if (!ex) return [];
         const inSession = new Set(state.exercises.map(e => e.exerciseId));
-        return ALL_EXERCISES[day].filter(e =>
-            e.muscle === ex.muscle && !NEVER_OFFERED.includes(e.id) &&
+        const usable = ALL_EXERCISES[day].filter(e =>
+            sharesMuscle(e, ex) && !NEVER_OFFERED.includes(e.id) &&
             (e.id === exerciseId || !inSession.has(e.id)));
+        // Den nuværende øverst, derefter fuld muskelmatch, derefter delvis match.
+        return usable.sort((a, b) => {
+            if (a.id === exerciseId) return -1;
+            if (b.id === exerciseId) return 1;
+            const af = a.muscle === ex.muscle ? 0 : 1;
+            const bf = b.muscle === ex.muscle ? 0 : 1;
+            return af - bf;
+        });
     }
 
     // Hvilken programrække en øvelse hører til i dag. Et bytte kan sættes i gang både
