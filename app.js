@@ -52,6 +52,7 @@
             { id: 'bulgarian_split',   name: 'Bulgarian Split Squat',    muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
             { id: 'lunges',            name: 'Lunges',                   muscle: 'Quads/Glutes',    compound: true,  equipment: 'Dumbbell', loadNote: 'per leg' },
             { id: 'romanian_deadlift', name: 'Romanian Deadlift',        muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Barbell' },
+            { id: 'dumbbell_rdl',      name: 'Dumbbell Romanian Deadlift', muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Dumbbell', loadNote: 'per hand' },
             { id: 'cable_pull_through', name: 'Cable Pull-Through',       muscle: 'Hamstrings/Glutes', compound: true, equipment: 'Cable' },
             { id: 'back_extension',    name: 'Back Extension',           muscle: 'Lower back',      compound: false, equipment: 'Bodyweight' },
             { id: 'good_morning',      name: 'Good Morning',              muscle: 'Hamstrings/Lower back', compound: true, equipment: 'Barbell' },
@@ -120,6 +121,7 @@
         bulgarian_split:    'Front foot far enough forward that the knee tracks over mid-foot, slight forward lean, back knee straight down.',
         lunges:             'Step so the knee tracks over mid-foot, torso upright, back knee down toward the floor.',
         romanian_deadlift:  'Hips back, bar close to the legs, stop when the hamstrings run out of stretch — not at the floor. 2-3 s down.',
+        dumbbell_rdl:       'Dumbbells in front of the thighs, hips back, soft knees — stop when the hamstrings run out of stretch. 2-3 s down, back flat.',
         cable_pull_through: 'Hips back, rope close between the legs, glutes finish the rep — the spine stays still. A hinge, not a squat.',
         deadlift:           'Bar close to the legs, neutral spine, push the floor away — lock the hips, not the lower back.',
         leg_curl:           'Hips still, full stretch at the bottom, control the return.',
@@ -601,7 +603,9 @@
     // i dagens træning. Reglen læser muskelgruppen i EXERCISES, så en ny øvelse
     // kommer med i listerne af sig selv.
     // Øvelser der ikke må tilbydes som alternativ, selv om de deler muskelgruppe.
-    // Romanian Deadlift belaster hans lænd, og skal ikke kunne vælges ved et uheld.
+    // Stang-RDL belaster hans lænd, og skal ikke kunne vælges ved et uheld.
+    // Håndvægt-RDL er bevidst IKKE på listen: den er valgt til af ham selv, og
+    // den vejer mindre i samme bevægelse, så den er den RDL-variant han bruger.
     const NEVER_OFFERED = ['romanian_deadlift'];
 
     // Muskelgrupperne står som 'Quads/Glutes', så et bytte matches på de enkelte
