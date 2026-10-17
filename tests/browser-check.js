@@ -610,6 +610,10 @@ async function main() {
     ok('Leg Curl kan byttes til Nordic og Seated Leg Curl',
         legCurlSwap.opts.includes('nordic_curl') && legCurlSwap.opts.includes('seated_leg_curl'),
         JSON.stringify(legCurlSwap.opts));
+    ok('Leg Curl kan byttes til Dumbbell Romanian Deadlift',
+        legCurlSwap.opts.includes('dumbbell_rdl'), JSON.stringify(legCurlSwap.opts));
+    ok('Leg Curl kan byttes til Dumbbell Romanian Deadlift',
+        legCurlSwap.opts.includes('dumbbell_rdl'), JSON.stringify(legCurlSwap.opts));
     ok('Back Extension kan byttes (Good Morning deler Lower back)',
         (await evaluate(`
             const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "back_extension");
