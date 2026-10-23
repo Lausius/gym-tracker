@@ -638,6 +638,45 @@ async function main() {
             return !!card && !!card.querySelector(".exercise-name-btn");
         `)) === true);
 
+    // Tallene hører til øvelsen, ikke til rækken. Bytter man Leg Press (225 kg) til
+    // Leg Extension, må de 225 kg ikke følge med — Leg Extension vejer 70 kg.
+    const legExtSwap = await evaluate(`
+        const card = () => [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.dataset.exerciseId === "leg_press");
+        const btn = card() && card().querySelector(".exercise-name-btn");
+        if (!btn) return { swapped: false };
+        btn.click();
+        const option = [...card().querySelectorAll(".swap-option")].find(o => o.dataset.swapId === "leg_extension");
+        if (!option) return { swapped: false, opts: [...card().querySelectorAll(".swap-option")].map(o => o.dataset.swapId) };
+        option.click();
+        return { swapped: true };
+    `);
+    await sleep(300);
+    const extCard = await evaluate(`
+        const card = [...document.querySelectorAll("#exercise-list .exercise-card")]
+            .find(c => c.dataset.exerciseId === "leg_extension");
+        if (!card) return { found: false };
+        const row = getProgram("lower", "B").find(r => r.exerciseId === "leg_extension");
+        return {
+            found: true,
+            plan: (card.querySelector(".exercise-target") || { textContent: "" }).textContent.trim(),
+            weights: [...card.querySelectorAll(".set-weight")].map(i => Number(i.value)),
+            reps: [...card.querySelectorAll(".set-reps")].map(i => Number(i.value)),
+            sets: card.querySelectorAll(".set-weight").length,
+            row: { sets: row.sets, reps: row.reps, weight: row.weight },
+        };
+    `);
+    ok('Leg Press kan byttes til Leg Extension', legExtSwap.swapped === true, JSON.stringify(legExtSwap));
+    ok('Anbefalingen på kortet er Leg Extensions egne tal, ikke Leg Press\' 225 kg',
+        extCard.found && extCard.plan.includes("@ " + extCard.row.weight + " kg") && !extCard.plan.includes("225"),
+        JSON.stringify(extCard));
+    ok('Felterne er forudfyldt med Leg Extensions egen vægt og reps',
+        extCard.found && extCard.sets === extCard.row.sets &&
+        extCard.weights.every(w => w === extCard.row.weight) && extCard.reps.every(r => r === extCard.row.reps),
+        JSON.stringify(extCard));
+    ok('Ingen 225 kg fra Leg Press står tilbage på kortet',
+        extCard.found && !extCard.weights.includes(225), JSON.stringify(extCard.weights));
+
     // ─── 9b. Byt direkte fra øvelseskortet ────────────────────────
     // Man kigger på sine øvelser i "Exercises", ikke i programlisten, når man står
     // midt i en træning. Navnet på kortet skal derfor åbne samme bytte-liste.
