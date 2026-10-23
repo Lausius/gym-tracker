@@ -56,7 +56,7 @@ vm.runInContext(
         applyWorkoutEdit, isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText,
     markShareScopeAsShared, CHAR_LIMIT,
         buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-        lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise,
+        lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise, planFor,
         SESSION_FOCUS, SESSION_ORDER, weekDone, isDoneThisWeek, nextSessionInWeek, weekConflict,
         sessionLabel, parseKey, missingExerciseCount, restoreMissingExercises,
         loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
@@ -71,7 +71,7 @@ const {
     calculateProgressiveOverload, programKey, applyWorkoutEdit,
     isoWeekKey, weekLabel, groupByWeek, formatSets, generateShareText, markShareScopeAsShared, CHAR_LIMIT,
     buildSampleWorkouts, isSampleWorkout, realWorkouts, mondayOf,
-    lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise,
+    lastWorkoutFor, programItems, swapCandidates, setSwap, loadSwaps, sessionEntryFor, slotForExercise, planFor,
     SESSION_FOCUS, SESSION_ORDER, weekDone, isDoneThisWeek, nextSessionInWeek, weekConflict,
     sessionLabel, parseKey, missingExerciseCount, restoreMissingExercises,
     loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
@@ -792,6 +792,52 @@ ok('Hentes tilbage på programmets plads, ikke til sidst',
     (restoreMissingExercises(), state.exercises.map(e => e.exerciseId).join(',') === fullSession.join(',')),
     state.exercises.map(e => e.exerciseId).join(','));
 ok('Der mangler ikke noget bagefter', missingExerciseCount() === 0);
+
+// Tallene hører til øvelsen, ikke til rækken. Et bytte arvede før den byttede
+// øvelses tal, så Leg Press' 225 kg blev hængende på Leg Extension (70 kg).
+store['gym_tracker_workouts'] = JSON.stringify([]);
+store['gym_tracker_program_swaps'] = JSON.stringify({ lowerA: { leg_press: 'leg_extension' } });
+const swappedRow = programItems('lower', 'A').find(i => i.exerciseId === 'leg_extension');
+const extRow = getProgram('lower', 'B').find(r => r.exerciseId === 'leg_extension');
+ok('En byttet øvelse får sin egen vægt fra skabelonen (ikke rækkens 225 kg)',
+    swappedRow.weight === extRow.weight && swappedRow.weight !== 225, JSON.stringify(swappedRow));
+ok('En byttet øvelse får også sine egne sæt og reps',
+    swappedRow.sets === extRow.sets && swappedRow.reps === extRow.reps, JSON.stringify(swappedRow));
+ok('Rækken husker stadig hvad den blev byttet fra', swappedRow.swappedFrom === 'leg_press');
+// Står øvelsen i begge varianter, er det den variant man er i der gælder
+// (Leg Curl vejer 41 kg i A og 45 kg i B).
+ok('Den variant man står i bestemmer tallene',
+    planFor('lower', 'leg_curl', 'A').weight === 41 && planFor('lower', 'leg_curl', 'B').weight === 45,
+    JSON.stringify([planFor('lower', 'leg_curl', 'A'), planFor('lower', 'leg_curl', 'B')]));
+
+// En øvelse uden programrække: dens egen historik er det eneste holdepunkt.
+store['gym_tracker_workouts'] = JSON.stringify([progWorkout('bs', '2026-10-05', 'lower', 'A',
+    [['bulgarian_split', set(20, 10)]])]);
+setSwap('lower', 'A', 'leg_press', 'bulgarian_split');
+ok('Uden programrække bruges øvelsens egen historik (20 kg × 10 → 22,5 kg)',
+    programItems('lower', 'A').find(i => i.exerciseId === 'bulgarian_split').weight === 22.5,
+    JSON.stringify(planFor('lower', 'bulgarian_split')));
+
+// Helt uden række og historik: et rent startpunkt, aldrig rækkens vægt.
+store['gym_tracker_workouts'] = JSON.stringify([]);
+const freshPlan = planFor('lower', 'hack_squat');
+ok('Uden række og historik er svaret et rent startpunkt',
+    freshPlan.sets === 3 && freshPlan.reps === 8 && freshPlan.weight === 20, JSON.stringify(freshPlan));
+
+// Og hele vejen igennem: byttet på kortet giver de nye tal i felterne.
+state.currentDay = 'lower';
+state.programVariant = 'A';
+store['gym_tracker_program_swaps'] = JSON.stringify({});
+store['gym_tracker_workouts'] = JSON.stringify([]);
+loadProgram();
+swapExercise('leg_press', 'leg_extension');
+const extCard = state.exercises.find(e => e.exerciseId === 'leg_extension');
+ok('Efter byttet står den nye øvelses vægt og reps i felterne',
+    !!extCard && extCard.sets.every(s => s.weight === 70 && s.reps === 12), JSON.stringify(extCard && extCard.sets));
+ok('Anbefalingen på kortet er den nye øvelses, ikke Leg Press\'',
+    !!extCard && extCard.plan.weight === 70 && extCard.plan.reps === 12, JSON.stringify(extCard && extCard.plan));
+ok('Den gamle øvelses vægt er ikke tilbage i dagens træning',
+    !state.exercises.some(e => e.sets.some(s => s.weight === 225)));
 
 store['gym_tracker_workouts'] = JSON.stringify([]);
 store['gym_tracker_program_swaps'] = JSON.stringify({});

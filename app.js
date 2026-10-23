@@ -587,15 +587,39 @@
         localStorage.setItem(SWAP_KEY, JSON.stringify(swaps));
     }
 
+    // Tallene der hører til en øvelse: dens egen programrække, ellers dens egen
+    // historik. En byttet øvelse må ikke arve den øvelse den erstatter — 225 kg
+    // hører til Leg Press og siger intet om Leg Extension (den vejer 70).
+    // Rækken findes på tværs af dagens to varianter, fordi en øvelse kan stå i
+    // skabelonen for den ene og bruges i begge. Den variant man står i vælges først
+    // (Leg Curl vejer 41 kg i A og 45 kg i B).
+    function planFor(day, exerciseId, variant) {
+        const others = SESSION_ORDER.filter(k => k.startsWith(day));
+        const mine = programKey(day, variant);
+        const keys = others.includes(mine) ? [mine, ...others.filter(k => k !== mine)] : others;
+        for (const key of keys) {
+            const row = getProgram(day, key.slice(-1)).find(r => r.exerciseId === exerciseId);
+            if (row) return { sets: row.sets, reps: row.reps, weight: row.weight };
+        }
+        // Ingen programrække (øvelsen er hentet ind i hånden): så er dens egen
+        // historik det eneste holdepunkt, og ellers et rent startpunkt — samme
+        // svar som appen giver en helt ny øvelse.
+        const prog = calculateProgressiveOverload(exerciseId, day);
+        const kg = parseFloat((prog.suggestion.match(/([\d.]+)\s*kg/) || [])[1]);
+        const reps = parseInt((prog.suggestion.match(/(\d+)\s*reps/) || [])[1]) || 8;
+        return { sets: 3, reps, weight: kg || prog.lastWeight || 20 };
+    }
+
     // Programmet som det ser ud for mig: skabelonen med mine bytter lagt ind.
     function programItems(day, variant) {
         const swaps = loadSwaps()[programKey(day, variant)] || {};
         return getProgram(day, variant).slice(0, MAX_PER_DAY).map(item => {
             const wanted = swaps[item.exerciseId];
             const replacement = wanted && wanted !== item.exerciseId ? getExerciseById(day, wanted) : null;
-            return replacement
-                ? { ...item, exerciseId: replacement.id, swappedFrom: item.exerciseId }
-                : { ...item };
+            if (!replacement) return { ...item };
+            // Den nye øvelse overtager pladsen i programmet — men sine egne tal.
+            // Ellers blev Leg Press' 225 kg hængende på den øvelse man byttede til.
+            return { ...item, exerciseId: replacement.id, swappedFrom: item.exerciseId, ...planFor(day, replacement.id, variant) };
         });
     }
 
@@ -1155,14 +1179,13 @@
             // Står øvelsen i programmet, er det programmets tal der gælder.
             state.exercises.push(sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant)));
         } else {
-            const prog = calculateProgressiveOverload(exerciseId, state.currentDay);
-            const weight = parseFloat((prog.suggestion.match(/([\d.]+)\s*kg/) || [])[1]) || prog.lastWeight || 20;
-            const reps = parseInt((prog.suggestion.match(/(\d+)\s*reps/) || [])[1]) || 8;
+            // Uden programrække: øvelsens egen historik, ellers et rent startpunkt.
+            const plan = planFor(state.currentDay, exerciseId, variant);
             state.exercises.push({
                 exerciseId,
-                plan: { sets: 3, reps, weight },
-                sets: Array.from({ length: 3 }, () => ({ weight, reps })),
-                targetReps: reps,
+                plan,
+                sets: Array.from({ length: plan.sets }, () => ({ weight: plan.weight, reps: plan.reps })),
+                targetReps: plan.reps,
             });
         }
         renderAll();
