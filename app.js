@@ -64,6 +64,7 @@
             { id: 'glute_bridge',      name: 'Glute Bridge',             muscle: 'Glutes',          compound: false, equipment: 'Barbell' },
             { id: 'calf_raise',        name: 'Calf Raise',               muscle: 'Calves',          compound: false, equipment: 'Machine' },
             { id: 'calf_raise_leg_press', name: 'Calf Raise (Leg Press)', muscle: 'Calves',          compound: false, equipment: 'Machine' },
+            { id: 'seated_calf_raise', name: 'Seated Calf Raise',        muscle: 'Calves',          compound: false, equipment: 'Machine' },
             { id: 'plank',             name: 'Plank',                    muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
             { id: 'cable_crunch',      name: 'Cable Crunch',             muscle: 'Abs',             compound: false, equipment: 'Cable' },
             { id: 'hanging_leg_raise', name: 'Hanging Leg Raise',        muscle: 'Abs',             compound: false, equipment: 'Bodyweight' },
@@ -134,6 +135,7 @@
         back_extension:     'Movement at the hip, neutral spine, squeeze the glutes at the top.',
         calf_raise:         'Full stretch at the bottom, 1 s pause, 1 s at the top — no bouncing.',
         calf_raise_leg_press: 'Same as the stack: full stretch, 1 s pause, 1 s at the top — the leg press tempts you into short reps.',
+        seated_calf_raise:  'Knees bent, pad low on the thigh, full stretch at the bottom — 1 s pause, 1 s at the top; the bent knee puts it on the soleus.',
         // Abs
         plank:              'Ribs down, abs and glutes tight — straight line from shoulder to heel.',
         cable_crunch:       'Hips still, crunch with the abs not the arms, slow return.',
