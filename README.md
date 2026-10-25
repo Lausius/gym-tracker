@@ -56,6 +56,15 @@ website, or by opening `index.html` straight from disk.
   - **Show all (n)** reveals the template's remaining exercises if you want to add something new.
   - There is deliberately **no ↻ button** in the program header: A/B is switched with the variant
     buttons below, and ↻ could only do the same thing.
+- **Nothing you type is lost if the app reloads:** a session in progress is written to
+  `localStorage` while you type (debounced, one write per pause) and again the moment the page is
+  hidden or leaves, so a phone that discards the tab, or a pull-to-refresh, does not cost you the
+  numbers. Reopening the app puts the typed sets back, with a short "Restored what you had typed"
+  message. A draft belongs to one pass and one ISO week: it is dropped once the workout is saved
+  (or an edit is cancelled), when the week rolls over, and when that pass is already logged.
+  Pull-to-refresh itself is switched off in CSS (`overscroll-behavior-y: contain`) — scrolling in
+  the app must not reload the page. Coming back to a pass you typed in (the week chips) also
+  brings the numbers back.
 - **Sample data for testing:** on the front page (visible only when the log is empty) you can fill in
   three weeks of A/B history with one tap — handy in a preview on another domain, where no data
   exists. It **never** touches your own workouts: the block is shown only when the log is empty or
@@ -135,8 +144,10 @@ python3 -m http.server 8099 --bind 127.0.0.1
 # → http://127.0.0.1:8099/
 ```
 
-All state lives in three `localStorage` keys: `gym_tracker_workouts`,
-`gym_tracker_current_day` and `gym_tracker_settings`.
+All state lives in `localStorage`: `gym_tracker_workouts` (saved sessions),
+`gym_tracker_current_day`, `gym_tracker_settings`, `gym_tracker_program_swaps` (remembered
+exercise swaps) and `gym_tracker_draft` (the session in progress, so a reload does not lose
+what you typed).
 
 ## Structure
 
@@ -331,7 +342,10 @@ the last workout** (run a variant, fix it, save, and see the program repeat it �
 "Remembering" line, that "Add all" loads the remembered workout with the same weight, that the template
 can still be brought up with "Show all", and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
 workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
-"per hand", and they are not in the programs), and the mobile layout at 320/375/390/430px (including that
+"per hand", and they are not in the programs), **that typed sets survive a reload** (the draft is written while you type
+and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
+draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved), and the
+mobile layout at 320/375/390/430px (including that
 the ＋/✕ buttons do not move when the text gets longer, and that nothing spills past the edge).
 
 The tests clear `localStorage` at start, so a run does not inherit state from the previous one — they

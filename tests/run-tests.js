@@ -46,7 +46,7 @@ const document = {
 let notesFetchImpl = () => Promise.reject(new Error('offline'));
 const fetch = (...args) => notesFetchImpl(...args);
 
-const ctx = { document, localStorage, console, setTimeout, Date, Math, JSON, Set, Array, Object, parseInt, parseFloat, isNaN, fetch };
+const ctx = { document, localStorage, console, setTimeout, clearTimeout, Date, Math, JSON, Set, Array, Object, parseInt, parseFloat, isNaN, fetch, scrollTo() {} };
 ctx.window = ctx;
 vm.createContext(ctx);
 vm.runInContext(
@@ -60,8 +60,11 @@ vm.runInContext(
         SESSION_FOCUS, SESSION_ORDER, weekDone, isDoneThisWeek, nextSessionInWeek, weekConflict,
         sessionLabel, parseKey, missingExerciseCount, restoreMissingExercises,
         loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
+        startEditWorkout, cancelEdit, saveWorkout, updateSet,
         warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
-        NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes };
+        NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
+        DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
+        draftKeyFor, clearDraft, scheduleDraftSave };
     `,
     ctx
 );
@@ -75,8 +78,11 @@ const {
     SESSION_FOCUS, SESSION_ORDER, weekDone, isDoneThisWeek, nextSessionInWeek, weekConflict,
     sessionLabel, parseKey, missingExerciseCount, restoreMissingExercises,
     loadProgram, addExerciseToSession, swapExercise, removeSet, state, MAX_PER_DAY,
+    startEditWorkout, cancelEdit, saveWorkout, updateSet,
     warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
     NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
+    DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
+    draftKeyFor, clearDraft, scheduleDraftSave,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -1180,7 +1186,192 @@ async function notesTests() {
     document.getElementById = realGetById;
 }
 
-notesTests().then(() => {
+// ─── 17. Udkast: det man har tastet, huskes hvis appen genindlæses ──────
+// Telefonen kan genindlæse siden midt i et sæt (fanen smides ud, eller man
+// kommer til at trække nedad). Tallene skal derfor ligge i localStorage mens man
+// taster, og lægges tilbage ved næste åbning hvis træningen aldrig blev gemt.
+// Kører efter noterne, så rækkefølgen i udskriften følger numrene.
+function draftTests() {
+console.log('\n── 17. Det tastede huskes hvis appen genindlæses (udkast)');
+
+const A0 = programItems('upper', 'A')[0].exerciseId; // første række i Upper A
+const fieldOf = (exId, si = 0) => state.exercises.find(e => e.exerciseId === exId).sets[si];
+
+// Ren verden: tom log, intet byttet, programmet for Upper A indlæst
+function freshSession() {
+    Object.keys(store).forEach(k => delete store[k]);
+    state.currentDay = 'upper';
+    state.programVariant = 'A';
+    state.sessionVariant = null;
+    state.editing = null;
+    state.allowDuplicateWeek = false;
+    loadProgram();
+}
+
+freshSession();
+ok('Et urørt program giver ikke et udkast (der er intet at huske)',
+    draftIsDirty() === false && persistDraft(TODAY) === false && !loadDrafts().upperA);
+
+// Man taster et tal ind: samme vej som feltet på kortet bruger
+updateSet(0, 0, 'weight', '62.5');
+updateSet(0, 0, 'reps', '6');
+ok('Et tastet tal gør udkastet beskidt', draftIsDirty() === true);
+ok('Det tastede skrives ned', persistDraft(TODAY) === true);
+
+const draft = loadDrafts().upperA;
+ok('Udkastet ligger på det pas man stod i', !!draft, JSON.stringify(loadDrafts()));
+ok('Udkastet husker hvilken uge det blev skrevet i (et gammelt et kan smides væk)',
+    draft && draft.week === isoWeekKey(TODAY), draft && draft.week);
+ok('Udkastet rummer hele passet, ikke kun det ene felt',
+    draft.exercises.length === programItems('upper', 'A').length);
+ok('Udkastet har det tastede tal',
+    draft.exercises.find(e => e.exerciseId === A0).sets[0].weight === 62.5 &&
+    draft.exercises.find(e => e.exerciseId === A0).sets[0].reps === 6);
+ok('Udkastet markerer ikke at man retter en gemt træning', draft.editingId === null);
+ok('Udkastet gemmer ikke afledte felter (plan/targetReps) som "tastet"',
+    !('plan' in draft.exercises[0]) && !('targetReps' in draft.exercises[0]));
+ok('Debouncen skriver ikke ét udkast pr. tastetryk', DRAFT_DEBOUNCE >= 200 && DRAFT_DEBOUNCE <= 1000, String(DRAFT_DEBOUNCE));
+
+// "Genindlæsning": programmet indlæses forfra, og udkastet lægges ovenpå
+loadProgram();
+ok('Uden udkastet står programmets tal der', fieldOf(A0).weight !== 62.5, String(fieldOf(A0).weight));
+ok('Udkastet lægges tilbage ved åbning', restoreDraft(TODAY) === true);
+ok('Det tastede tal er tilbage', fieldOf(A0).weight === 62.5 && fieldOf(A0).reps === 6);
+ok('Hele passet er med, i programmets rækkefølge',
+    state.exercises.map(e => e.exerciseId).join(',') === programItems('upper', 'A').map(i => i.exerciseId).join(','));
+ok('Anbefalingslinjen er stadig programmets tal, ikke det tastede',
+    state.exercises[0].plan && state.exercises[0].plan.weight === programItems('upper', 'A')[0].weight);
+
+// Et udkast fra en tidligere uge hører til et pas der er begyndt forfra
+const stale = loadDrafts();
+stale.upperA.week = '2026-W40';
+store[DRAFT_KEY] = JSON.stringify(stale);
+loadProgram();
+ok('Et udkast fra en tidligere uge lægges ikke tilbage', restoreDraft(TODAY) === false);
+ok('Og det smides væk i stedet for at blive liggende', !loadDrafts().upperA);
+ok('Felterne står på programmets tal igen', fieldOf(A0).weight !== 62.5);
+
+// Udkastet hører til sit eget pas
+freshSession();
+updateSet(0, 0, 'weight', '62.5');
+persistDraft(TODAY);
+state.currentDay = 'lower';
+loadProgram();
+ok('Et udkast dukker ikke op i et andet pas', restoreDraft(TODAY) === false);
+ok('Det ligger stadig på passet det blev tastet i', !!loadDrafts().upperA);
+state.currentDay = 'upper';
+loadProgram();
+ok('Tilbage på passet lægges det tastede tilbage',
+    restoreDraft(TODAY) === true && fieldOf(A0).weight === 62.5);
+
+// Et pas der allerede er gemt i ugen: der er ikke noget at genoptage
+freshSession();
+updateSet(0, 0, 'weight', '70');
+persistDraft(TODAY);
+store['gym_tracker_workouts'] = JSON.stringify([w('u9', '2026-10-06', 'upper', 'A')]);
+loadProgram();
+ok('Et pas der er gemt i ugen lægges ikke tilbage som udkast', restoreDraft(TODAY) === false);
+ok('Og udkastet slettes', !loadDrafts().upperA);
+
+// Gem træningen: udkastet er ikke længere noget man er i gang med
+freshSession();
+updateSet(0, 0, 'weight', '62.5');
+persistDraft(TODAY);
+ok('Udkastet findes før gem', !!loadDrafts().upperA);
+saveWorkout();
+ok('Træningen blev gemt', JSON.parse(store['gym_tracker_workouts']).length === 1);
+ok('Efter et gem er udkastet væk', !loadDrafts().upperA);
+ok('Og der laves ikke et nyt af det friske program', Object.keys(loadDrafts()).length === 0);
+
+// Rettelse af en gemt træning: udkastet husker at man var i gang med at rette
+const oldWorkout = {
+    id: 'w_old', date: '2026-10-06', day: 'upper', variant: 'A',
+    exercises: [{ exerciseId: A0, sets: [{ weight: 55, reps: 8 }] }],
+};
+const seedOld = () => { store['gym_tracker_workouts'] = JSON.stringify([oldWorkout]); };
+
+freshSession();
+seedOld();
+startEditWorkout('w_old');
+ok('Man står i rettetilstand af den gemte træning', !!state.editing && state.editing.id === 'w_old');
+updateSet(0, 0, 'weight', '57.5');
+persistDraft(TODAY);
+const editDraft = loadDrafts().upperA;
+ok('Udkastet markerer hvilken træning man var i gang med at rette', editDraft && editDraft.editingId === 'w_old');
+ok('Udkastet indeholder rettelsen', editDraft.exercises[0].sets[0].weight === 57.5);
+
+state.editing = null;
+state.programVariant = null;
+loadProgram();
+ok('Rettetilstanden kommer tilbage ved åbning',
+    restoreDraft(TODAY) === true && !!state.editing && state.editing.id === 'w_old');
+ok('Rettelsen er tilbage i felterne', state.exercises[0].sets[0].weight === 57.5);
+ok('Kortet har ingen anbefalingslinje i rettetilstand (som før genindlæsningen)',
+    state.exercises[0].plan === undefined);
+ok('Ugen-låsen er ikke i vejen for en rettelse der åbnes igen',
+    weekConflict(TODAY) === null);
+
+// En opgivet rettelse skal ikke dukke op igen
+freshSession();
+seedOld();
+startEditWorkout('w_old');
+updateSet(0, 0, 'weight', '57.5');
+persistDraft(TODAY);
+cancelEdit();
+ok('En opgivet rettelse gemmes ikke som udkast', !loadDrafts().upperA);
+ok('Man er ude af rettetilstanden', state.editing === null);
+
+// Udkast der ikke kan bruges: træningen findes ikke, eller øvelsen er væk fra appen
+freshSession();
+updateSet(0, 0, 'weight', '44');
+persistDraft(TODAY);
+const orphan = loadDrafts();
+orphan.upperA.editingId = 'w_findes_ikke';
+store[DRAFT_KEY] = JSON.stringify(orphan);
+loadProgram();
+ok('Et udkast til en træning der ikke findes lægges ikke tilbage', restoreDraft(TODAY) === false);
+ok('Og det slettes', !loadDrafts().upperA);
+
+freshSession();
+updateSet(0, 0, 'weight', '44');
+persistDraft(TODAY);
+const goneEx = loadDrafts();
+goneEx.upperA.exercises = goneEx.upperA.exercises
+    .map(e => (e.exerciseId === A0 ? { ...e, exerciseId: 'findes_ikke' } : e));
+store[DRAFT_KEY] = JSON.stringify(goneEx);
+loadProgram();
+ok('En øvelse der er fjernet fra appen springes over', restoreDraft(TODAY) === true);
+ok('Den ukendte øvelse står ikke på et kort', !state.exercises.some(e => e.exerciseId === 'findes_ikke'));
+ok('Resten af passet bliver lagt tilbage',
+    state.exercises.length === goneEx.upperA.exercises.length - 1, String(state.exercises.length));
+
+// Udkastet ryddes ikke af et bytte eller en rettelse af sæt-antal
+freshSession();
+updateSet(0, 0, 'weight', '62.5');
+persistDraft(TODAY);
+addExerciseToSession('lat_pulldown');
+ok('En ekstra øvelse kommer med i udkastet',
+    loadDrafts().upperA.exercises.some(e => e.exerciseId === 'lat_pulldown'));
+
+// Regression: et urørt pas må ikke blive et udkast bare fordi loggen ændrer sig under
+// det (fx en træning gemt i en anden fane). Ellers kunne programmets tal blive lagt
+// tilbage oveni historikkens tal ved næste åbning — med en besked om at man havde
+// tastet noget, hvilket man ikke havde.
+freshSession();
+store['gym_tracker_workouts'] = JSON.stringify([w('u_ny', '2026-10-06', 'upper', 'A')]);
+ok('Et urørt pas bliver ikke et udkast fordi historikken ændrer sig', draftIsDirty() === false);
+ok('Og der skrives ikke noget', persistDraft(TODAY) === false && !loadDrafts().upperA);
+updateSet(0, 0, 'weight', '61');
+ok('Men et tastet tal gør det stadig', draftIsDirty() === true && persistDraft(TODAY) === true);
+ok('Og det tastede står i udkastet', loadDrafts().upperA.exercises[0].sets[0].weight === 61);
+
+store[DRAFT_KEY] = JSON.stringify({});
+Object.keys(store).forEach(k => delete store[k]);
+state.exercises = [];
+state.editing = null;
+}
+
+notesTests().then(draftTests).then(() => {
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
     process.exit(fail === 0 ? 0 : 1);
 });

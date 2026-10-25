@@ -32,6 +32,10 @@
             min-height: 100dvh;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
+            /* Et træk nedad fra toppen genindlæser ellers siden på telefonen — midt i
+               et sæt koster det det man har tastet. Indholdet i panelerne ruller
+               stadig videre op i siden; det er kun browserens eget træk der lukkes. */
+            overscroll-behavior-y: contain;
         }
         button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
         input, select { font-family: inherit; font-size: inherit; }

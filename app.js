@@ -279,6 +279,7 @@
         editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
         openSwap: null, // skabelon-id på den øvelse hvis bytte-liste er åben
         allowDuplicateWeek: false, // sat når man bevidst gemmer samme pas to gange i ugen
+        touched: false, // sat når man selv retter noget i dagens træning (ikke ved indlæsning)
     };
 
     // ─── Storage ──────────────────────────────────────────────────
@@ -331,6 +332,139 @@
 
     function saveSettings(settings) {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    // ─── Træningsudkast (det man har tastet, før det er gemt) ──────
+    // En telefon kan smide siden væk uden varsel: Safari genstarter fanen når
+    // hukommelsen bliver lav, og et uheldigt træk nedad genindlæser den. Stod
+    // tallene kun i DOM'en, var de tabt og skulle tastes igen. Derfor skrives
+    // dagens træning ned mens man taster, og lægges tilbage ved næste åbning
+    // hvis den aldrig blev gemt.
+    const DRAFT_KEY = 'gym_tracker_draft';
+    const DRAFT_DEBOUNCE = 400; // ms: ét skriv pr. pause, ikke ét pr. tastetryk
+
+    function loadDrafts() {
+        try {
+            const data = localStorage.getItem(DRAFT_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch { return {}; }
+    }
+
+    function saveDrafts(drafts) {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+    }
+
+    // Kun øvelser og tal. Plan-linjer og targetReps er afledt af programmet og må
+    // ikke få et urørt program til at se ud som om man har tastet noget — derfor
+    // gemmes kun det man faktisk kan have rettet.
+    function draftFingerprint(exercises) {
+        return JSON.stringify((exercises || []).map(ex => ({
+            id: ex.exerciseId,
+            sets: (ex.sets || []).map(s => [s.weight, s.reps]),
+        })));
+    }
+
+    // Hvad en frisk åbning ville vise: programmets tal for passet — eller, når man
+    // retter en gemt træning, den trænings egne tal.
+    function draftBaseline() {
+        if (state.editing) {
+            const workout = loadWorkouts().find(w => w.id === state.editing.id);
+            return workout ? draftFingerprint(workout.exercises) : null;
+        }
+        const variant = state.sessionVariant || getCurrentVariant();
+        return draftFingerprint(programItems(state.currentDay, variant)
+            .map(item => sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant))));
+    }
+
+    // To krav, og begge skal være opfyldt: man skal selv have rettet noget (state.touched
+    // — ikke bare have et pas på skærmen), og det skal stadig være noget andet end det
+    // en frisk åbning ville vise. Ellers ville et urørt pas kunne gemmes som "det du har
+    // tastet", og ved næste åbning ligge oveni de rigtige tal med en forkert besked.
+    function draftIsDirty() {
+        if (!state.touched) return false;
+        const base = draftBaseline();
+        if (base === null) return true; // ukendt udgangspunkt: husk hellere end at tabe
+        return draftFingerprint(state.exercises) !== base;
+    }
+
+    // Udkastet hører til det pas man står i. sessionVariant er den variant der
+    // faktisk vises og ville blive gemt — ikke den foreslåede.
+    function draftKeyFor() {
+        return programKey(state.currentDay, state.sessionVariant || getCurrentVariant());
+    }
+
+    function clearDraft(key = draftKeyFor()) {
+        const drafts = loadDrafts();
+        if (!(key in drafts)) return false;
+        delete drafts[key];
+        saveDrafts(drafts);
+        return true;
+    }
+
+    function persistDraft(today = getTodayStr()) {
+        if (!draftIsDirty()) return false;
+        const drafts = loadDrafts();
+        drafts[draftKeyFor()] = {
+            week: isoWeekKey(today), // ugen er enheden: et udkast hører til ugens pas
+            editingId: state.editing ? state.editing.id : null,
+            exercises: state.exercises.map(ex => ({
+                exerciseId: ex.exerciseId,
+                sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
+            })),
+        };
+        saveDrafts(drafts);
+        return true;
+    }
+
+    let draftTimer = null;
+
+    function scheduleDraftSave() {
+        // Kaldes fra de steder hvor man selv retter noget — derfor er det her "man har
+        // rørt ved træningen" sættes. Et pas man bare har på skærmen er ikke et udkast.
+        state.touched = true;
+        if (draftTimer) clearTimeout(draftTimer);
+        draftTimer = setTimeout(() => { draftTimer = null; persistDraft(); }, DRAFT_DEBOUNCE);
+    }
+
+    // Lægger det tastede tilbage. Kaldes én gang, efter programmet er indlæst. Et
+    // udkast fra en tidligere uge er ikke noget man er i gang med, og et pas der
+    // allerede er gemt i ugen er der heller ikke noget at genoptage i.
+    function restoreDraft(today = getTodayStr()) {
+        const key = draftKeyFor();
+        const drafts = loadDrafts();
+        const draft = drafts[key];
+        if (!draft) return false;
+
+        const drop = () => { delete drafts[key]; saveDrafts(drafts); return false; };
+        if (draft.week !== isoWeekKey(today)) return drop();
+
+        const variant = state.sessionVariant || getCurrentVariant();
+        if (draft.editingId) {
+            // Man var i gang med at rette en gemt træning: den skal stadig findes.
+            const workout = loadWorkouts().find(w => w.id === draft.editingId);
+            if (!workout) return drop();
+            state.editing = { id: workout.id, date: workout.date, day: workout.day };
+            state.programVariant = workout.variant;
+            state.sessionVariant = workout.variant;
+        } else if (isDoneThisWeek(state.currentDay, variant, today)) {
+            return drop();
+        }
+
+        // En øvelse der er fjernet fra appen siden da, kan ikke vises på et kort.
+        const loaded = (draft.exercises || []).filter(ex => getExerciseById(state.currentDay, ex.exerciseId));
+        if (loaded.length === 0) return drop();
+
+        state.exercises = loaded.map(ex => ({
+            exerciseId: ex.exerciseId,
+            // Retter man en gemt træning, har kortet ingen anbefalingslinje — det
+            // skal udkastet heller ikke give det.
+            plan: draft.editingId ? undefined : planFor(state.currentDay, ex.exerciseId, variant),
+            sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
+        }));
+        // Det lagte er nu det man står med: retter man videre, er det dét der huskes.
+        state.touched = true;
+        showToast('Restored what you had typed', 'info');
+        return true;
     }
 
     // ─── Toast System ─────────────────────────────────────────────
@@ -722,6 +856,9 @@
         state.sessionVariant = variant;
         state.editing = null;
         state.openSwap = null;
+        // Et friskindlæst program er ikke noget man har tastet: udkastet skal komme fra
+        // brugerens egne rettelser (ellers arvede et nyt pas det forrige pas' udkast).
+        state.touched = false;
     }
 
     // ─── Eksempeldata (til at prøve appen uden at taste data ind) ──
@@ -1147,6 +1284,7 @@
             state.exercises.splice(at, 0, entry);
             restored++;
         });
+        scheduleDraftSave();
         renderAll();
         showToast(restored === 1 ? '1 exercise restored' : `${restored} exercises restored`, 'success');
         return restored;
@@ -1190,6 +1328,7 @@
                 targetReps: plan.reps,
             });
         }
+        scheduleDraftSave();
         renderAll();
         showToast(`${exercise.name} added`, 'success');
         return true;
@@ -1239,6 +1378,7 @@
         state.openSwap = null;
         const ex = getExerciseById(state.currentDay, exerciseId);
         const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
+        scheduleDraftSave();
         renderAll();
         showToast(`${ex ? ex.name : 'Exercise'} swapped in — remembered for ${dayLabel} ${variant}`, 'success');
     }
@@ -1246,6 +1386,7 @@
     function removeExercise(index) {
         const removed = state.exercises[index];
         state.exercises.splice(index, 1);
+        scheduleDraftSave();
         renderAll();
         if (removed) {
             const exercise = getExerciseById(state.currentDay, removed.exerciseId);
@@ -1261,6 +1402,7 @@
             weight: lastSet ? lastSet.weight : 20,
             reps: lastSet ? lastSet.reps : 8,
         });
+        scheduleDraftSave();
         renderAll();
     }
 
@@ -1270,6 +1412,7 @@
         const ex = state.exercises[exIndex];
         if (!ex || ex.sets.length <= 1) return;
         ex.sets.pop();
+        scheduleDraftSave();
         renderAll();
     }
 
@@ -1278,6 +1421,9 @@
         if (!ex || !ex.sets[setIndex]) return;
         const numValue = field === 'weight' ? parseFloat(value) || 0 : parseInt(value) || 0;
         ex.sets[setIndex][field] = numValue;
+        // Det tastede skrives ned med det samme (debounced), så et genindlæsning
+        // midt i et sæt ikke koster tallene.
+        scheduleDraftSave();
         renderSaveBar();
         // Update volume cell in real-time
         updateVolumeCell(exIndex, setIndex);
@@ -1363,6 +1509,8 @@
                 return;
             }
             saveWorkouts(res.workouts);
+            // Træningen er gemt: udkastet er ikke længere noget man er i gang med.
+            clearDraft();
             state.editing = null;
             state.programVariant = null;
             state.sessionVariant = null;
@@ -1400,6 +1548,7 @@
         }
 
         saveWorkouts(workouts);
+        clearDraft();
         // Efter et gem er det næste variant i rotationen der er dagens program,
         // og den indlæses med det samme — programmet ER dagens træning.
         state.programVariant = null;
@@ -1440,6 +1589,8 @@
             });
         }
         state.exercises = loaded;
+        // Rettetilstanden indlæses — man har ikke selv tastet noget endnu.
+        state.touched = false;
 
         closeHistory();
         renderAll();
@@ -1455,6 +1606,9 @@
 
     function cancelEdit() {
         if (!state.editing) return;
+        // Rettelsen er opgivet med vilje: så skal den heller ikke lægges tilbage
+        // næste gang appen åbnes.
+        clearDraft();
         state.editing = null;
         state.programVariant = null;
         state.sessionVariant = null;
@@ -1690,6 +1844,9 @@
                 state.editing = null;
                 state.allowDuplicateWeek = false;
                 loadProgram();
+                // Har man tastet noget i det pas før, står det der stadig — udkastet
+                // hører til passet, ikke til den ene visning.
+                restoreDraft();
                 renderAll();
                 return;
             }
@@ -1703,6 +1860,7 @@
                 state.editing = null;
                 state.allowDuplicateWeek = false;
                 loadProgram();
+                restoreDraft();
                 renderAll();
                 showToast(`${info.label} loaded`, 'success');
                 return;
@@ -1805,6 +1963,17 @@
 
         // Dagens program er dagens træning — det ligger klart ved åbning.
         loadProgram();
+
+        // Og det man tastede sidst lægges tilbage ovenpå, hvis appen blev lukket
+        // (eller genindlæst af telefonen) uden at træningen blev gemt.
+        restoreDraft();
+
+        // Siden kan forsvinde uden varsel. Skriv det tastede ned med det samme i
+        // stedet for at vente på pausen i debouncen.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) persistDraft();
+        });
+        window.addEventListener('pagehide', () => persistDraft());
 
         // Initial render
         renderAll();
