@@ -1902,6 +1902,37 @@ async function main() {
     ok('Tilbage på passet står det tastede der igen',
         (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '83.5');
 
+    // Brugerens egen sag: passet er ALLEREDE gemt i denne uge, så ugen-låsen står i
+    // baren (og appen foreslår et andet pas). Udkastet skal stadig lægges tilbage —
+    // man kan være i gang med et ekstra pas, eller være i gang med at rette noget.
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`(() => {
+        const d = new Date(); const off = (d.getDay() + 6) % 7; d.setDate(d.getDate() - off);
+        const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
+            id: "w_man", date: iso, day: "upper", variant: "A",
+            exercises: [{ exerciseId: "bench_press", sets: [{ weight: 72.5, reps: 8 }] }],
+        }]));
+        return true;
+    })()`);
+    await load(URL_UNDER_TEST);
+    // Siden man forlod skrev sit eget udkast ned under navigationen (pagehide), så
+    // udkastet ryddes på den NYE side — ellers stod det gamle tastede (83.5) i feltet.
+    await evaluate('localStorage.removeItem("gym_tracker_draft"); return true;');
+    await openSession('upperA');
+    ok('Passet er allerede gemt i ugen (ugen-låsen står i baren)',
+        /already logged this week/.test(await evaluate('return document.getElementById("save-info").textContent')));
+    ok('Programmets vægt fra historikken står i feltet før man taster',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '72.5',
+        String(await nulstilFelt()));
+    await skriv(firstWeight, '70');
+    await sleep(700);
+    await load(URL_UNDER_TEST);
+    await openSession('upperA');
+    ok('Det tastede kommer tilbage selv om passet allerede er gemt i ugen',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '70',
+        String(await nulstilFelt()));
+
 
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 
