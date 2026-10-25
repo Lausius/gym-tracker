@@ -1778,6 +1778,162 @@ async function main() {
     await evaluate('document.getElementById("share-modal-close").click(); return true;');
     await sleep(200);
 
+    // ─── 20. Det tastede huskes hvis appen genindlæses ────────────
+    // Selve fejlen: midt i et sæt genindlæser telefonen siden (fanen smides ud, eller
+    // man kommer til at trække nedad), og alt det tastede var væk og skulle tastes
+    // igen. Tallene skal derfor ligge i localStorage mens man taster, og lægges
+    // tilbage når appen åbner igen uden at træningen blev gemt.
+    console.log('\n── 20. Det tastede huskes hvis appen genindlæses');
+
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+
+    const skriv = async (sel, value) => evaluate(`
+        const el = document.querySelector(${JSON.stringify(sel)});
+        el.value = ${JSON.stringify(value)};
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+    `);
+    const firstWeight = '#exercise-list .exercise-card:first-child .set-weight';
+    const firstReps = '#exercise-list .exercise-card:first-child .set-reps';
+    const foersteOevelse = await evaluate('return programItems("upper", "A")[0].exerciseId');
+    const nulstilFelt = async () => evaluate(`
+        const el = document.querySelector(${JSON.stringify(firstWeight)});
+        return el ? el.value : null;
+    `);
+
+    await skriv(firstWeight, '87.5');
+    await skriv(firstReps, '9');
+    await sleep(700); // debouncen skal have skrevet ned
+
+    const draftEfterTastning = await evaluate('return localStorage.getItem("gym_tracker_draft")');
+    ok('Det tastede skrives ned mens man taster (før man gemmer)',
+        !!draftEfterTastning
+        && JSON.parse(draftEfterTastning).upperA
+        && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].weight === 87.5
+        && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].reps === 9,
+        String(draftEfterTastning).slice(0, 180));
+    ok('Og appen viser at det tastede ligger gemt (linjen under gem-linjen)', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !!el && !el.classList.contains("hidden") && /Kept if the page reloads/.test(el.textContent);
+    `)) === true, await evaluate('return (document.getElementById("draft-note")||{}).textContent || "ingen linje"'));
+
+    // Genindlæsningen — det er her tallene forsvandt før
+    await load(URL_UNDER_TEST);
+    ok('Vægten står der igen efter genindlæsning',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '87.5',
+        String(await nulstilFelt()));
+    ok('Reps står der igen efter genindlæsning',
+        (await evaluate(`return document.querySelector("${firstReps}").value`)) === '9');
+    ok('Appen siger at den har lagt det tastede tilbage',
+        /Restored what you had typed/.test(await evaluate('return document.getElementById("toast-container").textContent')));
+    ok('Og linjen om at det er gemt står der stadig efter genindlæsningen', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !!el && !el.classList.contains("hidden") && /Kept if the page reloads/.test(el.textContent);
+    `)) === true);
+    ok('Hele passet er med, ikke kun det felt man nåede at rette',
+        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length'))
+            === (await evaluate('return programItems("upper", "A").length')));
+    ok('Anbefalingslinjen er stadig programmets tal (ikke det tastede)',
+        (await evaluate(`
+            const card = document.querySelector("#exercise-list .exercise-card");
+            const plan = programItems("upper", "A")[0];
+            return card.querySelector(".exercise-target").textContent.includes("Recommended: " + plan.sets + " × " + plan.reps + " @ " + plan.weight + " kg");
+        `)) === true);
+
+    // Siden kan forsvinde uden varsel: så skrives der med det samme, uden at vente
+    // på debouncen (et træk nedad genindlæser siden, og fanen kan smides ud).
+    await evaluate('localStorage.removeItem("gym_tracker_draft"); return true;');
+    await skriv(firstWeight, '92.5');
+    await evaluate('window.dispatchEvent(new Event("pagehide")); return true;');
+    const draftVedPagehide = await evaluate('return localStorage.getItem("gym_tracker_draft")');
+    ok('Når siden forsvinder, skrives det tastede ned med det samme',
+        !!draftVedPagehide && JSON.parse(draftVedPagehide).upperA.exercises[0].sets[0].weight === 92.5,
+        String(draftVedPagehide).slice(0, 180));
+
+    ok('Et træk nedad genindlæser ikke siden (pull-to-refresh slået fra i CSS)',
+        (await evaluate('return getComputedStyle(document.body).overscrollBehaviorY')) === 'contain');
+
+    // Et pas der er gemt, er ikke længere et udkast
+    await evaluate('document.getElementById("save-btn").click(); return true;');
+    await sleep(500);
+    ok('Træningen blev gemt med det tastede tal', (await evaluate(`
+        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
+        return w.length === 1 && w[0].exercises[0].sets[0].weight === 92.5;
+    `)) === true, await evaluate('return localStorage.getItem("gym_tracker_workouts")'));
+    ok('Efter et gem ligger udkastet ikke længere på passet', (await evaluate(`
+        const drafts = JSON.parse(localStorage.getItem("gym_tracker_draft") || "{}");
+        return !drafts.upperA;
+    `)) === true, await evaluate('return localStorage.getItem("gym_tracker_draft")'));
+    ok('Og linjen om at det er gemt forsvinder', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !el || el.classList.contains("hidden") || el.textContent === "";
+    `)) === true);
+    await load(URL_UNDER_TEST);
+    ok('Og der bliver ikke lagt noget gammelt tilbage ved næste åbning',
+        (await evaluate('return document.getElementById("toast-container").textContent')).indexOf('Restored') === -1);
+
+    // Et udkast fra en tidligere uge er ikke noget man er i gang med
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await evaluate(`localStorage.setItem("gym_tracker_draft", JSON.stringify({
+        upperA: { week: "2020-W01", editingId: null,
+            exercises: [{ exerciseId: ${JSON.stringify(foersteOevelse)}, sets: [{ weight: 111, reps: 3 }] }] }
+    })); return true;`);
+    await load(URL_UNDER_TEST);
+    ok('Et udkast fra en tidligere uge lægges ikke tilbage',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) !== '111');
+    ok('Og det smides væk i stedet for at blive liggende',
+        (await evaluate(`return !JSON.parse(localStorage.getItem("gym_tracker_draft") || "{}").upperA`)) === true);
+
+    // Og et udkast hører til sit eget pas: det må ikke dukke op i et andet
+    await evaluate('localStorage.clear(); return true;');
+    await load(URL_UNDER_TEST);
+    await skriv(firstWeight, '83.5');
+    await sleep(700);
+    const passet = await currentSession();
+    const andetPas = passet === 'upperA' ? 'upperB' : 'upperA';
+    await openSession(andetPas);
+    ok(`Udkastet for ${passet} dukker ikke op i ${andetPas}`,
+        (await evaluate('return document.querySelector("#exercise-list .exercise-card .set-weight").value')) !== '83.5');
+    ok('Og der er ikke skrevet et udkast på det pas man ikke har tastet i',
+        (await evaluate(`return !JSON.parse(localStorage.getItem("gym_tracker_draft") || "{}")[${JSON.stringify(andetPas)}]`)) === true);
+    await openSession(passet);
+    ok('Tilbage på passet står det tastede der igen',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '83.5');
+
+    // Brugerens egen sag: passet er ALLEREDE gemt i denne uge, så ugen-låsen står i
+    // baren (og appen foreslår et andet pas). Udkastet skal stadig lægges tilbage —
+    // man kan være i gang med et ekstra pas, eller være i gang med at rette noget.
+    await evaluate('localStorage.clear(); return true;');
+    await evaluate(`(() => {
+        const d = new Date(); const off = (d.getDay() + 6) % 7; d.setDate(d.getDate() - off);
+        const iso = d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+        localStorage.setItem("gym_tracker_workouts", JSON.stringify([{
+            id: "w_man", date: iso, day: "upper", variant: "A",
+            exercises: [{ exerciseId: "bench_press", sets: [{ weight: 72.5, reps: 8 }] }],
+        }]));
+        return true;
+    })()`);
+    await load(URL_UNDER_TEST);
+    // Siden man forlod skrev sit eget udkast ned under navigationen (pagehide), så
+    // udkastet ryddes på den NYE side — ellers stod det gamle tastede (83.5) i feltet.
+    await evaluate('localStorage.removeItem("gym_tracker_draft"); return true;');
+    await openSession('upperA');
+    ok('Passet er allerede gemt i ugen (ugen-låsen står i baren)',
+        /already logged this week/.test(await evaluate('return document.getElementById("save-info").textContent')));
+    ok('Programmets vægt fra historikken står i feltet før man taster',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '72.5',
+        String(await nulstilFelt()));
+    await skriv(firstWeight, '70');
+    await sleep(700);
+    await load(URL_UNDER_TEST);
+    await openSession('upperA');
+    ok('Det tastede kommer tilbage selv om passet allerede er gemt i ugen',
+        (await evaluate(`return document.querySelector("${firstWeight}").value`)) === '70',
+        String(await nulstilFelt()));
+
+
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
