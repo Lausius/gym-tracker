@@ -1813,6 +1813,10 @@ async function main() {
         && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].weight === 87.5
         && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].reps === 9,
         String(draftEfterTastning).slice(0, 180));
+    ok('Og appen viser at det tastede ligger gemt (linjen under gem-linjen)', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !!el && !el.classList.contains("hidden") && /Kept if the page reloads/.test(el.textContent);
+    `)) === true, await evaluate('return (document.getElementById("draft-note")||{}).textContent || "ingen linje"'));
 
     // Genindlæsningen — det er her tallene forsvandt før
     await load(URL_UNDER_TEST);
@@ -1823,6 +1827,10 @@ async function main() {
         (await evaluate(`return document.querySelector("${firstReps}").value`)) === '9');
     ok('Appen siger at den har lagt det tastede tilbage',
         /Restored what you had typed/.test(await evaluate('return document.getElementById("toast-container").textContent')));
+    ok('Og linjen om at det er gemt står der stadig efter genindlæsningen', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !!el && !el.classList.contains("hidden") && /Kept if the page reloads/.test(el.textContent);
+    `)) === true);
     ok('Hele passet er med, ikke kun det felt man nåede at rette',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length'))
             === (await evaluate('return programItems("upper", "A").length')));
@@ -1857,6 +1865,10 @@ async function main() {
         const drafts = JSON.parse(localStorage.getItem("gym_tracker_draft") || "{}");
         return !drafts.upperA;
     `)) === true, await evaluate('return localStorage.getItem("gym_tracker_draft")'));
+    ok('Og linjen om at det er gemt forsvinder', (await evaluate(`
+        const el = document.getElementById("draft-note");
+        return !el || el.classList.contains("hidden") || el.textContent === "";
+    `)) === true);
     await load(URL_UNDER_TEST);
     ok('Og der bliver ikke lagt noget gammelt tilbage ved næste åbning',
         (await evaluate('return document.getElementById("toast-container").textContent')).indexOf('Restored') === -1);

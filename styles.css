@@ -582,6 +582,13 @@
             font-size: 0.8rem;
             color: var(--text-dim);
         }
+        /* "Det du har tastet er gemt"-linjen: grøn og diskret, kun synlig når udkastet
+           faktisk ligger i localStorage (16px-reglen gælder kun felter, ikke tekst) */
+        .draft-note {
+            font-size: 0.75rem;
+            color: var(--accent);
+            margin-top: 6px;
+        }
         .save-info strong { color: var(--text); font-weight: 600; }
         .save-btn {
             padding: 14px 24px;

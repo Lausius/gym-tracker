@@ -351,7 +351,26 @@
     }
 
     function saveDrafts(drafts) {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+        // At gemme må ikke kunne vælte tastningen, hvis browseren nægter (fx privat
+        // browsing eller fuld kvote). Vi svarer på om det lykkedes, så linjen i
+        // bunden kun kan love noget der faktisk skete.
+        try {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
+            return true;
+        } catch { return false; }
+    }
+
+    // Linjen under gem-linjen: gør den usynlige garanti synlig — man skal kunne se på
+    // telefonen at det tastede ligger i browseren. Den står kun når udkastet faktisk
+    // ligger i localStorage, så den lover ikke noget der ikke skete.
+    const DRAFT_NOTE = '🔒 Kept if the page reloads';
+
+    function updateDraftNote() {
+        const el = document.getElementById('draft-note');
+        if (!el) return;
+        const kept = !!loadDrafts()[draftKeyFor()];
+        el.textContent = kept ? DRAFT_NOTE : '';
+        el.classList.toggle('hidden', !kept);
     }
 
     // Kun øvelser og tal. Plan-linjer og targetReps er afledt af programmet og må
@@ -395,9 +414,10 @@
 
     function clearDraft(key = draftKeyFor()) {
         const drafts = loadDrafts();
-        if (!(key in drafts)) return false;
+        if (!(key in drafts)) { updateDraftNote(); return false; }
         delete drafts[key];
         saveDrafts(drafts);
+        updateDraftNote();
         return true;
     }
 
@@ -412,8 +432,9 @@
                 sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
             })),
         };
-        saveDrafts(drafts);
-        return true;
+        const ok = saveDrafts(drafts);
+        updateDraftNote();
+        return ok;
     }
 
     let draftTimer = null;
@@ -436,6 +457,10 @@
         if (!draft) return false;
 
         const drop = () => { delete drafts[key]; saveDrafts(drafts); return false; };
+        // Ugen er enheden: et udkast fra en tidligere uge hører til et pas der er
+        // begyndt forfra. At passet allerede er gemt i ugen er derimod IKKE grund til at
+        // smide det væk — man kan være i gang med et ekstra pas (appen advarer selv om
+        // låsen), og det man har tastet må ikke forsvinde ved en genindlæsning.
         if (draft.week !== isoWeekKey(today)) return drop();
 
         const variant = state.sessionVariant || getCurrentVariant();
@@ -446,8 +471,6 @@
             state.editing = { id: workout.id, date: workout.date, day: workout.day };
             state.programVariant = workout.variant;
             state.sessionVariant = workout.variant;
-        } else if (isDoneThisWeek(state.currentDay, variant, today)) {
-            return drop();
         }
 
         // En øvelse der er fjernet fra appen siden da, kan ikke vises på et kort.
@@ -1252,6 +1275,8 @@
         renderExerciseList();
         renderSaveBar();
         renderSampleControls();
+        // Linjen hænger på passet, ikke på tastningen: den skal skifte med pas-skiftet.
+        updateDraftNote();
     }
 
     // ─── Ugen: hvad der er klaret, og hvad der mangler ────────────

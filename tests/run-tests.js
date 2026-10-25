@@ -1264,14 +1264,18 @@ loadProgram();
 ok('Tilbage på passet lægges det tastede tilbage',
     restoreDraft(TODAY) === true && fieldOf(A0).weight === 62.5);
 
-// Et pas der allerede er gemt i ugen: der er ikke noget at genoptage
+// Et pas der allerede er gemt i ugen: udkastet skal stadig lægges tilbage. Man kan
+// være i gang med et ekstra pas (appen advarer selv om låsen), og det man har tastet
+// må ikke forsvinde ved en genindlæsning.
 freshSession();
 updateSet(0, 0, 'weight', '70');
 persistDraft(TODAY);
 store['gym_tracker_workouts'] = JSON.stringify([w('u9', '2026-10-06', 'upper', 'A')]);
 loadProgram();
-ok('Et pas der er gemt i ugen lægges ikke tilbage som udkast', restoreDraft(TODAY) === false);
-ok('Og udkastet slettes', !loadDrafts().upperA);
+ok('Et pas der er gemt i ugen får stadig sit udkast tilbage', restoreDraft(TODAY) === true);
+ok('Og det tastede tal står der', fieldOf(A0).weight === 70, String(fieldOf(A0).weight));
+ok('Ugen-låsen siger stadig at passet ligger i ugen', !!weekConflict(TODAY));
+ok('Udkastet er ikke smidt væk', !!loadDrafts().upperA);
 
 // Gem træningen: udkastet er ikke længere noget man er i gang med
 freshSession();
@@ -1364,6 +1368,19 @@ ok('Og der skrives ikke noget', persistDraft(TODAY) === false && !loadDrafts().u
 updateSet(0, 0, 'weight', '61');
 ok('Men et tastet tal gør det stadig', draftIsDirty() === true && persistDraft(TODAY) === true);
 ok('Og det tastede står i udkastet', loadDrafts().upperA.exercises[0].sets[0].weight === 61);
+
+// Nægter browseren at gemme (privat browsing, fuld kvote), må tastningen ikke vælte —
+// og linjen i bunden må ikke love noget der ikke skete.
+freshSession();
+updateSet(0, 0, 'weight', '58');
+const rigtigeSetItem = localStorage.setItem;
+localStorage.setItem = () => { throw new Error('quota'); };
+let kastede = false;
+let gemte = null;
+try { gemte = persistDraft(TODAY); } catch { kastede = true; }
+localStorage.setItem = rigtigeSetItem;
+ok('En browser der nægter at gemme vælter ikke tastningen', kastede === false);
+ok('Og svaret er at det ikke blev gemt', gemte === false);
 
 store[DRAFT_KEY] = JSON.stringify({});
 Object.keys(store).forEach(k => delete store[k]);

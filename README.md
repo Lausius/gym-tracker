@@ -59,9 +59,12 @@ website, or by opening `index.html` straight from disk.
 - **Nothing you type is lost if the app reloads:** a session in progress is written to
   `localStorage` while you type (debounced, one write per pause) and again the moment the page is
   hidden or leaves, so a phone that discards the tab, or a pull-to-refresh, does not cost you the
-  numbers. Reopening the app puts the typed sets back, with a short "Restored what you had typed"
-  message. A draft belongs to one pass and one ISO week: it is dropped once the workout is saved
-  (or an edit is cancelled), when the week rolls over, and when that pass is already logged.
+  numbers. A line under the save button (**🔒 Kept if the page reloads**) shows while the draft is
+  actually stored, and reopening the app puts the typed sets back with a short
+  "Restored what you had typed" message. A draft belongs to one pass and one ISO week: it is dropped
+  once the workout is saved (or an edit is cancelled) and when the week rolls over. If the browser
+  refuses to store anything (private browsing, full quota), typing still works and the line simply
+  stays away.
   Pull-to-refresh itself is switched off in CSS (`overscroll-behavior-y: contain`) — scrolling in
   the app must not reload the page. Coming back to a pass you typed in (the week chips) also
   brings the numbers back.
