@@ -243,12 +243,20 @@ async function main() {
     ok('Tilføj sæt giver 4 sæt på første øvelse, uden at røre de andre', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card")[0].querySelectorAll(".set-weight").length')) === 4
         && (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card")[1].querySelectorAll(".set-weight").length')) === 3);
     await saveBtn(300);
-    ok('Efter gem lægges det næste pas i ugen klar som dagens træning', (await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\\u25be", "").trim());
-        const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name);
+    // Man skal stå på det pas ugen kalder det næste — og det er ikke "samme dag, næste
+    // variant": Upper A → Lower A. Ugebjælkens "next" og det pas man står på peger
+    // samme sted, og kortene er det programs øvelser.
+    const efterGem = await evaluate(`return (() => {
         const current = (document.querySelector("#week-strip .week-chip.current") || {dataset:{}}).dataset.session;
-        return current === "upperB" && cards.length === want.length && cards.every((n, i) => n === want[i]);`)) === true,
-        JSON.stringify({ current: await currentSession(), cards: await cardIds() }));
+        const next = (document.querySelector("#week-strip .week-chip.next") || {dataset:{}}).dataset.session;
+        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")].map(c => c.dataset.exerciseId);
+        const want = getProgram(current.slice(0, -1), current.slice(-1)).map(i => i.exerciseId);
+        return { current, next, cards, want };
+    })();`);
+    ok('Efter gem står man på ugens næste pas (Upper A → Lower A), og ugebjælken peger samme sted',
+        efterGem.current === 'lowerA' && efterGem.next === 'lowerA'
+        && JSON.stringify(efterGem.cards) === JSON.stringify(efterGem.want),
+        JSON.stringify(efterGem));
     ok('Træningen ligger i localStorage med kun de udfyldte sæt (65 kg er med)', (await evaluate(`
         ${readWorkouts}
         const bp = w[0] && w[0].exercises.find(e => e.exerciseId === "bench_press");
@@ -260,8 +268,8 @@ async function main() {
     // ─── 5. Persistens + rotation efter reload ────────────────────
     console.log('\n── 5. Reload: persistens og A/B-rotation');
     await load(URL_UNDER_TEST);
-    ok('Data overlever reload, og rotationen står næste pas klar ("foreslået" igen)', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1
-        && (await currentSession()) === 'upperB'
+    ok('Data overlever reload, og man står stadig på ugens næste pas ("foreslået" igen)', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1
+        && (await currentSession()) === 'lowerA'
         && (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested',
         JSON.stringify({ current: await currentSession(), hint: await evaluate('return document.getElementById("variant-hint").textContent') }));
 
@@ -529,8 +537,8 @@ async function main() {
     await saveBtn();
 
     const afterSave = await evaluate(`${readWorkouts} return { count: w.length, id: w[0] && w[0].id, date: w[0] && w[0].date, ex: w[0] ? w[0].exercises.length : 0, day: w[0] && w[0].day, variant: w[0] && w[0].variant };`);
-    ok('Træningen blev gemt (1 træning, 5 øvelser), og næste pas ligger klar', afterSave.count === 1 && afterSave.ex === 5
-        && (await currentSession()) === 'upperB', JSON.stringify({ afterSave, current: await currentSession() }));
+    ok('Træningen blev gemt (1 træning, 5 øvelser), og ugens næste pas ligger klar', afterSave.count === 1 && afterSave.ex === 5
+        && (await currentSession()) === 'lowerA', JSON.stringify({ afterSave, current: await currentSession() }));
 
     // Historikken: én træning, med Rediger-knap — gå i redigeringstilstand
     await evaluate('document.getElementById("btn-history").click(); return true;');

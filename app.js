@@ -1708,8 +1708,16 @@
         // Sammenklapningen hører til det pas man lige har gemt: næste gang folder
         // kortene ud igen, så man ikke skal lede efter felterne i det nye pas.
         clearCollapsed();
-        // Efter et gem er det næste variant i rotationen der er dagens program,
-        // og den indlæses med det samme — programmet ER dagens træning.
+        // Efter et gem står man på det pas ugen kalder det næste — samme kilde som
+        // "next"-mærket i ugebjælken og "Go to X"-knappen, så de to ikke kan være
+        // uenige om hvor man er. Det flytter også dagen: Upper A → Lower A, ikke
+        // samme dags anden variant (Upper B), som er et andet pas længere fremme.
+        const nextUp = nextSessionInWeek();
+        if (nextUp) {
+            const info = parseKey(nextUp);
+            state.currentDay = info.day;
+            saveCurrentDay(info.day);
+        }
         state.programVariant = null;
         state.sessionVariant = null;
         state.allowDuplicateWeek = false; // passet ligger nu i ugen; låsen gælder igen

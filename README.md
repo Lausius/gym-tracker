@@ -10,7 +10,9 @@ website, or by opening `index.html` straight from disk.
 
 - **A/B split (upper/lower):** four programs — `upperA`, `upperB`, `lowerA`, `lowerB`.
   The app suggests the next variant automatically from your most recent saved workout
-  (Upper A → Lower A → Upper B → Lower B → repeat). Always overridable with the A/B buttons.
+  (Upper A → Lower A → Upper B → Lower B → repeat, alternating upper and lower). Saving a workout
+  moves you on to the next pass in the week — the one the week bar marks **next** — so the pass you
+  stand on and the pass the app calls next cannot disagree. Always overridable in the week bar.
 - **Exercises, weight, sets and reps per session:** every exercise has its own sets with kg × reps,
   and volume (kg × reps) is computed per set and per exercise.
 - **Equipment variants are kept apart:** e.g. `Bicep Curl (Barbell)`, `(EZ-bar)` and `(Dumbbell)` are

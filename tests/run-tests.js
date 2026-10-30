@@ -1129,6 +1129,12 @@ saveWorkout();
 ok('Efter et gem er træningen gemt og udkastet væk — uden et nyt af det friske program',
     JSON.parse(store['gym_tracker_workouts']).length === 1 && !loadDrafts().upperA &&
     Object.keys(loadDrafts()).length === 0);
+// Og man flytter sig til ugens næste pas. Det var her appen sprang et pas over: Upper A
+// pegede på Upper B (samme dag, næste variant) i stedet for Lower A, så ugebjælkens
+// "next" og det pas man stod på viste to forskellige ting.
+ok('Efter et gem står man på ugens næste pas (Upper A → Lower A, ikke samme dags variant)',
+    state.currentDay === 'lower' && programKey(state.currentDay, getCurrentVariant()) === nextSessionInWeek(),
+    `${programKey(state.currentDay, getCurrentVariant())} vs ${nextSessionInWeek()}`);
 
 // Rettelse af en gemt træning: udkastet husker at man var i gang med at rette
 const oldWorkout = {
