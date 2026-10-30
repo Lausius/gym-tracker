@@ -17,13 +17,14 @@ website, or by opening `index.html` straight from disk.
   and volume (kg × reps) is computed per set and per exercise.
 - **Equipment variants are kept apart:** e.g. `Bicep Curl (Barbell)`, `(EZ-bar)` and `(Dumbbell)` are
   three entries with their own history and their own progression — 20 kg on an EZ-bar and 20 kg in each
-  hand are not the same load, so a shared suggestion would be wrong. Dumbbell and
-  single-leg exercises are marked "per hand" / "per leg", and the dropdown is grouped by
-  muscle group.
-  - **The cable family** (added on request): `Cable Lateral Raise`, `Cable Row (Per hand)`,
-    `Dual Bicep Cable Curl`, `Lat Extension` and `Cable Reverse Fly`. They live **only** in the
-    exercise database — not in the A/B programs — so you pick them manually with ＋ Add exercise.
-    `Cable Row (Per hand)` is the only one of them marked "per hand".
+  hand are not the same load, so a shared suggestion would be wrong. Dumbbell and single-leg
+  exercises carry a **per hand** / **per leg** tag on the card, and the swap list shows each
+  option's equipment and load note, ranked so a shared muscle group comes first.
+  - **The cable family** (added on request): `Cable Lateral Raise` and `Dual Bicep Cable Curl`
+    sit in the Upper B program and `Cable Pull-Through` in Lower A. `Cable Row (Per hand)`,
+    `Lat Extension` and `Cable Reverse Fly` live only in the exercise database — you reach those
+    by swapping them into a row that shares a muscle group (Back / Shoulders). `Cable Row` is the
+    one of them marked "per hand".
 - **Progressive overload:** a suggestion for the next workout per exercise — add weight at 8+ reps,
   more reps when you are below, and a rep focus if the weight has been stuck for 3 sessions.
 - **Warm-up sets per exercise:** every card has a collapsible 🔥 Warm-up that computes the ramp
@@ -35,29 +36,39 @@ website, or by opening `index.html` straight from disk.
   The ramp is a suggestion: if you are already warm from an earlier exercise, one light set is enough.
 - **Technique cues per exercise:** a short 💡 line under the exercise name with the one thing
   that matters for that lift. Always visible, never behind a fold — the point is to read it while
-  standing at the rack. The text lives in the `CUES` dictionary in `app.js`; the longer English
-  originals are in `warmup-and-cues.md`.
-- **Only exercises you actually do:** "Next week" shows only exercises you have performed at least
-  once. An exercise counts as performed when it has at least one set in a saved workout for that day —
-  ever, not just recently. That keeps the list short instead of filling it with the whole
-  exercise database, where most entries would just say "No history yet".
-  - The **Show all (n)** button reveals the hidden ones — e.g. when you want to start a new exercise.
-    The "＋ Add exercise" picker always has the full list.
-  - With no history for the day nothing is filtered, so a new user is not left with empty lists.
-  - Bodyweight exercises (Plank, Pull-up) are **never** filtered out: only sets with weight
-    above 0 are stored, so they cannot build weight history. Without that exception they would
-    disappear from the list after the first save — permanently.
-  - A **brand new** exercise is therefore not in the list until you have performed it once. It can
-    always be picked with **＋ Add exercise**, and shows up on its own afterwards.
-- **Today's program remembers your last workout:** if you have run e.g. Lower B before, "Today's program"
-  shows **that** workout — same exercises in the same order and with the weight from the
-  best set last time — so you can repeat it with one tap on **Add all**. The template
-  is used only when there is nothing to remember yet (the first time you run the variant).
-  - A line under the heading says which workout is remembered, and from which date.
-  - Exercises you added yourself (e.g. a cable exercise not in the template) are remembered too.
-  - **Show all (n)** reveals the template's remaining exercises if you want to add something new.
-  - There is deliberately **no ↻ button** in the program header: A/B is switched with the variant
-    buttons below, and ↻ could only do the same thing.
+  standing at the rack. The text lives in the `CUES` dictionary in `app.js`.
+- **Today's program is the program:** a pass always shows its program rows as cards, in program
+  order, no matter what you have trained before. Nothing is filtered, nothing is hidden behind a
+  "show all", and there is deliberately **no ＋ Add exercise** — a different exercise is picked by
+  swapping it into a row (below). An exercise you have never done is therefore perfectly normal:
+  it stands there with the program's numbers until you give it your own.
+  - **Swapping an exercise:** tap the exercise name on the card (it carries a ▾ and the title
+    "Change exercise") and pick from the list: exercises that share a muscle group with that row,
+    the current one first, a full muscle match before a partial one, and never one that is already
+    in today's workout. The new exercise brings **its own** numbers — Leg Press' 225 kg does not
+    follow along onto Leg Extension — and the swap is remembered for that pass only
+    (`gym_tracker_program_swaps`). `Romanian Deadlift` is deliberately never offered (it loads the
+    lower back).
+  - **A row missing?** If today's pass has fewer rows than the program — opened from an older saved
+    workout or a draft, say — a line offers **↩︎ 1 exercise missing — restore**, which puts the rows
+    back in their program place.
+  - **Bodyweight exercises** carry a marker above 0 in the template (Back Extension is 1 kg), so
+    they are stored like any other row instead of vanishing as a "0 kg" set.
+- **Today's program remembers your last workout:** if you have run e.g. Lower B before, the cards
+  are filled in with **that** workout — same exercises in the same order, the weight from your best
+  set last time and the number of sets you did — so you can repeat it without copying anything.
+  The template's numbers are used only when there is nothing to remember yet (the first time you
+  run the variant). The template's own recommendation stays on the card next to your numbers, so
+  you can still see what the program asks for.
+  - A line under the heading says what is remembered: `↩︎ Same exercises and weights as your
+    Upper A on 26 October.` — or `Your Upper A program — ready to go.` with no history.
+  - **The pass is switched in the week bar** at the top (`Upper A · Lower A · Upper B · Lower B`):
+    `✓` marks what is already logged this week, `next` marks what the app suggests, and the hint
+    next to the heading reads **suggested** or **chosen** depending on whether you picked the pass
+    yourself. There is deliberately **no ↻ button** — switching pass is the week bar.
+  - **Already logged this week?** The pass can be opened but not saved twice: the bar says
+    `⚠️ Upper A is already logged this week (Mon 26.10) — Lower A is next.` with **Go to Lower A**
+    and **Log anyway**.
 - **Nothing you type is lost if the app reloads:** a session in progress is written to
   `localStorage` while you type (debounced, one write per pause) and again the moment the page is
   hidden or leaves, so a phone that discards the tab, or a pull-to-refresh, does not cost you the
@@ -75,7 +86,7 @@ website, or by opening `index.html` straight from disk.
   left are easy to find — you do not have to do them in the order they are listed. Tapping the caret
   again unfolds the card with every number still in place. Folded cards are remembered per pass and
   per ISO week (same rule as the draft), so a reload does not unfold them; saving the workout clears
-  the list. The summary deliberately does not judge whether you are finished: the programme
+  the list. The summary deliberately does not judge whether you are finished: the program
   pre-fills weight and reps, so "all sets have numbers" is true from the first second and would be
   printed on every card.
 - **Sample data for testing:** on the front page (visible only when the log is empty) you can fill in
@@ -87,9 +98,11 @@ website, or by opening `index.html` straight from disk.
   remove exercises. Write **0 reps** in its sets instead: the card stays on screen (where you can
   fold it away), and the exercise is left out of the saved workout, because a set only counts when
   both weight and reps are filled in. Setting 0 on every set of one exercise drops that exercise from
-  the log; the next time the programme's own numbers are used for it again.
+  the log; the next time the program's own numbers are used for it again.
 - **Edit a saved workout:** forgot an exercise? Tap ✏️ Edit on the workout in the
-  history. The exercises are loaded back in, you can add/fix/remove, and the button then reads
+  history. The exercises are loaded back in, you can fix the numbers and swap which exercise
+  occupies a row (the swap list works while editing too — to drop one, write 0 reps in its sets),
+  and the button then reads
   **Update workout**. The date, the day and the variant are preserved, and no duplicate is created —
   also if you only fix the workout the following day. **Cancel** leaves the edit without
   writing anything.
@@ -347,19 +360,21 @@ node tests/browser-check.js https://lausius.github.io/gym-tracker/
 ```
 
 `tests/browser-check.js` drives Chromium over the DevTools Protocol and covers: loading without
-JS errors, loading a program, switching the A/B variant, fixing weight/reps, adding a set, saving,
+JS errors, loading a program, switching pass in the week bar, fixing weight/reps, adding a set, saving,
 **reload with persistence and rotation**, history, the share modal, equipment variants in the UI,
 **editing a saved workout** (including cancelling and that a new save does not duplicate),
 **week-based sharing with a character budget** (pick a week, copy, mark as shared),
 **the warm-up ramp** (shown on the card, collapsed by default, follows an edited weight and stays open
 while you edit),
 **the technique cues** (visible without unfolding, one per card, and each card's own),
-**that an empty view explains itself instead of standing blank** (and that bodyweight exercises are
-kept, so the template's 1 kg marker stops them disappearing), **"Today's program" that remembers
-the last workout** (run a variant, fix it, save, and see the program repeat it — including the
-"Remembering" line, that the template is still the whole program afterwards, and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
-workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
-"per hand", and they are not in the programs), **skipping an exercise with 0 reps** (the card stays and
+**that an empty view explains itself instead of standing blank** (and that the template's 1 kg marker
+keeps Back Extension saved), **"Today's program" that remembers the last workout** (run a variant,
+fix it, save, and see the program repeat the numbers — including the line that says what it
+remembers, and that the pass afterwards is still the whole program), **the swap list** (only a shared
+muscle group, the exercise itself first, Romanian Deadlift never, and a swap remembered for its own
+pass), **the week** (what is logged, and the lock against saving the same pass twice), **sample data**
+(fill, clear, and that the button cannot be used when real workouts are present), **the cable
+exercises** (can be picked from a swap list, only the row variant carries "per hand"), **skipping an exercise with 0 reps** (the card stays and
 the exercise is left out of the saved workout, instead of the old ✕ button), **that typed sets survive a reload** (the draft is written while you type
 and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
 draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved),
