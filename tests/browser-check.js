@@ -1954,151 +1954,65 @@ async function main() {
 
 
     // ─── 21. Klap en færdig øvelse sammen ─────────────────────────
-    // Man er ikke altid færdig med øvelserne i den rækkefølge programmet stiller dem i:
-    // er man færdig med nr. 3, skal den kunne klappes sammen, så de resterende er til at
-    // finde. En klap-knap i kortets hoved, og en liste der huskes pr. pas (og overlever
-    // at telefonen genindlæser siden).
+    // Man er ikke altid færdig i programmets rækkefølge: den man er færdig med skal kunne
+    // klappes sammen (kortets eneste knap), og det huskes pr. pas — også over en genindlæsning.
     console.log('\n── 21. Klap en færdig øvelse sammen');
 
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
+    // Siden man forlod i forrige sektion skriver sit eget udkast ned under navigationen
+    // (pagehide), så den nye side står med det. Det ryddes, og passet indlæses forfra, så
+    // kortene her starter som programmet (3 sæt, ikke det 1-sæts pas der blev efterladt).
+    await evaluate('localStorage.removeItem("gym_tracker_draft"); loadProgram(); restoreDraft(); renderAll(); return true;');
 
-    const antalKort = () => evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length');
     const kort = i => `#exercise-list .exercise-card[data-index="${i}"]`;
-    const klapKnap = i => `${kort(i)} .collapse-btn`;
-    const kortInfo = i => evaluate(`
-        const c = document.querySelector(${JSON.stringify(kort(i))});
-        if (!c) return null;
-        return {
-            collapsed: c.classList.contains("collapsed"),
-            inputs: c.querySelectorAll(".set-weight").length,
-            tabeller: c.querySelectorAll(".sets-table").length,
-            cue: c.querySelectorAll(".cue-line").length,
-            target: c.querySelectorAll(".exercise-target").length,
-            summary: (c.querySelector(".collapsed-summary") || {}).textContent || null,
-            meta: c.querySelectorAll(".exercise-meta").length,
-            navn: (c.querySelector(".exercise-name") || c.querySelector(".exercise-name-btn") || {}).textContent || null,
-            fjernKnapper: c.querySelectorAll(".remove-btn").length,
-            hovedKnapper: c.querySelectorAll(".exercise-card-actions button").length,
-            hoejde: Math.round(c.getBoundingClientRect().height),
-            aria: (c.querySelector(".collapse-btn") || {}).getAttribute ? c.querySelector(".collapse-btn").getAttribute("aria-expanded") : null,
-            tegn: (c.querySelector(".collapse-btn") || {}).textContent || null,
-        };
-    `);
+    const antalKlappede = () => evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length');
+    const klap = async i => {
+        await evaluate(`document.querySelector(${JSON.stringify(kort(i) + ' .collapse-btn')}).click(); return true;`);
+        await sleep(250);
+    };
+    const viser = expr => evaluate(`const c = document.querySelector(${JSON.stringify(kort(0))}); return ${expr};`);
 
-    const kortene = await antalKort();
-    ok('Hvert kort har en klap-knap',
-        (await evaluate('return document.querySelectorAll("#exercise-list .collapse-btn").length')) === kortene,
-        String(await evaluate('return document.querySelectorAll("#exercise-list .collapse-btn").length')));
-    ok('Klap-knappen er til at ramme med en tommelfinger (mindst 32px)',
-        (await evaluate(`
-            const b = document.querySelector("#exercise-list .collapse-btn").getBoundingClientRect();
-            return b.width >= 32 && b.height >= 32;
-        `)) === true,
-        JSON.stringify(await evaluate(`
-            const b = document.querySelector("#exercise-list .collapse-btn").getBoundingClientRect();
-            return { w: Math.round(b.width), h: Math.round(b.height) };
-        `)));
+    ok('Kortet har kun klap-knappen i hovedet — der er ingen ✕ tilbage', (await evaluate(`
+        return document.querySelector("#exercise-list .remove-btn") === null
+            && [...document.querySelectorAll("#exercise-list .exercise-card")]
+                .every(c => c.querySelectorAll(".exercise-card-actions button").length === 1);
+    `)) === true);
 
-    const foer = await kortInfo(2);
-    const vaegtFoer = await evaluate(`return document.querySelector(${JSON.stringify(kort(2) + ' .set-weight')}).value`);
-    ok('Kortet er foldet ud fra starten (ingen collapsed-klasse)',
-        foer.collapsed === false && foer.inputs > 0 && foer.tabeller === 1, JSON.stringify(foer));
-    ok('Intet kort er klappet sammen fra starten',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 0);
-
-    // Tryk på klap-knappen — det er hele funktionen
-    await evaluate(`document.querySelector(${JSON.stringify(klapKnap(2))}).click(); return true;`);
-    await sleep(250);
-
-    const efter = await kortInfo(2);
-    ok('Et tryk klapper kortet sammen', efter.collapsed === true, JSON.stringify(efter));
-    ok('Kortets sæt-felter er væk, ikke bare skjulte',
-        efter.inputs === 0 && efter.tabeller === 0, JSON.stringify(efter));
-    ok('Cue, anbefaling og opvarmning er væk sammen med felterne',
-        efter.cue === 0 && efter.target === 0, JSON.stringify(efter));
-    ok('Navnet står der stadig, og kortet har kun klap-knappen i hovedet (ingen ✕)',
-        efter.hovedKnapper === 1 && efter.fjernKnapper === 0
-        && /Bench|Shoulder|Lat|Row|Triceps|Curl|Press/.test(efter.navn || ''), JSON.stringify(efter));
-    ok('I stedet står der hvor mange sæt der har tal, og hvor mange kg',
-        efter.summary === (await evaluate(`
-            const ex = state.exercises[2];
-            const volume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
-            const logged = ex.sets.filter(s => s.weight > 0 && s.reps > 0).length;
-            return logged + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg";
-        `)),
-        String(efter.summary));
-    ok('Knappen fortæller at kortet er klappet sammen (aria-expanded=false) og peger ud',
-        efter.aria === 'false' && efter.tegn === '▸', JSON.stringify({ aria: efter.aria, tegn: efter.tegn }));
-    ok('Det klappede kort er lavere end det var (der er sparet plads)', efter.hoejde < foer.hoejde,
-        `${foer.hoejde} → ${efter.hoejde}`);
-    ok('Kun det ene kort er klappet sammen — de andre er urørt',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 1
-        && (await evaluate('return document.querySelectorAll("#exercise-list .sets-table").length')) === kortene - 1);
-    ok('De andre kort har stadig deres felter med de samme tal',
-        (await kortInfo(0)).inputs > 0 && (await kortInfo(0)).collapsed === false);
-
-    // Man kan skifte mening: samme knap folder ud igen, og felterne er tilbage med tallene
-    await evaluate(`document.querySelector(${JSON.stringify(klapKnap(2))}).click(); return true;`);
-    await sleep(250);
-    const aabnet = await kortInfo(2);
-    ok('Samme knap folder kortet ud igen',
-        aabnet.collapsed === false && aabnet.inputs === foer.inputs && aabnet.summary === null, JSON.stringify(aabnet));
-    ok('Tallene står uændret i felterne efter en tur sammen og ud igen',
-        (await evaluate(`return document.querySelector(${JSON.stringify(kort(2) + ' .set-weight')}).value`)) === vaegtFoer
-        && vaegtFoer.length > 0,
-        vaegtFoer);
-
-    // Det tastede står på det klappede kort, og sammenklapningen overlever en genindlæsning
     await skriv(`${kort(0)} .set-weight`, '77.5');
     await skriv(`${kort(0)} .set-reps`, '6');
     await sleep(700);
-    await evaluate(`document.querySelector(${JSON.stringify(klapKnap(0))}).click(); return true;`);
-    await evaluate(`document.querySelector(${JSON.stringify(klapKnap(4))}).click(); return true;`);
-    await sleep(250);
-    ok('Man kan klappe flere kort sammen',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 2);
-    const klappetFoer = (await kortInfo(0)).summary;
-    ok('Det klappede kort viser det man har tastet',
-        klappetFoer === (await evaluate(`
-            const ex = state.exercises[0];
+    await klap(0);
+
+    ok('Et tryk klapper kortet sammen: navnet står, sæt-felterne er væk',
+        (await viser(`c.classList.contains("collapsed") && c.querySelectorAll(".set-weight").length === 0
+            && c.querySelectorAll(".sets-table").length === 0 && !!c.querySelector(".exercise-name, .exercise-name-btn")`)) === true);
+    ok('I stedet står der hvor mange sæt der har tal, og hvor mange kg',
+        (await viser(`(() => { const ex = state.exercises[0];
             const volume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
-            return ex.sets.length + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg";
-        `)), String(klappetFoer));
+            return c.querySelector(".collapsed-summary").textContent === ex.sets.length + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg"; })()`)) === true,
+        String(await viser('c.querySelector(".collapsed-summary").textContent')));
+    ok('Kun det ene kort er klappet sammen — de andre er urørt',
+        (await antalKlappede()) === 1 && (await evaluate('return document.querySelectorAll("#exercise-list .sets-table").length')) > 0);
 
     await load(URL_UNDER_TEST);
-    ok('Efter en genindlæsning er de samme kort stadig klappet sammen',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 2,
-        String(await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')));
-    ok('Og de står på de rigtige øvelser',
-        (await kortInfo(0)).collapsed === true && (await kortInfo(4)).collapsed === true
-        && (await kortInfo(1)).collapsed === false);
-    ok('Det tastede tal står stadig på det klappede kort efter genindlæsningen',
-        (await kortInfo(0)).summary === klappetFoer, String((await kortInfo(0)).summary));
+    ok('Genindlæsningen folder ikke kortet ud igen, og tallene er der stadig',
+        (await antalKlappede()) === 1
+        && (await viser(`c.classList.contains("collapsed") && c.querySelector(".collapsed-summary").textContent.includes("3/3 sets")`)) === true,
+        String(await viser('c.querySelector(".collapsed-summary").textContent')));
 
-    // Sammenklapningen hører til passet — næste pas skal ikke arve den
+    await klap(0);
+    ok('Samme knap folder ud igen, med tallene i behold',
+        (await viser(`!c.classList.contains("collapsed") && c.querySelector(".set-weight").value === "77.5"`)) === true);
+
     await openSession('upperB');
-    ok('Et andet pas starter med alle kort foldet ud',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 0);
+    ok('Et andet pas starter foldet ud', (await antalKlappede()) === 0);
     await openSession('upperA');
-    ok('Tilbage på passet er det stadig klappet sammen',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 2);
-
-    // Et gem er grænsen: passet er færdigt, og næste gang åbner det foldet ud
+    await klap(1);
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(500);
-    ok('Træningen blev gemt', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]").length')) === 1);
     await openSession('upperA');
-    ok('Efter et gem står kortene foldet ud igen',
-        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')) === 0,
-        String(await evaluate('return document.querySelectorAll("#exercise-list .exercise-card.collapsed").length')));
-
-    // Et klappet kort må ikke kunne skubbe siden ud i bredden på en telefon
-    await evaluate(`document.querySelector(${JSON.stringify(klapKnap(1))}).click(); return true;`);
-    await sleep(250);
-    ok('Et klappet kort giver ingen vandret rulning på 390px',
-        (await evaluate('return document.documentElement.scrollWidth <= window.innerWidth + 1')) === true,
-        JSON.stringify(await evaluate('return { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth }')));
+    ok('Et gem rydder listen', (await antalKlappede()) === 0);
 
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 

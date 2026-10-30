@@ -362,10 +362,9 @@ workouts are present), **the new cable exercises** (can be picked, are grouped c
 the exercise is left out of the saved workout, instead of the old ✕ button), **that typed sets survive a reload** (the draft is written while you type
 and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
 draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved),
-**collapsing an exercise you are done with** (a caret button per card, the card drops its set fields and
-shows `3/3 sets · 1640 kg` instead, unfolds again with the numbers intact, the folded cards survive a reload,
-belong to their pass only, are cleared by a save, are the card's only button — no ✕ left — and cause no
-horizontal scrolling at 390px), and the
+**collapsing an exercise you are done with** (the card drops its set fields and shows its numbers
+instead, folds out again with them intact, and the folded cards survive a reload, belong to their pass and
+are cleared by a save), and the
 mobile layout at 320/375/390/430px (including that
 the ＋ button and the fold caret do not move when the text gets longer, and that nothing spills past the edge).
 
