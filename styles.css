@@ -241,26 +241,11 @@
         .exercise-meta .tag.equip { color: var(--text); }
         .exercise-meta .tag.load { color: var(--warning); }
 
-        .remove-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: transparent;
-            border: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--text-dim);
-            transition: all var(--transition);
-            flex-shrink: 0;
-        }
-        .remove-btn:hover { background: rgba(255,107,107,0.1); border-color: var(--secondary); color: var(--secondary); }
-
         /* ===== SAMMENKLAPNING AF ET KORT ===== */
         /* Man er ikke altid færdig med øvelserne i den rækkefølge de står i: den man er
-           færdig med kan klappes sammen, så de resterende er til at finde. Knappen er
-           32px som ✕-knappen ved siden af — den skal kunne rammes med en tommelfinger. */
+           færdig med kan klappes sammen, så de resterende er til at finde. Det er kortets
+           eneste knap (✕-knappen er væk — man springer en øvelse over med 0 reps), og den
+           er 32px, så den kan rammes med en tommelfinger. */
         .exercise-card-actions {
             display: flex;
             align-items: flex-start;

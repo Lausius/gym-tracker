@@ -1221,15 +1221,15 @@
         });
         if (hint) hint.textContent = swappable ? 'Tap a name to swap' : '';
 
-        // Er der fjernet noget fra dagens træning, kan det hentes tilbage her —
-        // det var før programlisten der gjorde det.
+        // Mangler der en programrække i det pas der står på skærmen (en gammel træning man
+        // retter, eller et udkast der blev skrevet før), kan den hentes tilbage her.
         const removed = missingExerciseCount();
         const restore = document.getElementById('exercise-restore');
         if (restore) {
             restore.classList.toggle('hidden', removed === 0);
             restore.innerHTML = removed === 0 ? '' : `
                 <button class="btn-restore" id="btn-restore">
-                    ↩︎ ${removed === 1 ? '1 exercise removed' : removed + ' exercises removed'} — restore
+                    ↩︎ ${removed === 1 ? '1 exercise missing' : removed + ' exercises missing'} — restore
                 </button>`;
         }
 
@@ -1282,7 +1282,6 @@
                                     aria-expanded="${collapsedCard ? 'false' : 'true'}"
                                     aria-label="${collapsedCard ? 'Expand exercise' : 'Collapse exercise'}"
                                     title="${collapsedCard ? 'Expand exercise' : 'Collapse exercise'}">${collapsedCard ? '▸' : '▾'}</button>
-                            <button class="remove-btn" data-index="${idx}" aria-label="Remove exercise">✕</button>
                         </div>
                     </div>
                     ${collapsedCard ? '' : `
@@ -1528,6 +1527,10 @@
         showToast(`${ex ? ex.name : 'Exercise'} swapped in — remembered for ${dayLabel} ${variant}`, 'success');
     }
 
+    // Kaldes ikke fra UI'et længere (✕-knappen er væk fra kortet — man springer en øvelse
+    // over ved at skrive 0 reps). Den bliver, fordi et pas godt kan mangle en programrække
+    // alligevel: en gammel træning man retter, eller et gammelt udkast. Det er den tilstand
+    // "hent tilbage"-linjen og testene arbejder på.
     function removeExercise(index) {
         const removed = state.exercises[index];
         state.exercises.splice(index, 1);
@@ -2053,13 +2056,10 @@
                 renderAll();
                 return;
             }
-            const removeBtn = e.target.closest('.remove-btn');
-            if (removeBtn) {
-                removeExercise(parseInt(removeBtn.dataset.index));
-            }
-            // Klap en øvelse sammen/fold den ud. Knappen står i kortets hoved, så man
-            // kan gøre det uden at skulle ændre på noget — man er ikke altid færdig
-            // med programmerne i den rækkefølge de står i.
+            // Klap en øvelse sammen eller fold den ud — kortets eneste knap. Man fjerner
+            // ikke øvelser længere: springer man en over, skriver man 0 reps i dens sæt,
+            // og vil man have den af vejen, klapper man den sammen. Man er ikke altid
+            // færdig med programmerne i den rækkefølge de står i.
             const collapseBtn = e.target.closest('.collapse-btn');
             if (collapseBtn) {
                 toggleCollapsed(collapseBtn.dataset.exerciseId);

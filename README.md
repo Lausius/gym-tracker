@@ -81,6 +81,11 @@ website, or by opening `index.html` straight from disk.
   exists. It **never** touches your own workouts: the block is shown only when the log is empty or
   contains sample data only, and it is hidden completely as soon as a real workout is in there.
 - **History:** all saved sessions grouped by date with the best set highlighted.
+- **Skipping an exercise:** there is deliberately **no ✕ button** on the cards — you do not
+  remove exercises. Write **0 reps** in its sets instead: the card stays on screen (where you can
+  fold it away), and the exercise is left out of the saved workout, because a set only counts when
+  both weight and reps are filled in. Setting 0 on every set of one exercise drops that exercise from
+  the log; the next time the programme's own numbers are used for it again.
 - **Edit a saved workout:** forgot an exercise? Tap ✏️ Edit on the workout in the
   history. The exercises are loaded back in, you can add/fix/remove, and the button then reads
   **Update workout**. The date, the day and the variant are preserved, and no duplicate is created —
@@ -353,14 +358,16 @@ the last workout** (run a variant, fix it, save, and see the program repeat it �
 "Remembering" line, that "Add all" loads the remembered workout with the same weight, that the template
 can still be brought up with "Show all", and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
 workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
-"per hand", and they are not in the programs), **that typed sets survive a reload** (the draft is written while you type
+"per hand", and they are not in the programs), **skipping an exercise with 0 reps** (the card stays and
+the exercise is left out of the saved workout, instead of the old ✕ button), **that typed sets survive a reload** (the draft is written while you type
 and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
 draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved),
 **collapsing an exercise you are done with** (a caret button per card, the card drops its set fields and
 shows `3/3 sets · 1640 kg` instead, unfolds again with the numbers intact, the folded cards survive a reload,
-belong to their pass only, are cleared by a save and cause no horizontal scrolling at 390px), and the
+belong to their pass only, are cleared by a save, are the card's only button — no ✕ left — and cause no
+horizontal scrolling at 390px), and the
 mobile layout at 320/375/390/430px (including that
-the ＋/✕ buttons do not move when the text gets longer, and that nothing spills past the edge).
+the ＋ button and the fold caret do not move when the text gets longer, and that nothing spills past the edge).
 
 The tests clear `localStorage` at start, so a run does not inherit state from the previous one — they
 can be run any number of times in a row with the same result.

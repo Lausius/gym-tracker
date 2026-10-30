@@ -144,6 +144,12 @@ async function main() {
     console.log('\n── 2. Programmet ligger klart ved åbning');
     ok('Der er ingen "Tilføj alle"-knap mere', (await evaluate('return document.getElementById("program-load")')) === null);
     ok('Der er ingen "Tilføj øvelse"-formular mere', (await evaluate('return document.getElementById("add-exercise-section")')) === null);
+    ok('Der er ingen ✕-knap på kortene længere (man springer en øvelse over med 0 reps)',
+        (await evaluate('return document.querySelector("#exercise-list .remove-btn")')) === null
+        && (await evaluate('return document.querySelector("#exercise-list .exercise-card .exercise-card-actions button")')) !== null
+        && (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card .exercise-card-actions button").length'))
+            === (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')),
+        await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card .exercise-card-actions button")].map(b => b.outerHTML.slice(0, 60)).join(" | ")'));
     ok('Dagens program giver 6 øvelser af sig selv (Upper A)',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) ===
         (await evaluate('return getProgram("upper", "A").length')));
@@ -402,7 +408,7 @@ async function main() {
         return evaluate(`
             const doc = document.documentElement;
             const groups = [
-                ['#exercise-list', '.exercise-card', '.remove-btn'],
+                ['#exercise-list', '.exercise-card', '.collapse-btn'],
             ];
             const report = [];
             for (const [container, rowSel, rightSel] of groups) {
@@ -418,7 +424,7 @@ async function main() {
                     const eb = rightEls[i].getBoundingClientRect();
                     return Math.round(Math.abs((rects[i].top + rects[i].height / 2) - (eb.top + eb.height / 2)));
                 });
-                // Øvelseskortets ✕ sidder bevidst i toppen af kortet, ikke lodret centreret
+                // Øvelseskortets klap-knap sidder bevidst i toppen af kortet, ikke lodret centreret
                 const topOffsets = rows.map((r, i) => Math.round(rightEls[i].getBoundingClientRect().top - rects[i].top));
                 const spill = rows.filter((r, i) => [...r.querySelectorAll('*')].some(el => {
                     const eb = el.getBoundingClientRect();
@@ -462,13 +468,13 @@ async function main() {
         }
     }
 
-    // Selve regressionen: gør navnet markant længere — ✕-knappen må ikke flytte sig.
+    // Selve regressionen: gør navnet markant længere — klap-knappen må ikke flytte sig.
     // (Det var netop fejlen før: et langt øvelsesnavn skubbede knappen ud af rækken.)
     await S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
     await sleep(250);
     const before = await evaluate(`
         const c = document.querySelector("#exercise-list .exercise-card");
-        const b = c.querySelector(".remove-btn").getBoundingClientRect();
+        const b = c.querySelector(".collapse-btn").getBoundingClientRect();
         return Math.round(c.getBoundingClientRect().right - b.right);
     `);
     await evaluate(`
@@ -482,13 +488,13 @@ async function main() {
     const after = await evaluate(`
         const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
         const edges = cards.map(c => {
-            const b = c.querySelector(".remove-btn").getBoundingClientRect();
+            const b = c.querySelector(".collapse-btn").getBoundingClientRect();
             return Math.round(c.getBoundingClientRect().right - b.right);
         });
         return { offset: edges[0], spread: Math.max(...edges) - Math.min(...edges) };
     `);
-    ok(`✕-knappen flytter sig ikke ved lang tekst (før ${before}px, efter ${after.offset}px)`, before === after.offset);
-    ok('✕-knapperne holder samme afstand til kanten selv med lang tekst', after.spread <= 1, `spredning ${after.spread}px`);
+    ok(`Klap-knappen flytter sig ikke ved lang tekst (før ${before}px, efter ${after.offset}px)`, before === after.offset);
+    ok('Klap-knapperne holder samme afstand til kanten selv med lang tekst', after.spread <= 1, `spredning ${after.spread}px`);
     await load(URL_UNDER_TEST, '#app');
     await S('Emulation.clearDeviceMetricsOverride');
     await sleep(200);
@@ -805,22 +811,25 @@ async function main() {
     // ─── 10. Rediger en gemt træning ──────────────────────────────
     console.log('\n── 10. Rediger en gemt træning (øvelse glemt og hentet ind bagefter)');
 
-    // Start forfra med rene data: dagen ligger klar, fjern den sidste øvelse (som om
-    // man gik hjem før den) og gem. Bagefter hentes den ind igen under redigering.
+    // Start forfra med rene data: dagen ligger klar. Man går hjem før den sidste øvelse og
+    // skriver 0 reps i alle dens sæt — det er måden man springer en øvelse over nu, hvor
+    // ✕-knappen er væk. Den bliver stående på skærmen, men kommer ikke med i loggen.
     await evaluate('localStorage.clear(); return true;');
     await load(URL_UNDER_TEST);
     await openSession('upperA');
     await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
-        cards[cards.length - 1].querySelector(".remove-btn").click();
+        const kort = [...document.querySelectorAll("#exercise-list .exercise-card")].pop();
+        kort.querySelectorAll(".set-reps").forEach(r => {
+            r.value = "0";
+            r.dispatchEvent(new Event("input", { bubbles: true }));
+        });
         return true;
     `);
-    await sleep(250);
-    ok('Øvelsen er fjernet fra dagens træning', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 5);
-    ok('Linjen "hent tilbage" vises nu (øvelsen er ikke med i dag)', (await evaluate(`
-        const row = document.getElementById("exercise-restore");
-        return !row.classList.contains("hidden") && /1 exercise removed/.test(row.textContent);
-    `)) === true, await evaluate('return document.getElementById("exercise-restore").textContent.trim()'));
+    await sleep(300);
+    ok('Den oversprungne øvelse står stadig på skærmen (man kan se at man sprang den over)',
+        (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 6);
+    ok('En oversprunget øvelse tæller ikke som "mangler" — der er intet at hente tilbage midt i passet',
+        (await evaluate('return document.getElementById("exercise-restore").classList.contains("hidden")')) === true);
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(400);
 
@@ -900,9 +909,16 @@ async function main() {
     // Annuller må ikke skrive noget
     await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
     await sleep(300);
-    await evaluate('document.querySelector("#exercise-list .remove-btn").click(); return true;');
+    await evaluate(`
+        const r = document.querySelector("#exercise-list .exercise-card .set-reps");
+        r.value = "3";
+        r.dispatchEvent(new Event("input", { bubbles: true }));
+        return true;
+    `);
     await sleep(250);
-    ok('En øvelse kan fjernes under redigering', (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 5);
+    ok('Man kan rette et sæt under redigering (der er ændret noget at annullere)',
+        (await evaluate('return document.querySelector("#exercise-list .exercise-card .set-reps").value')) === '3'
+        && (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === 6);
     await evaluate('document.getElementById("edit-cancel").click(); return true;');
     await sleep(300);
     const afterCancel = await evaluate(`
@@ -1394,11 +1410,14 @@ async function main() {
     ok('Programmet er lagt ind som dagens træning',
         (await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length')) === (await evaluate('return getProgram("lower","B").length')));
 
-    // Kør en træning: ret vægten, fjern den sidste øvelse, gem
+    // Kør en træning: ret vægten, sæt 0 reps på den sidste øvelse (sprunget over), gem
     const templateCount = await evaluate('return document.querySelectorAll("#exercise-list .exercise-card").length');
     await evaluate(`
-        const cards = [...document.querySelectorAll("#exercise-list .exercise-card")];
-        cards[cards.length - 1].querySelector(".remove-btn").click();
+        const kort = [...document.querySelectorAll("#exercise-list .exercise-card")].pop();
+        kort.querySelectorAll(".set-reps").forEach(r => {
+            r.value = "0";
+            r.dispatchEvent(new Event("input", { bubbles: true }));
+        });
         const w = document.querySelectorAll("#exercise-list .exercise-card .set-weight")[0];
         w.value = "99";
         w.dispatchEvent(new Event("input", { bubbles: true }));
@@ -1407,7 +1426,7 @@ async function main() {
     await sleep(300);
     await evaluate('document.getElementById("save-btn").click(); return true;');
     await sleep(450);
-    ok('Træningen er gemt med én øvelse færre', (await evaluate(`
+    ok('Den oversprungne øvelse er ikke med i den gemte træning', (await evaluate(`
         const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
         return w.length === 1 && w[0].variant === "B" && w[0].exercises.length === ${templateCount - 1};
     `)) === true);
@@ -1959,7 +1978,8 @@ async function main() {
             summary: (c.querySelector(".collapsed-summary") || {}).textContent || null,
             meta: c.querySelectorAll(".exercise-meta").length,
             navn: (c.querySelector(".exercise-name") || c.querySelector(".exercise-name-btn") || {}).textContent || null,
-            fjern: c.querySelectorAll(".remove-btn").length,
+            fjernKnapper: c.querySelectorAll(".remove-btn").length,
+            hovedKnapper: c.querySelectorAll(".exercise-card-actions button").length,
             hoejde: Math.round(c.getBoundingClientRect().height),
             aria: (c.querySelector(".collapse-btn") || {}).getAttribute ? c.querySelector(".collapse-btn").getAttribute("aria-expanded") : null,
             tegn: (c.querySelector(".collapse-btn") || {}).textContent || null,
@@ -1997,8 +2017,9 @@ async function main() {
         efter.inputs === 0 && efter.tabeller === 0, JSON.stringify(efter));
     ok('Cue, anbefaling og opvarmning er væk sammen med felterne',
         efter.cue === 0 && efter.target === 0, JSON.stringify(efter));
-    ok('Navnet og ✕ står der stadig (man kan stadig se og fjerne øvelsen)',
-        efter.fjern === 1 && /Bench|Shoulder|Lat|Row|Triceps|Curl|Press/.test(efter.navn || ''), String(efter.navn));
+    ok('Navnet står der stadig, og kortet har kun klap-knappen i hovedet (ingen ✕)',
+        efter.hovedKnapper === 1 && efter.fjernKnapper === 0
+        && /Bench|Shoulder|Lat|Row|Triceps|Curl|Press/.test(efter.navn || ''), JSON.stringify(efter));
     ok('I stedet står der hvor mange sæt der har tal, og hvor mange kg',
         efter.summary === (await evaluate(`
             const ex = state.exercises[2];

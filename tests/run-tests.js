@@ -1443,6 +1443,10 @@ const html0 = cardHtml();
 ok('Hvert kort har en klap-sammen-knap',
     countIn(html0, 'class="collapse-btn"') === state.exercises.length,
     `${countIn(html0, 'class="collapse-btn"')} knapper, ${state.exercises.length} kort`);
+ok('Der er ingen ✕-knap på kortet længere (man springer en øvelse over med 0 reps)',
+    countIn(html0, 'remove-btn') === 0 && countIn(html0, 'aria-label="Remove exercise"') === 0);
+ok('Klap-knappen er kortets eneste knap i hovedet',
+    countIn(html0, 'class="exercise-card-actions"') === state.exercises.length);
 ok('Intet kort er klappet sammen fra starten',
     countIn(html0, 'collapsed-summary') === 0 && countIn(html0, 'exercise-card collapsed') === 0);
 ok('Knappen fortæller skærmlæseren at kortet er foldet ud',
