@@ -351,12 +351,11 @@ JS errors, loading a program, switching the A/B variant, fixing weight/reps, add
 **week-based sharing with a character budget** (pick a week, copy, mark as shared),
 **the warm-up ramp** (shown on the card, collapsed by default, follows an edited weight and stays open
 while you edit),
-**the technique cues** (visible without unfolding, one per card, above the warm-up block),
-**filtering of exercises without history in "Next week"** (the Show all button, that a new user is not
-left with empty lists, and that bodyweight exercises do not disappear), **"Today's program" that remembers
+**the technique cues** (visible without unfolding, one per card, and each card's own),
+**that an empty view explains itself instead of standing blank** (and that bodyweight exercises are
+kept, so the template's 1 kg marker stops them disappearing), **"Today's program" that remembers
 the last workout** (run a variant, fix it, save, and see the program repeat it — including the
-"Remembering" line, that "Add all" loads the remembered workout with the same weight, that the template
-can still be brought up with "Show all", and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
+"Remembering" line, that the template is still the whole program afterwards, and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
 workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
 "per hand", and they are not in the programs), **skipping an exercise with 0 reps** (the card stays and
 the exercise is left out of the saved workout, instead of the old ✕ button), **that typed sets survive a reload** (the draft is written while you type
@@ -365,8 +364,9 @@ draft from an earlier week or from another pass is not used, and the draft is go
 **collapsing an exercise you are done with** (the card drops its set fields and shows its numbers
 instead, folds out again with them intact, and the folded cards survive a reload, belong to their pass and
 are cleared by a save), and the
-mobile layout at 320/375/390/430px (including that
-the ＋ button and the fold caret do not move when the text gets longer, and that nothing spills past the edge).
+mobile layout at 320 and 390px (including that the
+fold carets keep the same distance to the edge when the text gets longer, and that nothing spills past
+the edge).
 
 The tests clear `localStorage` at start, so a run does not inherit state from the previous one — they
 can be run any number of times in a row with the same result.
