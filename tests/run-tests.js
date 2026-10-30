@@ -64,7 +64,10 @@ vm.runInContext(
         warmupSets, formatWarmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine,
         NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
         DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
-        draftKeyFor, clearDraft, scheduleDraftSave };
+        draftKeyFor, clearDraft, scheduleDraftSave,
+        COLLAPSE_KEY, loadCollapsed, collapsedIds, applyCollapsedState, isCollapsed,
+        persistCollapsed, clearCollapsed, toggleCollapsed, collapsedSummary,
+        renderExerciseList, removeExercise };
     `,
     ctx
 );
@@ -83,6 +86,9 @@ const {
     NOTES_URL, NOTES_FILE, escapeHtml, renderNotesMarkdown, loadCoachNotes,
     DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
     draftKeyFor, clearDraft, scheduleDraftSave,
+    COLLAPSE_KEY, loadCollapsed, collapsedIds, applyCollapsedState, isCollapsed,
+    persistCollapsed, clearCollapsed, toggleCollapsed, collapsedSummary,
+    renderExerciseList, removeExercise,
 } = ctx.__app;
 
 let pass = 0, fail = 0;
@@ -1388,7 +1394,200 @@ state.exercises = [];
 state.editing = null;
 }
 
-notesTests().then(draftTests).then(() => {
+// ─── 18. Klap en færdig øvelse sammen ────────────────────────────────
+// Man er ikke altid færdig med øvelserne i den rækkefølge programmet stiller dem i:
+// er man færdig med nr. 4, skal den kunne klappes sammen, så de resterende er til at
+// finde. Det er visningstilstand, men den hører til passet og skal overleve at
+// telefonen genindlæser siden midt i træningen (se udkastet i sektion 17).
+function collapseTests() {
+console.log('\n── 18. Klap en færdig øvelse sammen (man træner ikke altid i rækkefølge)');
+
+const REAL_TODAY = new Date().toISOString().split('T')[0];
+const A0 = programItems('upper', 'A')[0].exerciseId;
+const A1 = programItems('upper', 'A')[1].exerciseId;
+
+function freshSession() {
+    Object.keys(store).forEach(k => delete store[k]);
+    state.currentDay = 'upper';
+    state.programVariant = 'A';
+    state.sessionVariant = null;
+    state.editing = null;
+    state.allowDuplicateWeek = false;
+    state.openSwap = null;
+    state.collapsed = [];
+    loadProgram();
+}
+
+// renderExerciseList skriver til #exercise-list, og stubbens elementer kastes væk.
+// Vi fanger dem, så kortets HTML kan læses — ikke kun state.
+function cardHtml() {
+    const captured = {};
+    const realGetById = document.getElementById;
+    document.getElementById = id => (captured[id] = captured[id] || makeEl(id));
+    renderExerciseList();
+    document.getElementById = realGetById;
+    return captured['exercise-list'].innerHTML;
+}
+const countIn = (haystack, needle) => haystack.split(needle).length - 1;
+// Ét kort ud af listen: kortet starter sin egen streng, så vi kan se om netop dét
+// kort har fået klassen og om dets felter er væk.
+// Deler listen i kort: hvert kort starter med sin egen div (også når det har fået
+// "collapsed" på), mens kortets indre div'er (-header, -main, -actions) ikke gør.
+const cardOf = (html, id) => html.split(/(?=<div class="exercise-card[" ])/)
+    .find(part => part.includes(`data-exercise-id="${id}"`)) || '';
+const storedCollapse = () => JSON.parse(store[COLLAPSE_KEY] || '{}');
+
+freshSession();
+ok('Et frisk pas har ingen sammenklappede kort', state.collapsed.length === 0);
+const html0 = cardHtml();
+ok('Hvert kort har en klap-sammen-knap',
+    countIn(html0, 'class="collapse-btn"') === state.exercises.length,
+    `${countIn(html0, 'class="collapse-btn"')} knapper, ${state.exercises.length} kort`);
+ok('Intet kort er klappet sammen fra starten',
+    countIn(html0, 'collapsed-summary') === 0 && countIn(html0, 'exercise-card collapsed') === 0);
+ok('Knappen fortæller skærmlæseren at kortet er foldet ud',
+    countIn(html0, 'aria-expanded="true"') === state.exercises.length);
+ok('Der er ingen sammenklapning at hente i browseren endnu', !cardHtml().includes('collapsed'));
+
+// Klap den anden øvelse sammen — den man er færdig med først
+ok('Man kan klappe en øvelse sammen', toggleCollapsed(A1) === true && isCollapsed(A1) === true);
+ok('Den skrives ned med det samme, på det pas man står i',
+    !!storedCollapse().upperA && storedCollapse().upperA.ids.join(',') === A1,
+    JSON.stringify(storedCollapse()));
+const skrevet = storedCollapse().upperA || {};
+ok('Den hører til ugen den blev lavet i, så et gammelt pas ikke dukker op igen',
+    skrevet.week === isoWeekKey(REAL_TODAY), JSON.stringify(skrevet));
+
+const html1 = cardHtml();
+ok('Det sammenklappede kort er markeret på skærmen',
+    cardOf(html1, A1).includes('class="exercise-card collapsed"'));
+ok('Kortets sæt-felter er væk, ikke bare skjulte', !cardOf(html1, A1).includes('set-weight'));
+ok('De andre kort har stadig deres felter',
+    countIn(html1, 'sets-table') === state.exercises.length - 1, String(countIn(html1, 'sets-table')));
+ok('Knappen på det klappede kort folder ud igen (aria-expanded=false)',
+    cardOf(html1, A1).includes('aria-expanded="false"'));
+ok('Et kort der ikke er klappet sammen har sin meta-linje i stedet for et facit',
+    cardOf(html1, A0).includes('exercise-meta') && !cardOf(html1, A0).includes('collapsed-summary'));
+
+// Tallene: et klappet kort er den eneste status man har, mens det er klappet. Kortet
+// dømmer bevidst ikke om man er færdig — programmet forudfylder vægt og reps, så
+// "alle sæt har tal" ville stå på hvert eneste kort fra første sekund.
+const exIdx = state.exercises.findIndex(e => e.exerciseId === A1);
+const antalSaet = state.exercises[exIdx].sets.length;
+const volumen = () => state.exercises[exIdx].sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+const saetAlle = (w, r) => state.exercises[exIdx].sets.forEach((_, si) => {
+    updateSet(exIdx, si, 'weight', String(w));
+    updateSet(exIdx, si, 'reps', String(r));
+});
+
+ok('Et klappet kort siger hvor mange sæt der har tal, og hvor mange kg',
+    collapsedSummary(state.exercises[exIdx]) === antalSaet + '/' + antalSaet + ' sets · ' + volumen() + ' kg',
+    collapsedSummary(state.exercises[exIdx]));
+
+saetAlle(0, 0);
+ok('Et klappet kort uden tal siger det',
+    collapsedSummary(state.exercises[exIdx]) === 'No sets logged yet'
+    && cardOf(cardHtml(), A1).includes('No sets logged yet'));
+
+saetAlle(70, 8);
+ok('Tallene man har tastet står på det klappede kort',
+    collapsedSummary(state.exercises[exIdx]) === '3/3 sets · 1680 kg'
+    && cardOf(cardHtml(), A1).includes('3/3 sets · 1680 kg'),
+    collapsedSummary(state.exercises[exIdx]));
+
+updateSet(exIdx, 2, 'reps', '0');
+ok('Mangler der et sæt, siger kortet hvor langt man er',
+    collapsedSummary(state.exercises[exIdx]) === '2/3 sets · 1120 kg', collapsedSummary(state.exercises[exIdx]));
+updateSet(exIdx, 2, 'reps', '8');
+
+// Fold ud igen: så skal det hele være som før
+ok('Man kan folde den ud igen', toggleCollapsed(A1) === true && isCollapsed(A1) === false);
+ok('Kortet er frit igen, med sine felter',
+    !cardHtml().includes('exercise-card collapsed') && cardOf(cardHtml(), A1).includes('set-weight'));
+ok('Og listen er ryddet i browseren i stedet for at ligge og vokse',
+    !JSON.parse(store[COLLAPSE_KEY] || '{}').upperA);
+
+// Genindlæsning: telefonen smider siden væk midt i passet. Kortene man har klappet
+// sammen skal stå klappet sammen igen — det er hele grunden til at det huskes.
+freshSession();
+toggleCollapsed(A1);
+state.collapsed = []; // som en ny side: state er tom, localStorage er ikke
+loadProgram();
+ok('En genindlæsning lægger sammenklapningen tilbage',
+    isCollapsed(A1) === true, JSON.stringify(state.collapsed));
+ok('Og kortet er klappet sammen på skærmen', cardOf(cardHtml(), A1).includes('collapsed'));
+
+// Det hører til passet: næste pas skal ikke arve det
+state.currentDay = 'lower';
+state.programVariant = null;
+loadProgram();
+ok('Et andet pas starter med alt foldet ud', state.collapsed.length === 0, JSON.stringify(state.collapsed));
+ok('Men det første pas har stadig sin liste', !!storedCollapse().upperA);
+state.currentDay = 'upper';
+state.programVariant = 'A';
+loadProgram();
+ok('Tilbage på passet er det klappet sammen igen', isCollapsed(A1) === true);
+
+// Et pas fra en tidligere uge er en træning der er begyndt forfra
+store[COLLAPSE_KEY] = JSON.stringify({ upperA: { week: '2020-W01', ids: [A0] } });
+ok('Et sammenklappet pas fra en tidligere uge bruges ikke', collapsedIds().length === 0);
+ok('Og det smides væk i stedet for at ligge og vente',
+    !JSON.parse(store[COLLAPSE_KEY]).upperA, store[COLLAPSE_KEY]);
+
+// En øvelse der er ude af appen kan ikke stå på et kort
+store[COLLAPSE_KEY] = JSON.stringify({ upperA: { week: isoWeekKey(REAL_TODAY), ids: ['findes_ikke', A0] } });
+ok('En øvelse der ikke findes i appen kan ikke stå klappet sammen',
+    collapsedIds().join(',') === A0, collapsedIds().join(','));
+ok('Og den ryddes ud af listen', JSON.parse(store[COLLAPSE_KEY]).upperA.ids.join(',') === A0);
+
+// Bytte-listen hører til kortets krop, så den lukkes når man klapper sammen
+freshSession();
+state.openSwap = slotForExercise(A0);
+toggleCollapsed(A0);
+ok('Bytte-listen lukkes når kortet klappes sammen', state.openSwap === null, String(state.openSwap));
+
+// En fjernet øvelse skal ikke ligge klar som sammenklappet når den kommer tilbage
+freshSession();
+toggleCollapsed(A0);
+removeExercise(0);
+ok('En fjernet øvelse er ikke længere klappet sammen',
+    state.collapsed.length === 0 && !storedCollapse().upperA, JSON.stringify(storedCollapse()));
+
+// Retter man en gammel træning, er det den trænings kort man ser
+freshSession();
+toggleCollapsed(A0);
+store['gym_tracker_workouts'] = JSON.stringify([
+    Object.assign(w('w_gml', REAL_TODAY, 'upper', 'A'), { exercises: [{ exerciseId: A0, sets: [{ weight: 60, reps: 8 }] }] }),
+]);
+startEditWorkout('w_gml');
+ok('En gemt træning man retter åbnes med alle kort foldet ud', state.collapsed.length === 0);
+
+// Gemning er grænsen: passet er færdigt, og næste gang folder alt ud
+freshSession();
+toggleCollapsed(A0);
+updateSet(0, 0, 'weight', '70');
+saveWorkout();
+ok('Træningen blev gemt med det klappede kort med', JSON.parse(store['gym_tracker_workouts']).length === 1);
+ok('Efter et gem er sammenklapningen ryddet', !storedCollapse().upperA, JSON.stringify(storedCollapse()));
+ok('Og kortene står foldet ud igen', state.collapsed.length === 0);
+
+// Nægter browseren at gemme, må visningen ikke vælte
+freshSession();
+const rigtigeSetItem = localStorage.setItem;
+localStorage.setItem = () => { throw new Error('quota'); };
+let kastede = false;
+try { toggleCollapsed(A0); } catch { kastede = true; }
+localStorage.setItem = rigtigeSetItem;
+ok('En browser der nægter at gemme vælter ikke sammenklapningen',
+    kastede === false && isCollapsed(A0) === true);
+
+Object.keys(store).forEach(k => delete store[k]);
+state.exercises = [];
+state.collapsed = [];
+state.editing = null;
+}
+
+notesTests().then(draftTests).then(collapseTests).then(() => {
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
     process.exit(fail === 0 ? 0 : 1);
 });

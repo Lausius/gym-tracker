@@ -68,6 +68,14 @@ website, or by opening `index.html` straight from disk.
   Pull-to-refresh itself is switched off in CSS (`overscroll-behavior-y: contain`) — scrolling in
   the app must not reload the page. Coming back to a pass you typed in (the week chips) also
   brings the numbers back.
+- **Collapse an exercise you are done with:** a round caret button in the card's top right folds the
+  card down to the name plus one line of numbers (`3/3 sets · 1640 kg`), so the exercises you have
+  left are easy to find — you do not have to do them in the order they are listed. Tapping the caret
+  again unfolds the card with every number still in place. Folded cards are remembered per pass and
+  per ISO week (same rule as the draft), so a reload does not unfold them; saving the workout clears
+  the list. The summary deliberately does not judge whether you are finished: the programme
+  pre-fills weight and reps, so "all sets have numbers" is true from the first second and would be
+  printed on every card.
 - **Sample data for testing:** on the front page (visible only when the log is empty) you can fill in
   three weeks of A/B history with one tap — handy in a preview on another domain, where no data
   exists. It **never** touches your own workouts: the block is shown only when the log is empty or
@@ -149,8 +157,8 @@ python3 -m http.server 8099 --bind 127.0.0.1
 
 All state lives in `localStorage`: `gym_tracker_workouts` (saved sessions),
 `gym_tracker_current_day`, `gym_tracker_settings`, `gym_tracker_program_swaps` (remembered
-exercise swaps) and `gym_tracker_draft` (the session in progress, so a reload does not lose
-what you typed).
+exercise swaps), `gym_tracker_draft` (the session in progress, so a reload does not lose
+what you typed) and `gym_tracker_collapsed` (which cards of a pass are folded down).
 
 ## Structure
 
@@ -347,7 +355,10 @@ can still be brought up with "Show all", and that the ↻ button is gone), **sam
 workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
 "per hand", and they are not in the programs), **that typed sets survive a reload** (the draft is written while you type
 and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
-draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved), and the
+draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved),
+**collapsing an exercise you are done with** (a caret button per card, the card drops its set fields and
+shows `3/3 sets · 1640 kg` instead, unfolds again with the numbers intact, the folded cards survive a reload,
+belong to their pass only, are cleared by a save and cause no horizontal scrolling at 390px), and the
 mobile layout at 320/375/390/430px (including that
 the ＋/✕ buttons do not move when the text gets longer, and that nothing spills past the edge).
 
