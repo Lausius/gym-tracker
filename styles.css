@@ -241,7 +241,18 @@
         .exercise-meta .tag.equip { color: var(--text); }
         .exercise-meta .tag.load { color: var(--warning); }
 
-        .remove-btn {
+        /* ===== SAMMENKLAPNING AF ET KORT ===== */
+        /* Man er ikke altid færdig med øvelserne i den rækkefølge de står i: den man er
+           færdig med kan klappes sammen, så de resterende er til at finde. Det er kortets
+           eneste knap (✕-knappen er væk — man springer en øvelse over med 0 reps), og den
+           er 32px, så den kan rammes med en tommelfinger. */
+        .exercise-card-actions {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .collapse-btn {
             width: 32px;
             height: 32px;
             border-radius: 50%;
@@ -250,12 +261,22 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 12px;
+            line-height: 1;
             color: var(--text-dim);
             transition: all var(--transition);
             flex-shrink: 0;
         }
-        .remove-btn:hover { background: rgba(255,107,107,0.1); border-color: var(--secondary); color: var(--secondary); }
+        .collapse-btn:hover { background: rgba(78,205,196,0.1); border-color: var(--accent); color: var(--accent); }
+        /* Det klappede kort er kun navnet og facit: ingen bund-margin under hovedet, og
+           mindre luft omkring, så listen af færdige øvelser ikke fylder mere end nødvendigt. */
+        .exercise-card.collapsed { padding: 10px 14px; }
+        .exercise-card.collapsed .exercise-card-header { margin-bottom: 0; align-items: center; }
+        .collapsed-summary {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-top: 2px;
+        }
 
         /* ===== TEKNIK-CUES ===== */
         /* Én linje pr. øvelse, altid synlig: pointen er at kunne læse den mens man

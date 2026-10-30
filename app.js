@@ -278,6 +278,7 @@
         sessionVariant: null, // varianten programmet blev indlæst fra (gemmes med træningen)
         editing: null, // { id, date, day } når en gemt træning redigeres i stedet for at gemme ny
         openSwap: null, // skabelon-id på den øvelse hvis bytte-liste er åben
+        collapsed: [], // id'er på de øvelser der er klappet sammen i det pas man står i
         allowDuplicateWeek: false, // sat når man bevidst gemmer samme pas to gange i ugen
         touched: false, // sat når man selv retter noget i dagens træning (ikke ved indlæsning)
     };
@@ -488,6 +489,108 @@
         state.touched = true;
         showToast('Restored what you had typed', 'info');
         return true;
+    }
+
+    // ─── Sammenklappede øvelser (man træner ikke altid i programmets rækkefølge)
+    // Er man færdig med øvelse 4 mens 1-3 stadig mangler, kan man klappe den færdige
+    // sammen og have de resterende for sig. Nøglen er det pas man står i — samme nøgle
+    // som udkastet (se draftKeyFor) — og det huskes i localStorage, så en genindlæsning
+    // midt i træningen ikke folder det hele ud igen.
+    const COLLAPSE_KEY = 'gym_tracker_collapsed';
+
+    function loadCollapsed() {
+        try {
+            const data = localStorage.getItem(COLLAPSE_KEY);
+            return data ? JSON.parse(data) : {};
+        } catch { return {}; }
+    }
+
+    function saveCollapsed(all) {
+        // Samme forsigtighed som udkastet: et nej fra browseren må ikke vælte visningen,
+        // og svaret bruges til at vide om det faktisk blev husket.
+        try {
+            localStorage.setItem(COLLAPSE_KEY, JSON.stringify(all));
+            return true;
+        } catch { return false; }
+    }
+
+    // Id'erne for det pas man står i. Et sammenklappet pas fra en tidligere uge hører
+    // til en træning der er begyndt forfra, og smides væk i stedet for at ligge og vente.
+    // Ukendte id'er (øvelser der er ude af appen) kan ikke vises på et kort og filtreres fra.
+    function collapsedIds(today = getTodayStr()) {
+        const all = loadCollapsed();
+        const key = draftKeyFor();
+        const entry = all[key];
+        if (!entry) return [];
+        if (entry.week !== isoWeekKey(today)) {
+            delete all[key];
+            saveCollapsed(all);
+            return [];
+        }
+        const known = (entry.ids || []).filter(id => getExerciseById(state.currentDay, id));
+        if (known.length !== (entry.ids || []).length) {
+            // Ryd op i det der ikke længere findes, så nøglen ikke vokser i det uendelige.
+            if (known.length === 0) delete all[key];
+            else all[key] = { week: entry.week, ids: known };
+            saveCollapsed(all);
+        }
+        return known;
+    }
+
+    // Når passet skifter, er det passets egen liste der gælder — det er her state.collapsed
+    // sættes, så en klappet øvelse ikke følger med over i næste pas.
+    function applyCollapsedState(today = getTodayStr()) {
+        state.collapsed = collapsedIds(today);
+    }
+
+    function isCollapsed(exerciseId) {
+        return state.collapsed.indexOf(exerciseId) !== -1;
+    }
+
+    function persistCollapsed(today = getTodayStr()) {
+        const all = loadCollapsed();
+        const key = draftKeyFor();
+        if (state.collapsed.length === 0) delete all[key];
+        else all[key] = { week: isoWeekKey(today), ids: state.collapsed.slice() };
+        return saveCollapsed(all);
+    }
+
+    function clearCollapsed(key = draftKeyFor()) {
+        const all = loadCollapsed();
+        if (!(key in all)) return false;
+        delete all[key];
+        saveCollapsed(all);
+        return true;
+    }
+
+    // Klapper en øvelse sammen eller folder den ud igen. Skrives ned med det samme: et
+    // tryk er sjældent, og man skal ikke kunne tabe listen ved en genindlæsning.
+    function toggleCollapsed(exerciseId) {
+        if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
+        state.collapsed = isCollapsed(exerciseId)
+            ? state.collapsed.filter(id => id !== exerciseId)
+            : state.collapsed.concat([exerciseId]);
+        // Bytte-listen hører til kortets krop: klapper man sammen, lukkes den også.
+        if (isCollapsed(exerciseId)) {
+            const slot = slotForExercise(exerciseId);
+            if (slot && state.openSwap === slot) state.openSwap = null;
+        }
+        persistCollapsed();
+        renderAll();
+        return true;
+    }
+
+    // Teksten på et sammenklappet kort: hvor mange af sættene der har tal, og volumen.
+    // Kortet viser ingen felter, så det er den eneste status man har mens det er klappet.
+    // Bevidst ingen dom over om man er færdig: programmet forudfylder vægt og reps, så
+    // "alle sæt har tal" er sandt fra første sekund og ville stå på hvert eneste kort.
+    function collapsedSummary(ex) {
+        const sets = ex.sets || [];
+        if (sets.length === 0) return 'No sets';
+        const logged = sets.filter(s => s.weight > 0 && s.reps > 0).length;
+        const volume = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
+        if (logged === 0) return 'No sets logged yet';
+        return `${logged}/${sets.length} sets · ${volume.toFixed(0)} kg`;
     }
 
     // ─── Toast System ─────────────────────────────────────────────
@@ -879,6 +982,9 @@
         state.sessionVariant = variant;
         state.editing = null;
         state.openSwap = null;
+        // Sammenklapningen hører til passet, ikke til visningen: et nyt pas folder alt ud
+        // (og et man kommer tilbage til ser ud som man forlod det).
+        applyCollapsedState();
         // Et friskindlæst program er ikke noget man har tastet: udkastet skal komme fra
         // brugerens egne rettelser (ellers arvede et nyt pas det forrige pas' udkast).
         state.touched = false;
@@ -1115,15 +1221,15 @@
         });
         if (hint) hint.textContent = swappable ? 'Tap a name to swap' : '';
 
-        // Er der fjernet noget fra dagens træning, kan det hentes tilbage her —
-        // det var før programlisten der gjorde det.
+        // Mangler der en programrække i det pas der står på skærmen (en gammel træning man
+        // retter, eller et udkast der blev skrevet før), kan den hentes tilbage her.
         const removed = missingExerciseCount();
         const restore = document.getElementById('exercise-restore');
         if (restore) {
             restore.classList.toggle('hidden', removed === 0);
             restore.innerHTML = removed === 0 ? '' : `
                 <button class="btn-restore" id="btn-restore">
-                    ↩︎ ${removed === 1 ? '1 exercise removed' : removed + ' exercises removed'} — restore
+                    ↩︎ ${removed === 1 ? '1 exercise missing' : removed + ' exercises missing'} — restore
                 </button>`;
         }
 
@@ -1150,22 +1256,35 @@
                            aria-expanded="${swapOpen}" title="Change exercise">${exercise.name}<span class="swap-caret">▾</span></button>`
                 : `<div class="exercise-name">${exercise.name}</div>`;
 
+            // Klappet sammen: kortets krop (anbefaling, cue, opvarmning, sæt-felter og
+            // volumen) tegnes slet ikke — det er hele pointen, og derfor forsvinder
+            // felterne også for skærmlæsere og for tests der tæller dem.
+            const collapsedCard = isCollapsed(ex.exerciseId);
+
             return `
-                <div class="exercise-card" data-index="${idx}" data-exercise-id="${ex.exerciseId}">
+                <div class="exercise-card${collapsedCard ? ' collapsed' : ''}" data-index="${idx}" data-exercise-id="${ex.exerciseId}">
                     <div class="exercise-card-header">
                         <div class="exercise-card-main">
                             ${nameMarkup}
-                            <div class="exercise-meta">
+                            ${collapsedCard
+                                ? `<div class="collapsed-summary">${collapsedSummary(ex)}</div>`
+                                : `<div class="exercise-meta">
                                 <span class="tag ${exercise.compound ? 'compound' : 'isolation'}">
                                     ${exercise.compound ? '⨯ Compound' : '⊕ Isolation'}
                                 </span>
                                 <span class="tag equip">${exercise.equipment || ''}</span>
                                 <span>${exercise.muscle}</span>
                                 ${exercise.loadNote ? `<span class="tag load">${exercise.loadNote}</span>` : ''}
-                            </div>
+                            </div>`}
                         </div>
-                        <button class="remove-btn" data-index="${idx}" aria-label="Remove exercise">✕</button>
+                        <div class="exercise-card-actions">
+                            <button class="collapse-btn" data-exercise-id="${ex.exerciseId}"
+                                    aria-expanded="${collapsedCard ? 'false' : 'true'}"
+                                    aria-label="${collapsedCard ? 'Expand exercise' : 'Collapse exercise'}"
+                                    title="${collapsedCard ? 'Expand exercise' : 'Collapse exercise'}">${collapsedCard ? '▸' : '▾'}</button>
+                        </div>
                     </div>
+                    ${collapsedCard ? '' : `
                     ${plan ? `<div class="exercise-target">🎯 Recommended: ${plan}</div>` : ''}
                     ${swapOpen ? renderSwapMenu(slot, exercise, candidates) : ''}
                     ${renderCueLine(exercise)}
@@ -1221,7 +1340,7 @@
                     <div class="exercise-volume">
                         <span>Total volume</span>
                         <span class="total">${totalVolume.toFixed(0)} kg</span>
-                    </div>
+                    </div>`}
                 </div>
             `;
         }).join('');
@@ -1408,9 +1527,19 @@
         showToast(`${ex ? ex.name : 'Exercise'} swapped in — remembered for ${dayLabel} ${variant}`, 'success');
     }
 
+    // Kaldes ikke fra UI'et længere (✕-knappen er væk fra kortet — man springer en øvelse
+    // over ved at skrive 0 reps). Den bliver, fordi et pas godt kan mangle en programrække
+    // alligevel: en gammel træning man retter, eller et gammelt udkast. Det er den tilstand
+    // "hent tilbage"-linjen og testene arbejder på.
     function removeExercise(index) {
         const removed = state.exercises[index];
         state.exercises.splice(index, 1);
+        // En fjernet øvelse skal ikke ligge og være klappet sammen i listen til næste gang
+        // den kommer ind igen (man henter den fx tilbage med linjen over listen).
+        if (removed && isCollapsed(removed.exerciseId)) {
+            state.collapsed = state.collapsed.filter(id => id !== removed.exerciseId);
+            persistCollapsed();
+        }
         scheduleDraftSave();
         renderAll();
         if (removed) {
@@ -1536,6 +1665,8 @@
             saveWorkouts(res.workouts);
             // Træningen er gemt: udkastet er ikke længere noget man er i gang med.
             clearDraft();
+            // Og kortene folder ud igen til næste gang, ligesom udkastet.
+            clearCollapsed();
             state.editing = null;
             state.programVariant = null;
             state.sessionVariant = null;
@@ -1574,6 +1705,9 @@
 
         saveWorkouts(workouts);
         clearDraft();
+        // Sammenklapningen hører til det pas man lige har gemt: næste gang folder
+        // kortene ud igen, så man ikke skal lede efter felterne i det nye pas.
+        clearCollapsed();
         // Efter et gem er det næste variant i rotationen der er dagens program,
         // og den indlæses med det samme — programmet ER dagens træning.
         state.programVariant = null;
@@ -1616,6 +1750,10 @@
         state.exercises = loaded;
         // Rettetilstanden indlæses — man har ikke selv tastet noget endnu.
         state.touched = false;
+        // Kortene i den gemte træning åbnes alle sammen: sammenklapningen hører til det
+        // pas man stod i, ikke til en gammel træning man er gået ind for at rette.
+        state.collapsed = [];
+        state.openSwap = null;
 
         closeHistory();
         renderAll();
@@ -1918,9 +2056,14 @@
                 renderAll();
                 return;
             }
-            const removeBtn = e.target.closest('.remove-btn');
-            if (removeBtn) {
-                removeExercise(parseInt(removeBtn.dataset.index));
+            // Klap en øvelse sammen eller fold den ud — kortets eneste knap. Man fjerner
+            // ikke øvelser længere: springer man en over, skriver man 0 reps i dens sæt,
+            // og vil man have den af vejen, klapper man den sammen. Man er ikke altid
+            // færdig med programmerne i den rækkefølge de står i.
+            const collapseBtn = e.target.closest('.collapse-btn');
+            if (collapseBtn) {
+                toggleCollapsed(collapseBtn.dataset.exerciseId);
+                return;
             }
             const addSetBtn = e.target.closest('.add-set-btn');
             if (addSetBtn) {

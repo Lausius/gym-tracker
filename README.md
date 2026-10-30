@@ -68,11 +68,24 @@ website, or by opening `index.html` straight from disk.
   Pull-to-refresh itself is switched off in CSS (`overscroll-behavior-y: contain`) — scrolling in
   the app must not reload the page. Coming back to a pass you typed in (the week chips) also
   brings the numbers back.
+- **Collapse an exercise you are done with:** a round caret button in the card's top right folds the
+  card down to the name plus one line of numbers (`3/3 sets · 1640 kg`), so the exercises you have
+  left are easy to find — you do not have to do them in the order they are listed. Tapping the caret
+  again unfolds the card with every number still in place. Folded cards are remembered per pass and
+  per ISO week (same rule as the draft), so a reload does not unfold them; saving the workout clears
+  the list. The summary deliberately does not judge whether you are finished: the programme
+  pre-fills weight and reps, so "all sets have numbers" is true from the first second and would be
+  printed on every card.
 - **Sample data for testing:** on the front page (visible only when the log is empty) you can fill in
   three weeks of A/B history with one tap — handy in a preview on another domain, where no data
   exists. It **never** touches your own workouts: the block is shown only when the log is empty or
   contains sample data only, and it is hidden completely as soon as a real workout is in there.
 - **History:** all saved sessions grouped by date with the best set highlighted.
+- **Skipping an exercise:** there is deliberately **no ✕ button** on the cards — you do not
+  remove exercises. Write **0 reps** in its sets instead: the card stays on screen (where you can
+  fold it away), and the exercise is left out of the saved workout, because a set only counts when
+  both weight and reps are filled in. Setting 0 on every set of one exercise drops that exercise from
+  the log; the next time the programme's own numbers are used for it again.
 - **Edit a saved workout:** forgot an exercise? Tap ✏️ Edit on the workout in the
   history. The exercises are loaded back in, you can add/fix/remove, and the button then reads
   **Update workout**. The date, the day and the variant are preserved, and no duplicate is created —
@@ -149,8 +162,8 @@ python3 -m http.server 8099 --bind 127.0.0.1
 
 All state lives in `localStorage`: `gym_tracker_workouts` (saved sessions),
 `gym_tracker_current_day`, `gym_tracker_settings`, `gym_tracker_program_swaps` (remembered
-exercise swaps) and `gym_tracker_draft` (the session in progress, so a reload does not lose
-what you typed).
+exercise swaps), `gym_tracker_draft` (the session in progress, so a reload does not lose
+what you typed) and `gym_tracker_collapsed` (which cards of a pass are folded down).
 
 ## Structure
 
@@ -338,18 +351,22 @@ JS errors, loading a program, switching the A/B variant, fixing weight/reps, add
 **week-based sharing with a character budget** (pick a week, copy, mark as shared),
 **the warm-up ramp** (shown on the card, collapsed by default, follows an edited weight and stays open
 while you edit),
-**the technique cues** (visible without unfolding, one per card, above the warm-up block),
-**filtering of exercises without history in "Next week"** (the Show all button, that a new user is not
-left with empty lists, and that bodyweight exercises do not disappear), **"Today's program" that remembers
+**the technique cues** (visible without unfolding, one per card, and each card's own),
+**that an empty view explains itself instead of standing blank** (and that bodyweight exercises are
+kept, so the template's 1 kg marker stops them disappearing), **"Today's program" that remembers
 the last workout** (run a variant, fix it, save, and see the program repeat it — including the
-"Remembering" line, that "Add all" loads the remembered workout with the same weight, that the template
-can still be brought up with "Show all", and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
+"Remembering" line, that the template is still the whole program afterwards, and that the ↻ button is gone), **sample data** (fill, clear, and that the button cannot be used when real
 workouts are present), **the new cable exercises** (can be picked, are grouped correctly, only the row variant carries
-"per hand", and they are not in the programs), **that typed sets survive a reload** (the draft is written while you type
+"per hand", and they are not in the programs), **skipping an exercise with 0 reps** (the card stays and
+the exercise is left out of the saved workout, instead of the old ✕ button), **that typed sets survive a reload** (the draft is written while you type
 and again when the page leaves, the numbers come back after a reload with a "Restored what you had typed" message, a
-draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved), and the
-mobile layout at 320/375/390/430px (including that
-the ＋/✕ buttons do not move when the text gets longer, and that nothing spills past the edge).
+draft from an earlier week or from another pass is not used, and the draft is gone once the workout is saved),
+**collapsing an exercise you are done with** (the card drops its set fields and shows its numbers
+instead, folds out again with them intact, and the folded cards survive a reload, belong to their pass and
+are cleared by a save), and the
+mobile layout at 320 and 390px (including that the
+fold carets keep the same distance to the edge when the text gets longer, and that nothing spills past
+the edge).
 
 The tests clear `localStorage` at start, so a run does not inherit state from the previous one — they
 can be run any number of times in a row with the same result.
