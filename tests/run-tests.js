@@ -1435,9 +1435,9 @@ ok('Klap-knappen klapper øvelsen sammen: ingen sæt-felter på kortet',
     isCollapsed(A1) && !kortA1.includes('set-weight') && kortA1.includes('collapsed-summary'));
 ok('De andre kort har stadig deres felter',
     (liste().split('sets-table').length - 1) === state.exercises.length - 1);
+const skrevet = loadCollapsed().upperA || {};
 ok('Det skrives ned på passet med den uge det hører til',
-    loadCollapsed().upperA.ids.join(',') === A1 && loadCollapsed().upperA.week === REAL_WEEK,
-    JSON.stringify(loadCollapsed()));
+    String(skrevet.ids) === A1 && skrevet.week === REAL_WEEK, JSON.stringify(loadCollapsed()));
 
 // Facit står på det klappede kort — det er den eneste status man har, mens det er klappet
 const i1 = state.exercises.findIndex(e => e.exerciseId === A1);

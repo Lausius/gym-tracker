@@ -1988,22 +1988,25 @@ async function main() {
         (await viser(`c.classList.contains("collapsed") && c.querySelectorAll(".set-weight").length === 0
             && c.querySelectorAll(".sets-table").length === 0 && !!c.querySelector(".exercise-name, .exercise-name-btn")`)) === true);
     ok('I stedet står der hvor mange sæt der har tal, og hvor mange kg',
-        (await viser(`(() => { const ex = state.exercises[0];
+        (await viser(`(() => { const el = c.querySelector(".collapsed-summary"); if (!el) return false;
+            const ex = state.exercises[0];
             const volume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
-            return c.querySelector(".collapsed-summary").textContent === ex.sets.length + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg"; })()`)) === true,
-        String(await viser('c.querySelector(".collapsed-summary").textContent')));
+            return el.textContent === ex.sets.length + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg"; })()`)) === true,
+        String(await viser('(c.querySelector(".collapsed-summary") || {}).textContent || "intet sammendrag"')));
     ok('Kun det ene kort er klappet sammen — de andre er urørt',
         (await antalKlappede()) === 1 && (await evaluate('return document.querySelectorAll("#exercise-list .sets-table").length')) > 0);
 
     await load(URL_UNDER_TEST);
     ok('Genindlæsningen folder ikke kortet ud igen, og tallene er der stadig',
         (await antalKlappede()) === 1
-        && (await viser(`c.classList.contains("collapsed") && c.querySelector(".collapsed-summary").textContent.includes("3/3 sets")`)) === true,
-        String(await viser('c.querySelector(".collapsed-summary").textContent')));
+        && (await viser(`(() => { const el = c.querySelector(".collapsed-summary"); if (!el) return false;
+            return c.classList.contains("collapsed") && el.textContent.includes("3/3 sets"); })()`)) === true,
+        String(await viser('(c.querySelector(".collapsed-summary") || {}).textContent || "intet sammendrag"')));
 
     await klap(0);
     ok('Samme knap folder ud igen, med tallene i behold',
-        (await viser(`!c.classList.contains("collapsed") && c.querySelector(".set-weight").value === "77.5"`)) === true);
+        (await viser(`(() => { const f = c.querySelector(".set-weight"); if (!f) return false;
+            return !c.classList.contains("collapsed") && f.value === "77.5"; })()`)) === true);
 
     await openSession('upperB');
     ok('Et andet pas starter foldet ud', (await antalKlappede()) === 0);
