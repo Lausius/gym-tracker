@@ -1302,7 +1302,17 @@ async function main() {
     const bytteNavn = kort(bytteKort) + ' .exercise-name-btn';
     ok('Der er et kort med en bytte-liste at trykke på', bytteKort >= 0, `data-index: ${bytteKort}`);
 
+    // Venter til tilstanden er indtrådt i stedet for at gætte på et antal millisekunder.
+    const vent = async (expr, ms = 2000) => {
+        const t0 = Date.now();
+        while (Date.now() - t0 < ms) {
+            if (await evaluate(`return ${expr};`)) return true;
+            await sleep(50);
+        }
+        return false;
+    };
     await klap(bytteKort);
+    await vent(`!!document.querySelector(${JSON.stringify(kort(bytteKort))}).classList.contains("collapsed")`);
     await evaluate(`document.querySelector(${JSON.stringify(bytteNavn)}).click(); return true;`);
     await sleep(300);
     const efterNavn = await kortTilstand(bytteKort);
@@ -1320,31 +1330,56 @@ async function main() {
     // Overgangene måles som serier af skærmbilleder inde i siden (requestAnimationFrame) i
     // stedet for et enkelt tryk efter et fast antal millisekunder: så betyder maskinens
     // hastighed ikke noget for om der ER en overgang, kun hvad serierne indeholder.
-    // Sammenklapningen kører i to trin: kroppen foldes ud af skærmen, og først derefter
-    // skiftes tilstanden. Et hop på plads ville være det modsatte: klappet med det samme.
-    const foldSerie = await evaluate(`return new Promise(resolve => {
+    // Sammenklapningen skal måles som en glidende højde: et fold har mange mellemtrin, et
+    // hop har to. Samtidig holdes øje med de andre kort — bliver de tegnet om undervejs,
+    // rykker hele listen, og det er dét der ser hakkende ud. Mærket `urort` findes kun på
+    // de knuder der stod der før klikket, så en gentegning af listen afslører sig selv.
+    const foldSerie = (klik, ms) => evaluate(`return new Promise(resolve => {
         const vaelger = ${JSON.stringify(kort(0))};
-        const krop = c => [...c.children].filter(el => !el.classList.contains("exercise-card-header"));
+        const andre = [...document.querySelectorAll("#exercise-list .exercise-card")].filter(c => !c.matches(vaelger));
+        andre.forEach((c, i) => { c.dataset.urort = String(i); });
         const samples = [];
         const t0 = performance.now();
-        document.querySelector(vaelger).querySelector(".collapse-btn").click();
+        ${klik}
         const tick = () => {
-            // Kortet hentes på ny hver frame: tilstanden der skifter, tegner listen om, og en
-            // fastholdt knude står derefter tilbage med klasserne fra før.
             const c = document.querySelector(vaelger);
-            samples.push({ collapsing: c.classList.contains("collapsing"), klappet: c.classList.contains("collapsed"),
-                folded: krop(c).map(el => getComputedStyle(el).animationName).includes("foldAway") });
-            if (performance.now() - t0 < 400) requestAnimationFrame(tick);
+            samples.push({
+                hojde: Math.round(c.getBoundingClientRect().height),
+                klappet: c.classList.contains("collapsed"),
+                krop: !!c.querySelector(".exercise-card-body"),
+                urorte: [...document.querySelectorAll("#exercise-list .exercise-card")]
+                    .filter(x => !x.matches(vaelger)).every(x => x.dataset.urort !== undefined)
+            });
+            if (performance.now() - t0 < ${ms}) requestAnimationFrame(tick);
             else resolve(samples);
         };
         requestAnimationFrame(tick);
     })`);
-    const midtUnderFold = foldSerie.filter(s => s.collapsing);
-    const efterFold = await kortTilstand(0);
-    ok('Sammenklapningen folder kroppen ud af skærmen først og skifter derpå tilstand',
-        midtUnderFold.length > 0 && midtUnderFold.every(s => s.klappet === false && s.folded === true)
-        && foldSerie[foldSerie.length - 1].klappet === true && !!efterFold && efterFold.klappet === true,
-        JSON.stringify({ antalSamplinger: foldSerie.length, midtUnderFold: midtUnderFold.slice(0, 2), slut: foldSerie[foldSerie.length - 1] }));
+    const klik = `document.querySelector(vaelger).querySelector(".collapse-btn").click();`;
+    const nedSerie = await foldSerie(klik, 500);
+    const opSerie = await foldSerie(klik, 500);
+    const trin = serie => [...new Set(serie.map(s => s.hojde))].length;
+    const forste = serie => serie[0].hojde, sidste = serie => serie[serie.length - 1].hojde;
+    const springTilSidst = Math.abs(
+        nedSerie.filter(s => !s.klappet).slice(-1)[0].hojde - nedSerie.filter(s => s.klappet)[0].hojde);
+    const dele = {
+        trappetrinNed: trin(nedSerie) >= 5, trappetrinOp: trin(opSerie) >= 5,
+        falderNed: forste(nedSerie) > sidste(nedSerie), vokserOp: sidste(opSerie) > forste(opSerie),
+        klappetTilSidst: nedSerie.at(-1).klappet === true && !nedSerie.at(-1).krop,
+        foldetUdTilSidst: opSerie.at(-1).klappet === false && opSerie.at(-1).krop,
+        intetSpring: springTilSidst <= 2
+    };
+    ok('Kortet folder i højden i begge retninger — mange mellemtrin, ikke et hop',
+        Object.values(dele).every(Boolean),
+        JSON.stringify({ ...dele, trin: { ned: trin(nedSerie), op: trin(opSerie) },
+            hojde: { ned: [forste(nedSerie), sidste(nedSerie)], op: [forste(opSerie), sidste(opSerie)] },
+            springVedAfslutning: springTilSidst,
+            slut: { ned: nedSerie.at(-1), op: opSerie.at(-1) },
+            forsteKlappede: { ned: nedSerie.findIndex(x => x.klappet), op: opSerie.findIndex(x => !x.klappet) },
+            antal: { ned: nedSerie.length, op: opSerie.length } }));
+    ok('Mens det ene kort folder, bliver de andre kort i listen ikke tegnet om',
+        nedSerie.every(s => s.urorte) && opSerie.every(s => s.urorte),
+        JSON.stringify({ ned: nedSerie.filter(s => !s.urorte).length, op: opSerie.filter(s => !s.urorte).length }));
 
     // Delings-modalen toner ind og ud i stedet for at hoppe. Mens den toner ud, er den
     // stadig tegnet (display), fordi display skifter til sidst (allow-discrete).

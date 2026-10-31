@@ -287,20 +287,38 @@
            sættes, animationen kører, og først derefter skiftes tilstanden — så kortet
            ikke hopper på plads uden at man ser hvorfor. Alt er kort og dæmpet: det skal
            føles som om listen reagerer, ikke som en overgang man venter på. */
-        .exercise-card:not(.collapsed) > *:not(.exercise-card-header) {
-            animation: unfold 0.18s ease both;
-        }
-        .exercise-card.collapsing > *:not(.exercise-card-header) {
-            animation: foldAway 0.16s ease both;
-        }
         @keyframes unfold {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: none; }
         }
-        @keyframes foldAway {
-            from { opacity: 1; transform: none; }
-            to { opacity: 0; transform: translateY(-4px); }
+
+        /* Kortets krop folder i HØJDEN — en gennemsigtig krop der forsvinder på et blunk er
+           netop det der ser hakkende ud. Kroppen er et grid med én række, så 1fr → 0fr kan
+           animeres uden at måle højder i JS, og indholdet klippes af overflow: hidden mens
+           det toner let ud. Kortet tegnes først om til den klappede form når overgangen er
+           kørt (se closeCard i app.js), og .closing sætter samtidig kortets klappede mål,
+           så der ikke hopper et par pixels til sidst. */
+        .exercise-card-body {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.18s ease;
         }
+        .exercise-card-body > .exercise-card-body-inner {
+            overflow: hidden;
+            min-height: 0;
+            transition: opacity 0.16s ease;
+        }
+        .exercise-card.closing { padding: 10px 14px; }
+        .exercise-card.closing > .exercise-card-header { margin-bottom: 0; transition: margin-bottom 0.18s ease; }
+        .exercise-card.closing > .exercise-card-body { grid-template-rows: 0fr; }
+        .exercise-card.closing > .exercise-card-body > .exercise-card-body-inner { opacity: 0; }
+        /* Åbning: kroppen står i klappet form mens den indsættes, og folder ud i næste
+           skærmbillede (se openCard i app.js) — ellers springer overgangen over. */
+        .exercise-card-body.fold-start { grid-template-rows: 0fr; }
+        .exercise-card-body.fold-start > .exercise-card-body-inner { opacity: 0; }
+        /* Et kort der tegnes på ny i stedet for at blive føjet til listen skal ikke også
+           glide ind: foldet er bevægelsen, ikke indtoningen. */
+        .exercise-card.no-enter { animation: none; }
 
         /* ===== TEKNIK-CUES ===== */
         /* Én linje pr. øvelse, altid synlig: pointen er at kunne læse den mens man
