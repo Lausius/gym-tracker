@@ -1358,16 +1358,22 @@ async function main() {
     const klik = `document.querySelector(vaelger).querySelector(".collapse-btn").click();`;
     const nedSerie = await foldSerie(klik, 500);
     const opSerie = await foldSerie(klik, 500);
+    // Alt læses med værn: et manglende element eller en tom serie skal give et kryds, ikke
+    // en afbrudt kørsel der skjuler hvad der gik galt (og ser ud som om alt andet gik godt).
     const trin = serie => [...new Set(serie.map(s => s.hojde))].length;
-    const forste = serie => serie[0].hojde, sidste = serie => serie[serie.length - 1].hojde;
-    const springTilSidst = Math.abs(
-        nedSerie.filter(s => !s.klappet).slice(-1)[0].hojde - nedSerie.filter(s => s.klappet)[0].hojde);
+    const hojdeVed = (serie, i) => (serie.length > i && i >= 0 ? serie[i].hojde : null);
+    const forste = serie => hojdeVed(serie, 0), sidste = serie => hojdeVed(serie, serie.length - 1);
+    const forsteKlappede = nedSerie.findIndex(s => s.klappet);
+    const forrigeHojde = hojdeVed(nedSerie, forsteKlappede - 1), efterHojde = hojdeVed(nedSerie, forsteKlappede);
+    const springTilSidst = forrigeHojde === null || efterHojde === null
+        ? null : Math.abs(forrigeHojde - efterHojde);
     const dele = {
         trappetrinNed: trin(nedSerie) >= 5, trappetrinOp: trin(opSerie) >= 5,
-        falderNed: forste(nedSerie) > sidste(nedSerie), vokserOp: sidste(opSerie) > forste(opSerie),
-        klappetTilSidst: nedSerie.at(-1).klappet === true && !nedSerie.at(-1).krop,
-        foldetUdTilSidst: opSerie.at(-1).klappet === false && opSerie.at(-1).krop,
-        intetSpring: springTilSidst <= 2
+        falderNed: forste(nedSerie) !== null && forste(nedSerie) > sidste(nedSerie),
+        vokserOp: sidste(opSerie) !== null && sidste(opSerie) > forste(opSerie),
+        klappetTilSidst: !!nedSerie.at(-1) && nedSerie.at(-1).klappet === true && !nedSerie.at(-1).krop,
+        foldetUdTilSidst: !!opSerie.at(-1) && opSerie.at(-1).klappet === false && opSerie.at(-1).krop,
+        intetSpring: springTilSidst !== null && springTilSidst <= 2
     };
     ok('Kortet folder i højden i begge retninger — mange mellemtrin, ikke et hop',
         Object.values(dele).every(Boolean),
@@ -1405,7 +1411,7 @@ async function main() {
     ok('Delings-modalen toner ind og ud i stedet for at hoppe',
         indSerie.some(o => o > 0 && o < 1) && indSerie[indSerie.length - 1] === 1
         && tonerUd.length > 0 && tonerUd.some(s => s.display !== 'none')
-        && udSerie[udSerie.length - 1].display === 'none',
+        && !!udSerie.at(-1) && udSerie.at(-1).display === 'none',
         JSON.stringify({ ind: indSerie.slice(0, 3), ud: udSerie.slice(0, 3), slut: udSerie[udSerie.length - 1] }));
 
     // Har man slået bevægelse fra i systemet, sker skiftet med det samme — også i JS, der
