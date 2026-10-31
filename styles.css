@@ -438,14 +438,6 @@
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
         .sets-table input[type="number"]::placeholder { color: var(--text-muted); }
-        .sets-table .volume-cell {
-            font-size: 0.8rem;
-            color: var(--text-dim);
-            text-align: right;
-            font-weight: 500;
-        }
-        .sets-table .volume-cell.high { color: var(--accent); }
-
         .add-set-btn {
             margin-top: 8px;
             padding: 8px 14px;
@@ -631,13 +623,6 @@
         .save-info {
             font-size: 0.8rem;
             color: var(--text-dim);
-        }
-        /* "Det du har tastet er gemt"-linjen: grøn og diskret, kun synlig når udkastet
-           faktisk ligger i localStorage (16px-reglen gælder kun felter, ikke tekst) */
-        .draft-note {
-            font-size: 0.75rem;
-            color: var(--accent);
-            margin-top: 6px;
         }
         .save-info strong { color: var(--text); font-weight: 600; }
         .save-btn {
@@ -876,11 +861,6 @@
             color: var(--text);
         }
         .hist-set.best { background: var(--accent-glow); color: var(--accent); }
-        .hist-volume {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 4px;
-        }
 
         }
 

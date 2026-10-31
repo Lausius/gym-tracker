@@ -361,19 +361,6 @@
         } catch { return false; }
     }
 
-    // Linjen under gem-linjen: gør den usynlige garanti synlig — man skal kunne se på
-    // telefonen at det tastede ligger i browseren. Den står kun når udkastet faktisk
-    // ligger i localStorage, så den lover ikke noget der ikke skete.
-    const DRAFT_NOTE = '🔒 Kept if the page reloads';
-
-    function updateDraftNote() {
-        const el = document.getElementById('draft-note');
-        if (!el) return;
-        const kept = !!loadDrafts()[draftKeyFor()];
-        el.textContent = kept ? DRAFT_NOTE : '';
-        el.classList.toggle('hidden', !kept);
-    }
-
     // Kun øvelser og tal. Plan-linjer og targetReps er afledt af programmet og må
     // ikke få et urørt program til at se ud som om man har tastet noget — derfor
     // gemmes kun det man faktisk kan have rettet.
@@ -415,10 +402,9 @@
 
     function clearDraft(key = draftKeyFor()) {
         const drafts = loadDrafts();
-        if (!(key in drafts)) { updateDraftNote(); return false; }
+        if (!(key in drafts)) return false;
         delete drafts[key];
         saveDrafts(drafts);
-        updateDraftNote();
         return true;
     }
 
@@ -433,9 +419,7 @@
                 sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
             })),
         };
-        const ok = saveDrafts(drafts);
-        updateDraftNote();
-        return ok;
+        return saveDrafts(drafts);
     }
 
     let draftTimer = null;
@@ -563,9 +547,7 @@
         return true;
     }
 
-    // Tilstanden alene, uden at tegne noget: hvad der er klappet sammen, og hvad det
-    // betyder for bytte-listen. Skrives ned med det samme — et tryk er sjældent, og man
-    // skal ikke kunne tabe listen ved en genindlæsning.
+    // Tilstanden og hvad den betyder for bytte-listen. Skrives ned, tegner intet.
     function setCollapsedState(exerciseId, collapsed) {
         if (isCollapsed(exerciseId) === collapsed) return false;
         state.collapsed = collapsed
@@ -588,13 +570,6 @@
         return true;
     }
 
-    // Folder et klappet kort ud uden at skifte frem og tilbage. Bruges når man trykker på
-    // navnet for at bytte: bytte-listen tegnes i kortets krop, og et klappet kort har
-    // ingen krop — uden dette skete der ingenting på skærmen.
-    function expandCollapsed(exerciseId) {
-        return setCollapsedState(exerciseId, false);
-    }
-
     function cardElementFor(exerciseId) {
         return document.querySelector(`#exercise-list .exercise-card[data-exercise-id="${exerciseId}"]`);
     }
@@ -606,12 +581,7 @@
             && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
-    // Klapper en øvelse sammen eller folder den ud igen. Kortet tegnes på ny alene — en
-    // fuld renderAll() tegner alle seks kort om, og det ses som et ryk i hele listen mens
-    // man klapper ét kort sammen. Foldet selv kører i to trin i begge retninger:
-    //   sammen: kroppen klappes i højden først, og kortet tegnes først om bagefter
-    //   ud:     kroppen indsættes i klappet form og folder ud i næste skærmbillede
-    // Uden det hoppede kortet på plads i stedet for at folde.
+    // Klapper sammen eller folder ud. Kortet tegnes på ny alene, og foldet sker i to trin.
     function toggleCollapsed(exerciseId) {
         if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
         // Er der et fold i gang, gøres det færdigt først: ellers slog det ned oven på det
@@ -647,10 +617,7 @@
             setCollapsedState(exerciseId, true);
             renderCard(exerciseId);
         };
-        // Kortet tegnes om når overgangen er kørt. Timeren er den der afgør det (den ligger
-        // lige efter de 180 ms overgangen varer, så det ikke kan variere med hvornår
-        // browseren får sendt transitionend), og hændelsen tager den bare før hvis den
-        // kommer først — fx i en fane der ikke tegner.
+        // Timeren afgør hvornår kortet tegnes om; transitionend tager den hvis den kommer først.
         card.addEventListener('transitionend', (e) => {
             if (e.target === body) commit();
         }, { once: true });
@@ -660,9 +627,7 @@
         return true;
     }
 
-    // Folder et nyt element ud fra klappet form: klassen sættes mens elementet lige er
-    // indsat, og fjernes i næste skærmbillede, så browseren når at se starten. Uden det
-    // springer overgangen over, og elementet står bare der.
+    // Åbner et nyt element fra klappet form: fold-start sættes, og fjernes næste skærmbillede.
     function unfoldElement(el) {
         if (!el) return false;
         el.classList.add('fold-start');
@@ -677,8 +642,7 @@
         return true;
     }
 
-    // Bytte-listen lukkes med en overgang, og kortet tegnes først om bagefter. Lukkede man
-    // den bare ved at tegne kortet på ny, forsvandt listen på et enkelt billede.
+    // Lukker bytte-listen med en overgang, og tegner kortet om bagefter.
     const swapCloses = new Set();
 
     function finishSwapCloses() {
@@ -704,11 +668,7 @@
         swapCloses.add(commit);
         return true;
     }
-    // Teksten på et sammenklappet kort: hvor mange af sættene der har tal. Kortet viser
-    // ingen felter, så det er den eneste status man har mens det er klappet. Den samlede
-    // vægt står der ikke: den sagde ikke noget om hvad man skulle løfte næste gang.
-    // Bevidst ingen dom over om man er færdig: programmet forudfylder vægt og reps, så
-    // "alle sæt har tal" er sandt fra første sekund og ville stå på hvert eneste kort.
+    // Den klappede status: hvor mange af sættene der har tal.
     function collapsedSummary(ex) {
         const sets = ex.sets || [];
         if (sets.length === 0) return 'No sets';
@@ -1347,14 +1307,11 @@
         list.innerHTML = state.exercises.map((ex, idx) => cardMarkup(ex, idx)).join('');
     }
 
-    // Markuppen for ét kort. Den ligger uden for renderExerciseList, fordi et enkelt kort
-    // også tegnes på ny alene: et fold eller en bytte-liste angår kun det kort, og en fuld
-    // gennemtegning af listen ses som et ryk i alle de andre kort (se renderCard).
+    // Markuppen for ét kort — bruges både af listen og af renderCard.
     function cardMarkup(ex, idx) {
         const exercise = getExerciseById(state.currentDay, ex.exerciseId);
         if (!exercise) return '';
 
-            const maxVolume = Math.max(...ex.sets.map(s => s.weight * s.reps), 0);
             // Anbefalingen fra programmet. Den bliver stående, også når man retter
             // antal sæt, vægt eller reps — det er hele pointen med den.
             const plan = ex.plan
@@ -1411,7 +1368,6 @@
                                 <th style="width:32px">#</th>
                                 <th>Weight (kg)</th>
                                 <th>Reps</th>
-                                <th style="text-align:right">Volume (kg)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1437,9 +1393,6 @@
                                                min="0"
                                                step="1"
                                                placeholder="0">
-                                    </td>
-                                    <td class="volume-cell ${maxVolume > 0 && (set.weight * set.reps) === maxVolume ? 'high' : ''}">
-                                        ${set.weight > 0 && set.reps > 0 ? (set.weight * set.reps).toFixed(0) : '—'}
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1490,7 +1443,6 @@
         }
 
         const exerciseCount = state.exercises.length;
-        const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
         // Låst pas: samme dag+variant ligger allerede i ugen. Knappen er aktiv, så
         // man kan se hvorfor den ikke virker — den viser fejlen i stedet for at gemme.
         const conflict = weekConflict();
@@ -1498,13 +1450,11 @@
         if (exerciseCount === 0) {
             info.innerHTML = 'No exercises in today&#39;s program';
             btn.disabled = true;
-        } else if (!hasSets) {
-            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · fill in the sets`;
-            btn.disabled = true;
         } else {
-            // Den samlede vægt stod her før. Den er ikke med til at beslutte noget.
+            // Hverken den samlede vægt eller "fill in the sets" står her: det ene er ikke
+            // med til at beslutte noget, og den grå knap viser selv at der mangler tal.
             info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises`;
-            btn.disabled = false;
+            btn.disabled = !state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
         }
 
         // Kort, fordi advarslen i toppen allerede siger hvad der er sket og hvad man kan gøre.
@@ -1518,8 +1468,6 @@
         renderExerciseList();
         renderSaveBar();
         renderSampleControls();
-        // Linjen hænger på passet, ikke på tastningen: den skal skifte med pas-skiftet.
-        updateDraftNote();
     }
 
     // ─── Ugen: hvad der er klaret, og hvad der mangler ────────────
@@ -1703,8 +1651,6 @@
         // midt i et sæt ikke koster tallene.
         scheduleDraftSave();
         renderSaveBar();
-        // Update volume cell in real-time
-        updateVolumeCell(exIndex, setIndex);
         // Opvarmningen hænger på arbejdsvægten og skal følge med, uden at kortet
         // tegnes forfra (det ville lukke ramp'en og stjæle fokus fra feltet)
         updateWarmupBlock(exIndex);
@@ -1726,19 +1672,6 @@
             const details = holder.querySelector('.warmup-block');
             if (details) details.open = true;
         }
-    }
-
-    function updateVolumeCell(exIndex, setIndex) {
-        const ex = state.exercises[exIndex];
-        if (!ex) return;
-        const card = document.querySelector(`.exercise-card[data-index="${exIndex}"]`);
-        if (!card) return;
-        const td = card.querySelectorAll('.volume-cell')[setIndex];
-        if (!td) return;
-        const weight = ex.sets[setIndex].weight;
-        const reps = ex.sets[setIndex].reps;
-        td.textContent = (weight > 0 && reps > 0) ? (weight * reps).toFixed(0) : '—';
-        td.classList.toggle('high', false);
     }
 
     function saveWorkout() {
@@ -1957,7 +1890,6 @@
                                         const exercise = getExerciseById(w.day, ex.exerciseId);
                                         if (!exercise) return '';
                                         const sets = ex.sets;
-                                        const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
                                         const best = sets.reduce((b, s) => (!b || s.weight > b.weight) ? s : b, null);
                                         return `
                                             <div class="history-exercise">
@@ -1971,7 +1903,6 @@
                                                         </span>
                                                     `).join('')}
                                                 </div>
-                                                <div class="hist-volume">${totalVol.toFixed(0)} kg total</div>
                                             </div>
                                         `;
                                     }).join('')}

@@ -229,8 +229,12 @@ async function main() {
 
     // ─── 4. Rediger sæt og gem ────────────────────────────────────
     console.log('\n── 4. Rediger sæt og gem træningen');
-    ok('Sæt-input opdaterer volumen på kortet', (await evaluate(`const card = document.querySelector("#exercise-list .exercise-card"); const w = card.querySelector(".set-weight"); w.value = "65"; w.dispatchEvent(new Event("input", { bubbles: true })); return card.querySelector(".volume-cell").textContent.trim() === "520";`)) === true,
-        await evaluate('return document.querySelector("#exercise-list .volume-cell").textContent'));
+    ok('Sæt-tabellen har ikke længere en volumen-kolonne, og et tryk i et felt tegner ikke listen om',
+        (await evaluate(`const card = document.querySelector("#exercise-list .exercise-card"); const w = card.querySelector(".set-weight");
+            window.__kort = card; w.value = "65"; w.dispatchEvent(new Event("input", { bubbles: true }));
+            return document.querySelectorAll("#exercise-list .volume-cell").length === 0
+                && [...document.querySelectorAll("#exercise-list .sets-table thead th")].every(th => !/Volume/i.test(th.textContent))
+                && document.querySelector("#exercise-list .exercise-card") === window.__kort;`)) === true);
     ok('Opvarmningen følger den rettede vægt (og forbliver åben mens man retter)', (await evaluate(`
         const card = document.querySelector("#exercise-list .exercise-card");
         card.querySelector(".warmup-block").open = true;
@@ -1140,12 +1144,11 @@ async function main() {
     await sleep(700); // debouncen skal have skrevet ned
 
     const draftEfterTastning = await evaluate('return localStorage.getItem("gym_tracker_draft")');
-    ok('Det tastede skrives ned mens man taster (før man gemmer), og linjen under gem-linjen viser det',
+    ok('Det tastede skrives ned mens man taster, før man gemmer',
         !!draftEfterTastning
         && JSON.parse(draftEfterTastning).upperA
         && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].weight === 87.5
-        && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].reps === 9
-        && (await evaluate(`return !!document.getElementById("draft-note") && !document.getElementById("draft-note").classList.contains("hidden") && /Kept if the page reloads/.test(document.getElementById("draft-note").textContent);`)) === true,
+        && JSON.parse(draftEfterTastning).upperA.exercises[0].sets[0].reps === 9,
         String(draftEfterTastning).slice(0, 180));
 
     // Genindlæsningen — det er her tallene forsvandt før
@@ -1172,12 +1175,10 @@ async function main() {
 
     // Et pas der er gemt, er ikke længere et udkast
     await saveBtn(500);
-    ok('Træningen blev gemt med det tastede tal, udkastet ligger ikke længere på passet, og linjen er væk', (await evaluate(`
+    ok('Træningen blev gemt med det tastede tal, og udkastet ligger ikke længere på passet', (await evaluate(`
         const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
         const drafts = JSON.parse(localStorage.getItem("gym_tracker_draft") || "{}");
-        const el = document.getElementById("draft-note");
-        return w.length === 1 && w[0].exercises[0].sets[0].weight === 92.5 && !drafts.upperA
-            && (!el || el.classList.contains("hidden") || el.textContent === "");`)) === true,
+        return w.length === 1 && w[0].exercises[0].sets[0].weight === 92.5 && !drafts.upperA;`)) === true,
         String(await storage('gym_tracker_workouts')).slice(0, 160));
     await load(URL_UNDER_TEST);
     ok('Og der bliver ikke lagt noget gammelt tilbage ved næste åbning', (await evaluate('return document.getElementById("toast-container").textContent')).indexOf('Restored') === -1);
@@ -1264,7 +1265,6 @@ async function main() {
     ok('I stedet står der hvor mange sæt der har tal',
         (await viser(`(() => { const el = c.querySelector(".collapsed-summary"); if (!el) return false;
             const ex = state.exercises[0];
-            const volume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
             return el.textContent === ex.sets.length + "/" + ex.sets.length + " sets"; })()`)) === true,
         String(await viser('(c.querySelector(".collapsed-summary") || {}).textContent || "intet sammendrag"')));
     ok('Kun det ene kort er klappet sammen — de andre er urørt',
@@ -1292,8 +1292,7 @@ async function main() {
     ok('Et gem rydder listen', (await antalKlappede()) === 0);
 
     // ── Bytte på et klappet kort ──────────────────────────────────
-    // Bytte-listen tegnes i kortets krop, og et klappet kort har ingen krop: et tryk på
-    // navnet skal derfor folde kortet ud, ellers sker der ingenting på skærmen.
+    // Bytte-listen ligger i kortets krop: et klappet kort skal foldes ud først.
     const kortTilstand = i => evaluate(`return (() => { const c = document.querySelector(${JSON.stringify(kort(i))});
         if (!c) return null;
         return { klappet: c.classList.contains("collapsed"),
@@ -1354,13 +1353,8 @@ async function main() {
             aabneSlut: aabneMenu.at(-1), lukkeSlut: lukkeMenu.at(-1) }));
 
     // ── Animationerne ────────────────────────────────────────────
-    // Overgangene måles som serier af skærmbilleder inde i siden (requestAnimationFrame) i
-    // stedet for et enkelt tryk efter et fast antal millisekunder: så betyder maskinens
-    // hastighed ikke noget for om der ER en overgang, kun hvad serierne indeholder.
-    // Sammenklapningen skal måles som en glidende højde: et fold har mange mellemtrin, et
-    // hop har to. Samtidig holdes øje med de andre kort — bliver de tegnet om undervejs,
-    // rykker hele listen, og det er dét der ser hakkende ud. Mærket `urort` findes kun på
-    // de knuder der stod der før klikket, så en gentegning af listen afslører sig selv.
+    // Overgangene måles som serier af skærmbilleder inde i siden, så maskinens fart ikke afgør
+    // om der ER en overgang. Ved foldet hentes kortet på ny hver frame, da listen tegnes om.
     const foldSerie = (klik, ms) => evaluate(`return new Promise(resolve => {
         const vaelger = ${JSON.stringify(kort(0))};
         const andre = [...document.querySelectorAll("#exercise-list .exercise-card")].filter(c => !c.matches(vaelger));
