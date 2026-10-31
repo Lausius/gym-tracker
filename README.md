@@ -11,7 +11,7 @@ Mobile-first training log with no backend and no build step: plain HTML, CSS and
   (Upper A → Lower A → Upper B → Lower B, alternating upper and lower) and marked `next` in the week
   bar, where `✓` shows what is already logged this week and a tap switches pass. Saving moves you on to
   the pass the bar calls next, so the pass you stand on and the pass the app suggests cannot disagree.
-- **Exercises, sets, reps:** every exercise has its own sets (kg × reps) and each set shows its volume.
+- **Exercises, sets, reps:** every exercise has its own sets (kg × reps).
 - **Equipment variants are kept apart:** `Bicep Curl (EZ-bar)` and `Bicep Curl (Dumbbell)` are separate
   entries with their own history — 20 kg on an EZ-bar and 20 kg per hand are not the same load. Dumbbell
   and single-leg exercises carry a **per hand** / **per leg** tag. Cable Lateral Raise and Dual Bicep
@@ -37,7 +37,7 @@ Mobile-first training log with no backend and no build step: plain HTML, CSS and
 - **Technique cue:** a short 💡 line under each exercise name, always visible (the `CUES` dictionary in
   `app.js`).
 - **Nothing you type is lost:** a session in progress is written to `localStorage` while you type and
-  again when the page leaves (**🔒 Kept if the page reloads**), and comes back after a reload with
+  again when the page leaves, and comes back after a reload with
   "Restored what you had typed". A draft belongs to one pass and one ISO week and is dropped on save.
 - **Collapse a finished exercise:** the caret in the card's top right folds it down to the name plus
   `3/3 sets`, so the exercises left are easy to find. Folded cards are remembered per pass and
