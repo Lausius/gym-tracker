@@ -1,14 +1,7 @@
-    // ============================================================
-    //  GYM TRACKER — Full Application
-    // ============================================================
+    // Gym Tracker — one page, no build step.
 
     // ─── Exercise Database ────────────────────────────────────────
-    // Hver redskabsvariant er sin egen post. Grunden er teknisk, ikke kosmetisk:
-    // 20 kg på en EZ-bar og 20 kg i hver hånd er ikke samme belastning, og
-    // progressiv overload sammenligner tal — slås de sammen, bliver forslaget
-    // forkert (fx "læg 2,5 kg på" baseret på en helt anden øvelse).
-    //   equipment: hvilket redskab
-    //   loadNote:  'per hand' / 'per leg' når vægten angives pr. side, ikke total
+    // Hver redskabsvariant er sin egen post: 20 kg pr. hånd er ikke 20 kg total.
     const EXERCISES = {
         upper: [
             { id: 'bench_press',       name: 'Bench Press',              muscle: 'Chest',           compound: true,  equipment: 'Barbell' },
@@ -72,11 +65,7 @@
     };
 
     // ─── Teknik-cues ──────────────────────────────────────────────
-    // Én linje pr. øvelse, skrevet til at blive læst mens man står med vægten:
-    // den vigtigste ting ved løftet, ikke en hel teknikbeskrivelse. Cues er på
-    // engelsk som resten af UI'et; den længere tekst ligger i
-    // ~/.hermes/Documents/gym-tracker/warmup-and-cues.md og holdes i sync i hånden.
-    // Øvelser uden en cue viser ingen linje — det er ikke en fejl.
+    // Én kort linje pr. øvelse; den lange tekst ligger i ~/.hermes/Documents/gym-tracker/warmup-and-cues.md.
     const CUES = {
         // Chest
         bench_press:        'Shoulder blades tucked down and back, feet planted — same bar path every rep.',
@@ -145,13 +134,10 @@
     const ALL_EXERCISES = { upper: EXERCISES.upper, lower: EXERCISES.lower };
 
     // ─── Træningsprogrammer (A/B Split) ───────────────────────────────
-    // Højst så mange øvelser pr. dag. Programmet ER dagens træning: appen indlæser
-    // det ved åbning og ved skift af dag/variant — man bygger det ikke op selv.
+    // Højst så mange øvelser pr. dag.
     const MAX_PER_DAY = 6;
 
-    // Hvad de fire pas er til. Fokus står i øverste bjælke, så man ikke skal gætte
-    // hvad forskellen på A og B er: A er de tunge, få gentagelser med stang/maskine,
-    // B er volumen med kabel og maskine, og benene er delt i bagkæde og forlår.
+    // Hvad de fire pas er til; fokus står i den øverste bjælke.
     const SESSION_FOCUS = {
         upperA: 'Heavy press · vertical pull',
         upperB: 'Volume · delts, arms & cables',
@@ -159,22 +145,11 @@
         lowerB: 'Quads, glutes & calves',
     };
 
-    // Rækkefølgen de fire pas lægges i. Bruges til at se hvad der mangler i ugen, og
-    // til at foreslå det næste pas (se nextSessionInWeek).
-    // Ugens fire pas i den rækkefølge de trænes: overkrop og ben skiftevis, og A før B
-    // for hver dag. Rækkefølgen er den man ser i ugebjælken — og den "næste pas"-logikken
-    // læser, så forslaget følger træningsrækkefølgen og ikke A/B-parret.
+    // Rækkefølgen de fire pas lægges i — træningsrækkefølgen, som ugebjælken og nextSessionInWeek læser.
     const SESSION_ORDER = ['upperA', 'lowerA', 'upperB', 'lowerB'];
 
-    // Programmerne er bygget ud fra det han faktisk løfter (uge 41), og vægtene er
-    // næste målsætning efter dobbelt-progression: 3 sæt over 8 gentagelser giver
-    // mere vægt (2,5 kg overkrop / 5 kg ben), ellers tages gentagelserne først.
-    // Har man historik for varianten, bruges *den* til tallene på kortet (se
-    // sessionEntryFor) — skabelonens vægt er det man skal løfte, ikke det man løftede.
-    //
-    // Romanian Deadlift er bevidst ude: den belaster lænden. Cable Pull-Through står
-    // i stedet i Lower A som hofte-hinge med kabel (lav aksial belastning), så
-    // bevægelsesmønsteret ikke er væk.
+    // Vægtene er næste målsætning efter dobbelt-progression; har man historik for varianten, bruges
+    // den i stedet (se sessionEntryFor).
     const PROGRAMS = {
         upperA: [
             { exerciseId: 'bench_press',        sets: 3, reps: 8,  weight: 67.5, note: 'Chest' },
@@ -218,9 +193,7 @@
         return PROGRAMS[programKey(day, variant)] || [];
     }
 
-    // Foreslår næste variant ud fra hvad der mangler i den aktuelle uge, og ellers
-    // ud fra rotationen. Ugen er delt i fire pas (SESSION_ORDER), og et pas tælles
-    // som klaret hvis der ligger en gemt træning med samme dag+variant i ugen.
+    // Foreslår næste pas ud fra hvad der mangler i ugen, ellers ud fra rotationen.
     function weekDone(today = getTodayStr()) {
         const key = isoWeekKey(today);
         const done = {};
@@ -237,8 +210,7 @@
         return !!weekDone(today)[programKey(day, variant)];
     }
 
-    // Det næste pas der mangler i ugen, med skift mellem overkrop og ben, så man
-    // ikke kommer til at køre to overkrops-pas i træk. null = ugen er fuld.
+    // Det næste pas der mangler i ugen, med skift mellem overkrop og ben. null = ugen er fuld.
     function nextSessionInWeek(today = getTodayStr()) {
         const done = weekDone(today);
         const pending = SESSION_ORDER.filter(k => !done[k]);
@@ -257,8 +229,7 @@
         const done = weekDone(today);
         const pending = SESSION_ORDER.filter(k => k.startsWith(day) && !done[k]);
         if (pending.length) return pending[0].slice(-1);
-        // 2. Begge pas for dagen er klaret: fald tilbage til rotationen, så man kan
-        //    se den anden variant uden at skulle tænke over det.
+        // Begge pas for dagen er klaret: fald tilbage til rotationen.
         const workouts = loadWorkouts().filter(w => w.day === day && w.variant);
         if (workouts.length === 0) return 'A';
         workouts.sort((a, b) => a.date.localeCompare(b.date));
@@ -299,9 +270,7 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(workouts));
     }
 
-    // Opdaterer en gemt træning på plads. Dato, dag og variant bevares — kun
-    // øvelserne skiftes — så en træning man kommer tilbage til senere stadig
-    // hører til den dag den blev lavet.
+    // Opdaterer en gemt træning på plads: dato, dag og variant bevares, kun øvelserne skiftes.
     function applyWorkoutEdit(workouts, id, exercises) {
         const idx = workouts.findIndex(w => w.id === id);
         if (idx < 0) return { ok: false, workouts, added: 0, removed: 0 };
@@ -336,11 +305,7 @@
     }
 
     // ─── Træningsudkast (det man har tastet, før det er gemt) ──────
-    // En telefon kan smide siden væk uden varsel: Safari genstarter fanen når
-    // hukommelsen bliver lav, og et uheldigt træk nedad genindlæser den. Stod
-    // tallene kun i DOM'en, var de tabt og skulle tastes igen. Derfor skrives
-    // dagens træning ned mens man taster, og lægges tilbage ved næste åbning
-    // hvis den aldrig blev gemt.
+    // Telefonen kan smide siden væk uden varsel, så det tastede skrives ned mens man taster.
     const DRAFT_KEY = 'gym_tracker_draft';
     const DRAFT_DEBOUNCE = 400; // ms: ét skriv pr. pause, ikke ét pr. tastetryk
 
@@ -352,31 +317,14 @@
     }
 
     function saveDrafts(drafts) {
-        // At gemme må ikke kunne vælte tastningen, hvis browseren nægter (fx privat
-        // browsing eller fuld kvote). Vi svarer på om det lykkedes, så linjen i
-        // bunden kun kan love noget der faktisk skete.
+        // Et nej fra browseren (privat browsing, fuld kvote) må ikke vælte tastningen.
         try {
             localStorage.setItem(DRAFT_KEY, JSON.stringify(drafts));
             return true;
         } catch { return false; }
     }
 
-    // Linjen under gem-linjen: gør den usynlige garanti synlig — man skal kunne se på
-    // telefonen at det tastede ligger i browseren. Den står kun når udkastet faktisk
-    // ligger i localStorage, så den lover ikke noget der ikke skete.
-    const DRAFT_NOTE = '🔒 Kept if the page reloads';
-
-    function updateDraftNote() {
-        const el = document.getElementById('draft-note');
-        if (!el) return;
-        const kept = !!loadDrafts()[draftKeyFor()];
-        el.textContent = kept ? DRAFT_NOTE : '';
-        el.classList.toggle('hidden', !kept);
-    }
-
-    // Kun øvelser og tal. Plan-linjer og targetReps er afledt af programmet og må
-    // ikke få et urørt program til at se ud som om man har tastet noget — derfor
-    // gemmes kun det man faktisk kan have rettet.
+    // Kun øvelser og tal: plan-linjer og targetReps er afledt og må ikke se ud som eget input.
     function draftFingerprint(exercises) {
         return JSON.stringify((exercises || []).map(ex => ({
             id: ex.exerciseId,
@@ -396,10 +344,7 @@
             .map(item => sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant))));
     }
 
-    // To krav, og begge skal være opfyldt: man skal selv have rettet noget (state.touched
-    // — ikke bare have et pas på skærmen), og det skal stadig være noget andet end det
-    // en frisk åbning ville vise. Ellers ville et urørt pas kunne gemmes som "det du har
-    // tastet", og ved næste åbning ligge oveni de rigtige tal med en forkert besked.
+    // To krav: man skal selv have rettet noget (state.touched), og det skal afvige fra en frisk åbning.
     function draftIsDirty() {
         if (!state.touched) return false;
         const base = draftBaseline();
@@ -407,18 +352,16 @@
         return draftFingerprint(state.exercises) !== base;
     }
 
-    // Udkastet hører til det pas man står i. sessionVariant er den variant der
-    // faktisk vises og ville blive gemt — ikke den foreslåede.
+    // Udkastet hører til det pas man står i; sessionVariant er den variant der faktisk vises.
     function draftKeyFor() {
         return programKey(state.currentDay, state.sessionVariant || getCurrentVariant());
     }
 
     function clearDraft(key = draftKeyFor()) {
         const drafts = loadDrafts();
-        if (!(key in drafts)) { updateDraftNote(); return false; }
+        if (!(key in drafts)) return false;
         delete drafts[key];
         saveDrafts(drafts);
-        updateDraftNote();
         return true;
     }
 
@@ -433,24 +376,19 @@
                 sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
             })),
         };
-        const ok = saveDrafts(drafts);
-        updateDraftNote();
-        return ok;
+        return saveDrafts(drafts);
     }
 
     let draftTimer = null;
 
     function scheduleDraftSave() {
-        // Kaldes fra de steder hvor man selv retter noget — derfor er det her "man har
-        // rørt ved træningen" sættes. Et pas man bare har på skærmen er ikke et udkast.
+        // Kaldes fra de steder hvor man selv retter noget — et pas man bare har på skærmen er ikke et udkast.
         state.touched = true;
         if (draftTimer) clearTimeout(draftTimer);
         draftTimer = setTimeout(() => { draftTimer = null; persistDraft(); }, DRAFT_DEBOUNCE);
     }
 
-    // Lægger det tastede tilbage. Kaldes én gang, efter programmet er indlæst. Et
-    // udkast fra en tidligere uge er ikke noget man er i gang med, og et pas der
-    // allerede er gemt i ugen er der heller ikke noget at genoptage i.
+    // Lægger det tastede tilbage, én gang, efter programmet er indlæst.
     function restoreDraft(today = getTodayStr()) {
         const key = draftKeyFor();
         const drafts = loadDrafts();
@@ -458,10 +396,8 @@
         if (!draft) return false;
 
         const drop = () => { delete drafts[key]; saveDrafts(drafts); return false; };
-        // Ugen er enheden: et udkast fra en tidligere uge hører til et pas der er
-        // begyndt forfra. At passet allerede er gemt i ugen er derimod IKKE grund til at
-        // smide det væk — man kan være i gang med et ekstra pas (appen advarer selv om
-        // låsen), og det man har tastet må ikke forsvinde ved en genindlæsning.
+        // Et udkast fra en tidligere uge er der intet at genoptage i; et pas der allerede er gemt i ugen
+        // er derimod ikke grund til at smide væk (man kan være i gang med et ekstra pas).
         if (draft.week !== isoWeekKey(today)) return drop();
 
         const variant = state.sessionVariant || getCurrentVariant();
@@ -480,8 +416,7 @@
 
         state.exercises = loaded.map(ex => ({
             exerciseId: ex.exerciseId,
-            // Retter man en gemt træning, har kortet ingen anbefalingslinje — det
-            // skal udkastet heller ikke give det.
+            // Retter man en gemt træning, har kortet ingen anbefalingslinje — det skal udkastet heller ikke give.
             plan: draft.editingId ? undefined : planFor(state.currentDay, ex.exerciseId, variant),
             sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
         }));
@@ -491,11 +426,8 @@
         return true;
     }
 
-    // ─── Sammenklappede øvelser (man træner ikke altid i programmets rækkefølge)
-    // Er man færdig med øvelse 4 mens 1-3 stadig mangler, kan man klappe den færdige
-    // sammen og have de resterende for sig. Nøglen er det pas man står i — samme nøgle
-    // som udkastet (se draftKeyFor) — og det huskes i localStorage, så en genindlæsning
-    // midt i træningen ikke folder det hele ud igen.
+    // ─── Sammenklappede øvelser ───────────────────────────────────
+    // Er man færdig med øvelse 4 mens 1-3 mangler, kan den klappes sammen og huskes i localStorage.
     const COLLAPSE_KEY = 'gym_tracker_collapsed';
 
     function loadCollapsed() {
@@ -506,17 +438,14 @@
     }
 
     function saveCollapsed(all) {
-        // Samme forsigtighed som udkastet: et nej fra browseren må ikke vælte visningen,
-        // og svaret bruges til at vide om det faktisk blev husket.
+        // Samme forsigtighed som udkastet: et nej fra browseren må ikke vælte visningen.
         try {
             localStorage.setItem(COLLAPSE_KEY, JSON.stringify(all));
             return true;
         } catch { return false; }
     }
 
-    // Id'erne for det pas man står i. Et sammenklappet pas fra en tidligere uge hører
-    // til en træning der er begyndt forfra, og smides væk i stedet for at ligge og vente.
-    // Ukendte id'er (øvelser der er ude af appen) kan ikke vises på et kort og filtreres fra.
+    // Et sammenklappet pas fra en tidligere uge smides væk; id'er der er ude af appen filtreres fra.
     function collapsedIds(today = getTodayStr()) {
         const all = loadCollapsed();
         const key = draftKeyFor();
@@ -537,8 +466,7 @@
         return known;
     }
 
-    // Når passet skifter, er det passets egen liste der gælder — det er her state.collapsed
-    // sættes, så en klappet øvelse ikke følger med over i næste pas.
+    // Passets egen liste gælder når passet skifter — en klappet øvelse følger ikke med over.
     function applyCollapsedState(today = getTodayStr()) {
         state.collapsed = collapsedIds(today);
     }
@@ -563,34 +491,131 @@
         return true;
     }
 
-    // Klapper en øvelse sammen eller folder den ud igen. Skrives ned med det samme: et
-    // tryk er sjældent, og man skal ikke kunne tabe listen ved en genindlæsning.
-    function toggleCollapsed(exerciseId) {
-        if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
-        state.collapsed = isCollapsed(exerciseId)
-            ? state.collapsed.filter(id => id !== exerciseId)
-            : state.collapsed.concat([exerciseId]);
+    // Tilstanden og hvad den betyder for bytte-listen. Skrives ned, tegner intet.
+    function setCollapsedState(exerciseId, collapsed) {
+        if (isCollapsed(exerciseId) === collapsed) return false;
+        state.collapsed = collapsed
+            ? state.collapsed.concat([exerciseId])
+            : state.collapsed.filter(id => id !== exerciseId);
         // Bytte-listen hører til kortets krop: klapper man sammen, lukkes den også.
-        if (isCollapsed(exerciseId)) {
+        if (collapsed) {
             const slot = slotForExercise(exerciseId);
             if (slot && state.openSwap === slot) state.openSwap = null;
         }
         persistCollapsed();
+        return true;
+    }
+
+    // Skifter tilstanden og tegner listen om, når der ikke er et kort at animere.
+    function setCollapsed(exerciseId, collapsed) {
+        if (!setCollapsedState(exerciseId, collapsed)) return false;
         renderAll();
         return true;
     }
 
-    // Teksten på et sammenklappet kort: hvor mange af sættene der har tal, og volumen.
-    // Kortet viser ingen felter, så det er den eneste status man har mens det er klappet.
-    // Bevidst ingen dom over om man er færdig: programmet forudfylder vægt og reps, så
-    // "alle sæt har tal" er sandt fra første sekund og ville stå på hvert eneste kort.
+    function cardElementFor(exerciseId) {
+        return document.querySelector(`#exercise-list .exercise-card[data-exercise-id="${exerciseId}"]`);
+    }
+
+    // Animationer slået fra i systemet: skift med det samme, ikke vent på en overgang man ikke ser.
+    function animationsOff() {
+        return typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    // Klapper sammen eller folder ud. Kortet tegnes på ny alene, og foldet sker i to trin.
+    function toggleCollapsed(exerciseId) {
+        if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
+        // Er der et fold i gang, gøres det færdigt først — ellers slog det ned oven på trykket.
+        finishClose();
+        const card = cardElementFor(exerciseId);
+        const collapsing = !isCollapsed(exerciseId);
+        if (!card || animationsOff()) return setCollapsed(exerciseId, collapsing);
+        return collapsing ? closeCard(card, exerciseId) : openCard(exerciseId);
+    }
+
+    // Foldet der er i gang, hvis der er et: kortet og den commit der afslutter det.
+    let pendingClose = null;
+
+    function finishClose() {
+        if (!pendingClose) return false;
+        const close = pendingClose.commit;
+        pendingClose = null;
+        close();
+        return true;
+    }
+
+    function closeCard(card, exerciseId) {
+        const body = card.querySelector('.exercise-card-body');
+        if (!body) return setCollapsed(exerciseId, true);
+        if (pendingClose && pendingClose.exerciseId === exerciseId) return true;
+        let done = false;
+        const commit = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            if (pendingClose && pendingClose.exerciseId === exerciseId) pendingClose = null;
+            setCollapsedState(exerciseId, true);
+            renderCard(exerciseId);
+        };
+        // Timeren afgør hvornår kortet tegnes om; transitionend tager den hvis den kommer først.
+        card.addEventListener('transitionend', (e) => {
+            if (e.target === body) commit();
+        }, { once: true });
+        card.classList.add('closing');
+        pendingClose = { exerciseId, commit };
+        const timer = setTimeout(commit, 200);
+        return true;
+    }
+
+    // Åbner et nyt element fra klappet form: fold-start sættes, og fjernes næste skærmbillede.
+    function unfoldElement(el) {
+        if (!el) return false;
+        el.classList.add('fold-start');
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('fold-start')));
+        return true;
+    }
+
+    function openCard(exerciseId) {
+        setCollapsedState(exerciseId, false);
+        const fresh = renderCard(exerciseId);
+        unfoldElement(fresh && fresh.querySelector('.exercise-card-body'));
+        return true;
+    }
+
+    // Lukker bytte-listen med en overgang, og tegner kortet om bagefter.
+    const swapCloses = new Set();
+
+    function finishSwapCloses() {
+        const closers = [...swapCloses];
+        swapCloses.clear();
+        closers.forEach(commit => commit());
+    }
+
+    function closeSwapMenu(card, exerciseId) {
+        const menu = card && card.querySelector('.swap-menu');
+        if (!menu) { renderCard(exerciseId); return false; }
+        let done = false;
+        const commit = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            swapCloses.delete(commit);
+            renderCard(exerciseId);
+        };
+        menu.addEventListener('transitionend', (e) => { if (e.target === menu) commit(); }, { once: true });
+        menu.classList.add('closing');
+        const timer = setTimeout(commit, 220);
+        swapCloses.add(commit);
+        return true;
+    }
+    // Den klappede status: hvor mange af sættene der har tal.
     function collapsedSummary(ex) {
         const sets = ex.sets || [];
         if (sets.length === 0) return 'No sets';
         const logged = sets.filter(s => s.weight > 0 && s.reps > 0).length;
-        const volume = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
         if (logged === 0) return 'No sets logged yet';
-        return `${logged}/${sets.length} sets · ${volume.toFixed(0)} kg`;
+        return `${logged}/${sets.length} sets`;
     }
 
     // ─── Toast System ─────────────────────────────────────────────
@@ -624,13 +649,12 @@
     }
 
     // ─── Progressive Overload Engine ──────────────────────────────
+    // Dobbelt progression; stagnation = samme vægt i tre træninger.
     function calculateProgressiveOverload(exerciseId, day) {
         const workouts = loadWorkouts();
         const history = [];
 
-        // Collect all sets for this exercise across all workouts
         for (const workout of workouts) {
-            // Only look at workouts for the requested day
             if (workout.day !== day) continue;
             const dayExercises = workout.exercises || [];
             const exData = dayExercises.find(e => e.exerciseId === exerciseId);
@@ -654,30 +678,22 @@
             };
         }
 
-        // Sort by weight desc, then reps desc
         history.sort((a, b) => b.weight - a.weight || b.reps - a.reps);
         const best = history[0];
 
-        // Find most recent session
         const recent = history.slice().sort((a, b) => b.date.localeCompare(a.date))[0];
 
-        // Double progression logic:
-        // If you hit your target reps with current weight, increase weight by smallest increment
-        // Smallest increment: 2.5 kg for upper, 5 kg for lower (or based on weight magnitude)
         const targetReps = recent.reps; // Use recent session's reps as the "target" to beat
         const currentWeight = recent.weight;
 
-        // Calculate suggested overload
         let newWeight, newReps, strategy;
 
-        // Check if we've been stagnant (same weight for 3+ unique sessions/days)
         const uniqueDates = new Set(history.map(h => h.date));
         const sameWeightSessions = [...uniqueDates].filter(date =>
             history.some(h => h.date === date && h.weight === currentWeight)
         ).length;
 
         if (sameWeightSessions >= 3 && currentWeight > 0) {
-            // Stagnant — try increasing reps first, then weight
             strategy = 'rep_focus';
             newWeight = currentWeight;
             newReps = Math.min(targetReps + 2, 15);
@@ -690,9 +706,7 @@
             }
         }
 
-        // Standard double progression
         if (targetReps >= 8 && currentWeight >= 40) {
-            // Heavy weight — smaller increments
             newWeight = Math.round((currentWeight + 2.5) * 2) / 2; // 2.5 kg increments
             newReps = targetReps;
             strategy = 'weight_up';
@@ -701,7 +715,6 @@
             newReps = targetReps;
             strategy = 'weight_up';
         } else if (currentWeight > 0) {
-            // Under 8 reps — focus on getting to 8 first
             newWeight = currentWeight;
             newReps = Math.min(targetReps + 1, 12);
             strategy = 'rep_up';
@@ -711,7 +724,6 @@
             strategy = 'start';
         }
 
-        // Cap reasonable limits
         newWeight = Math.min(newWeight, 200);
         newReps = Math.min(newReps, 20);
 
@@ -731,13 +743,7 @@
     }
 
     // ─── Opvarmningssæt ───────────────────────────────────────────
-    // Rampen regnes ud fra arbejdsvægten (det tungeste sæt i øvelsen).
-    //   Sammensat med stang:  stang → 50% → 70% → 85%
-    //   Maskine/kabel:        50% → 75%
-    //   Isolation:            ét let sæt (~60%)
-    //   Kropsvægt:            ingen tal at rampe efter
-    // Der rundes til 2,5 kg (stang/maskine), men til 1 kg for håndvægte —
-    // hans center har 1 kg's spring i det område (derfor 3,5 og 5,5 kg).
+    // Stang → 50/70/85 %, maskine/kabel → 50/75 %, isolation ét let sæt; rundet til 2,5 kg (1 kg for håndvægte).
     const WARMUP_BAR = { Barbell: 20, 'EZ-bar': 10 };
     const WARMUP_COMPOUND = [[0.5, 8], [0.7, 5], [0.85, 3]];
     const WARMUP_MACHINE = [[0.5, 10], [0.75, 6]];
@@ -778,15 +784,13 @@
         return sets.map(s => `${s.weight} × ${s.reps}`).join(' · ');
     }
 
-    // Slår op i CUES på øvelsens id. Ukendt id eller manglende cue giver '' —
-    // så en ny øvelse i databasen bare står uden linje i stedet for at fejle.
+    // Ukendt id eller manglende cue giver '' — en ny øvelse står bare uden linje.
     function exerciseCue(exercise) {
         if (!exercise || !exercise.id) return '';
         return CUES[exercise.id] || '';
     }
 
-    // Cue-linjen er ren tekst fra konstanten ovenfor (ingen brugerinput), så den
-    // indsættes direkte — som resten af kortets markup.
+    // Cue-teksten kommer fra konstanten ovenfor, ikke fra brugerinput.
     function renderCueLine(exercise) {
         const cue = exerciseCue(exercise);
         if (!cue) return '';
@@ -815,8 +819,7 @@
         `;
     }
 
-    // Arbejdsvægten er det tungeste sæt i øvelsen lige nu. Er intet tastet endnu,
-    // bruges den seneste vægt fra historikken, så rampen er der fra første sekund.
+    // Rampen regnes ud fra det tungeste sæt lige nu; intet tastet = seneste vægt fra historikken.
     function workingWeightFor(ex) {
         const max = Math.max(0, ...ex.sets.map(s => parseFloat(s.weight) || 0));
         if (max > 0) return max;
@@ -825,7 +828,6 @@
     }
 
     // ─── Husk sidste træning for en dag+variant ───────────────────
-    // Den nyeste gemte træning for netop den dag og variant, eller null.
     function lastWorkoutFor(day, variant) {
         const mine = loadWorkouts().filter(w => w.day === day && w.variant === variant);
         if (mine.length === 0) return null;
@@ -833,9 +835,7 @@
     }
 
     // ─── Programmet for en dag+variant ────────────────────────────
-    // Programmet ER dagens træning. Har man byttet en øvelse, huskes byttet for
-    // netop den dag+variant. Nøglen er skabelon-øvelsens id, så en senere rettelse
-    // i skabelonen ikke bliver overskrevet af et gammelt bytte.
+    // Et bytte huskes for netop den dag+variant; nøglen er skabelon-øvelsens id.
     const SWAP_KEY = 'gym_tracker_program_swaps';
 
     function loadSwaps() {
@@ -849,12 +849,8 @@
         localStorage.setItem(SWAP_KEY, JSON.stringify(swaps));
     }
 
-    // Tallene der hører til en øvelse: dens egen programrække, ellers dens egen
-    // historik. En byttet øvelse må ikke arve den øvelse den erstatter — 225 kg
-    // hører til Leg Press og siger intet om Leg Extension (den vejer 70).
-    // Rækken findes på tværs af dagens to varianter, fordi en øvelse kan stå i
-    // skabelonen for den ene og bruges i begge. Den variant man står i vælges først
-    // (Leg Curl vejer 41 kg i A og 45 kg i B).
+    // Tallene hører til øvelsen selv: dens programrække, ellers dens historik. En byttet øvelse
+    // må ikke arve den erstattedes tal, og rækken findes på tværs af dagens to varianter.
     function planFor(day, exerciseId, variant) {
         const others = SESSION_ORDER.filter(k => k.startsWith(day));
         const mine = programKey(day, variant);
@@ -863,9 +859,7 @@
             const row = getProgram(day, key.slice(-1)).find(r => r.exerciseId === exerciseId);
             if (row) return { sets: row.sets, reps: row.reps, weight: row.weight };
         }
-        // Ingen programrække (øvelsen er hentet ind i hånden): så er dens egen
-        // historik det eneste holdepunkt, og ellers et rent startpunkt — samme
-        // svar som appen giver en helt ny øvelse.
+        // Ingen programrække: øvelsens egen historik, ellers et rent startpunkt (3 × 8 @ 20 kg).
         const prog = calculateProgressiveOverload(exerciseId, day);
         const kg = parseFloat((prog.suggestion.match(/([\d.]+)\s*kg/) || [])[1]);
         const reps = parseInt((prog.suggestion.match(/(\d+)\s*reps/) || [])[1]) || 8;
@@ -879,26 +873,16 @@
             const wanted = swaps[item.exerciseId];
             const replacement = wanted && wanted !== item.exerciseId ? getExerciseById(day, wanted) : null;
             if (!replacement) return { ...item };
-            // Den nye øvelse overtager pladsen i programmet — men sine egne tal.
-            // Ellers blev Leg Press' 225 kg hængende på den øvelse man byttede til.
+            // Den nye øvelse overtager pladsen i programmet, men sine egne tal.
             return { ...item, exerciseId: replacement.id, swappedFrom: item.exerciseId, ...planFor(day, replacement.id, variant) };
         });
     }
 
-    // Hvad en øvelse kan byttes til: samme muskelgruppe, og ikke en der allerede står
-    // i dagens træning. Reglen læser muskelgruppen i EXERCISES, så en ny øvelse
-    // kommer med i listerne af sig selv.
-    // Øvelser der ikke må tilbydes som alternativ, selv om de deler muskelgruppe.
-    // Stang-RDL belaster hans lænd, og skal ikke kunne vælges ved et uheld.
-    // Håndvægt-RDL er bevidst IKKE på listen: den er valgt til af ham selv, og
-    // den vejer mindre i samme bevægelse, så den er den RDL-variant han bruger.
+    // Samme muskelgruppe, og ikke en der allerede står i dagens træning.
+    // Stang-RDL belaster lænden og må ikke kunne vælges ved et uheld; håndvægt-RDL er bevidst med.
     const NEVER_OFFERED = ['romanian_deadlift'];
 
-    // Muskelgrupperne står som 'Quads/Glutes', så et bytte matches på de enkelte
-    // grupper og ikke på hele strengen: ellers fik fx Leg Press ('Quads') ingen
-    // alternativer, selv om Bulgarian Split Squat ('Quads/Glutes') deler Quads med
-    // den. Fuld match rangeres før delvis match, så listen bliver ved med at føles
-    // som samme øvelse først.
+    // Matches på enkelte muskelgrupper, så 'Quads' også finder 'Quads/Glutes'; fuld match rangeres først.
     function muscleGroups(ex) {
         return String(ex.muscle || '').split('/').map(s => s.trim()).filter(Boolean);
     }
@@ -925,21 +909,15 @@
         });
     }
 
-    // Hvilken programrække en øvelse hører til i dag. Et bytte kan sættes i gang både
-    // fra programrækken og fra øvelseskortet, så begge steder skal kunne finde slotten.
-    // Er øvelsen ikke en del af programmet (fx hentet ind i hånden), er der intet at bytte.
-    // Kigger man på en ældre gemt træning, kan rækken være byttet videre i mellemtiden:
-    // rækken hedder så noget andet, men `swappedFrom` peger stadig på den øvelse
-    // træningen indeholder. Uden det sidste opslag ville netop det kort stå uden
-    // bytte-knap, fordi dets id ikke længere findes i programmet.
+    // Et bytte kan sættes i gang fra programrækken og fra kortet, og en ældre gemt træning kan pege
+    // på en række der siden er byttet videre — derfor også opslag via swappedFrom.
     function slotForExercise(exerciseId) {
         const item = programItems(state.currentDay, getCurrentVariant())
             .find(i => i.exerciseId === exerciseId || i.swappedFrom === exerciseId);
         return item ? (item.swappedFrom || item.exerciseId) : null;
     }
 
-    // Gemmer byttet for dag+variant. Bytter man tilbage til skabelon-øvelsen,
-    // fjernes overriden igen.
+    // Bytter man tilbage til skabelon-øvelsen, fjernes overriden igen.
     function setSwap(day, variant, slotId, exerciseId) {
         const key = programKey(day, variant);
         const swaps = loadSwaps();
@@ -951,9 +929,7 @@
         saveSwaps(swaps);
     }
 
-    // Dagens træning ud fra programmet: samme vægt og antal sæt som sidst, ellers
-    // skabelonens anbefaling. `plan` er anbefalingen og bliver vist på kortet, uanset
-    // hvad man selv retter tallene til.
+    // Anbefalingen bliver stående på kortet, uanset hvad man selv retter tallene til.
     function sessionEntryFor(item, last) {
         const remembered = last && (last.exercises || []).find(e =>
             e.exerciseId === item.exerciseId && e.sets.some(s => s.weight > 0 && s.reps > 0));
@@ -969,32 +945,24 @@
         };
     }
 
-    // Indlæser dagens program som dagens træning. Kaldes ved åbning og hver gang
-    // dag eller variant skifter — der er ingen "tilføj"-knap mere.
+    // Kaldes ved åbning og ved hvert pas-skift; der er ingen tilføj-knap.
     function loadProgram() {
         const variant = getCurrentVariant();
         const last = lastWorkoutFor(state.currentDay, variant);
         state.exercises = programItems(state.currentDay, variant).map(item => sessionEntryFor(item, last));
-        // BEMÆRK: state.programVariant røres ikke her. Den betyder "brugeren har selv
-        // valgt", og er den null, følger visningen rotationens forslag (getCurrentVariant).
-        // Sættes den her til den udregnede variant, står der "chosen" i UI'et fra første
-        // sekund, og forslaget kan ikke længere skifte af sig selv.
+        // BEMÆRK: state.programVariant betyder at brugeren selv har valgt, og må ikke sættes her —
+        // så kan visningen ikke længere følge rotationens forslag.
         state.sessionVariant = variant;
         state.editing = null;
         state.openSwap = null;
-        // Sammenklapningen hører til passet, ikke til visningen: et nyt pas folder alt ud
-        // (og et man kommer tilbage til ser ud som man forlod det).
+        // Et nyt pas folder alt ud; passet husker sin egen sammenklapning.
         applyCollapsedState();
-        // Et friskindlæst program er ikke noget man har tastet: udkastet skal komme fra
-        // brugerens egne rettelser (ellers arvede et nyt pas det forrige pas' udkast).
+        // Et friskindlæst program er ikke noget man har tastet.
         state.touched = false;
     }
 
     // ─── Eksempeldata (til at prøve appen uden at taste data ind) ──
-    // Bruges fx i en preview på et andet domæne, hvor localStorage er tom: dér ville
-    // filtreringen ikke kunne vise noget, fordi reglen er "vis alt når der ingen
-    // historik er". Knappen tilbydes derfor KUN når loggen er tom eller udelukkende
-    // indeholder eksempeldata — den kan altså aldrig overskrive rigtige træninger.
+    // Knappen tilbydes kun når loggen er tom eller udelukkende indeholder eksempeldata.
     function isSampleWorkout(w) {
         return !!w && w.sample === true;
     }
@@ -1010,11 +978,7 @@
         return d;
     }
 
-    // Tre hele uger med A/B-historik. Ugens fire træninger rammer de ugedage
-    // rotationen selv foreslår (Upper A → Lower A → Upper B → Lower B), og vægten
-    // stiger lidt for hver uge, så progression, filtrering og uge-deling alle har
-    // noget at vise. Øvelserne kommer fra appens egne programmer, så id'er og
-    // sæt-antal ikke kan drive fra virkeligheden.
+    // Tre uger med A/B-historik; øvelserne kommer fra appens egne programmer.
     function buildSampleWorkouts(today = new Date()) {
         const monday = mondayOf(today);
         const slots = [
@@ -1038,10 +1002,7 @@
                     sample: true,
                     exercises: getProgram(slot.day, slot.variant).map(item => ({
                         exerciseId: item.exerciseId,
-                        // Samme regel som saveWorkout: kun sæt med vægt over 0 gemmes.
-                        // Kropsvægtøvelser (plank, pull-up) falder derfor ud af loggen
-                        // her — præcis som de ville i virkeligheden. At de så stadig
-                        // står i programmet er kropsvægt-undtagelsen, ikke held.
+                        // Samme regel som saveWorkout: kun sæt med vægt over 0 gemmes, så kropsvægt falder ud af loggen.
                         sets: Array.from({ length: item.sets }, () => ({
                             weight: item.weight > 0 ? item.weight + gained * step : 0,
                             reps: item.reps,
@@ -1061,10 +1022,7 @@
 
         const workouts = loadWorkouts();
 
-        // Hele blokken vises KUN når loggen er tom eller udelukkende indeholder
-        // eksempeldata. Så snart der ligger én rigtig træning, forsvinder den —
-        // ikke bare knappen. Ellers stod overskriften og teksten tilbage uden
-        // nogen knap, og så ser det ud som om noget mangler.
+        // Blokken vises kun når loggen er tom eller udelukkende indeholder eksempeldata.
         if (realWorkouts(workouts).length > 0) {
             section.classList.add('hidden');
             btn.disabled = true;
@@ -1101,9 +1059,6 @@
     }
 
     // ─── Render Functions ─────────────────────────────────────────
-    // Øverste bjælke: hvad passet er, hvilke af ugens fire pas der er klaret, og en
-    // advarsel hvis man er ved at gemme det samme pas to gange i samme uge.
-    // Selve øvelserne står kun ét sted: på kortene i listen nedenfor.
     function sessionHasKey(key) { return SESSION_ORDER.indexOf(key) !== -1; }
 
     // 'upperA' → { day: 'upper', variant: 'A', label: 'Upper A' }
@@ -1122,7 +1077,6 @@
         const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
         const label = document.getElementById('session-label');
         const focusEl = document.getElementById('session-focus');
-        const hint = document.getElementById('variant-hint');
         const memory = document.getElementById('program-memory');
         const strip = document.getElementById('week-strip');
         const warning = document.getElementById('session-warning');
@@ -1130,7 +1084,6 @@
 
         if (label) label.textContent = `${dayLabel} ${variant}`;
         if (focusEl) focusEl.textContent = SESSION_FOCUS[key] || '';
-        if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
 
         // Ugen: ét felt pr. pas, med ✓ og dato for dem der allerede ligger der.
         const done = weekDone();
@@ -1147,16 +1100,15 @@
             }).join('');
         }
 
-        // Hvor tallene kommer fra.
+        // Linjen vises kun når der faktisk er noget at huske.
         if (memory) {
-            memory.classList.remove('hidden');
+            memory.classList.toggle('hidden', !last);
             memory.textContent = last
                 ? `↩︎ Same exercises and weights as your ${dayLabel} ${variant} on ${formatDate(last.date)}.`
-                : `Your ${dayLabel} ${variant} program — ready to go.`;
+                : '';
         }
 
-        // Lås: samme dag+variant to gange i samme uge. Man kan se passet, men ikke
-        // gemme det, før man enten skifter pas eller siger "log anyway".
+        // Lås: samme dag+variant to gange i samme uge; man kan se passet, men ikke gemme det.
         const conflict = weekConflict();
         if (warning) {
             if (!conflict) {
@@ -1174,11 +1126,10 @@
         }
     }
 
-    // Bytte-listen under øvelsesnavnet. Kun øvelser i samme muskelgruppe (se
-    // swapCandidates), med den nuværende øverst markeret.
+    // Kun øvelser i samme muskelgruppe (se swapCandidates), den nuværende øverst markeret.
     function renderSwapMenu(slotId, ex, candidates) {
         return `
-            <div class="swap-menu" data-swap-slot="${slotId}">
+            <div class="swap-menu" data-swap-slot="${slotId}"><div class="swap-menu-inner">
                 ${candidates.map(c => `
                     <button class="swap-option${c.id === ex.id ? ' current' : ''}"
                             data-swap-slot="${slotId}" data-swap-id="${c.id}">
@@ -1186,25 +1137,22 @@
                         <span class="swap-option-meta">${c.equipment || ''}${c.loadNote ? ' · ' + c.loadNote : ''}</span>
                     </button>
                 `).join('')}
-            </div>
+            </div></div>
         `;
     }
 
     function renderExerciseList() {
         const list = document.getElementById('exercise-list');
         const count = document.getElementById('exercise-count');
-        const hint = document.getElementById('exercise-hint');
 
         if (state.exercises.length === 0) {
             list.innerHTML = `
                 <div class="no-exercises-msg">
                     <span class="emoji">🏋️</span>
                     <p>No exercises in today's program</p>
-                    <p style="font-size:0.8rem; margin-top:4px;">Pick another day above, or swap an exercise on the program list</p>
                 </div>
             `;
             count.textContent = '0';
-            if (hint) hint.textContent = '';
             const restoreEmpty = document.getElementById('exercise-restore');
             if (restoreEmpty) { restoreEmpty.classList.add('hidden'); restoreEmpty.innerHTML = ''; }
             return;
@@ -1212,17 +1160,7 @@
 
         count.textContent = state.exercises.length;
 
-        // Hvorfor navnene kan trykkes på: det er ikke alle kort der har noget at bytte
-        // til (Leg Curl er alene i sin muskelgruppe), så hintet vises kun når mindst ét
-        // kort faktisk har en bytte-liste.
-        const swappable = state.exercises.some(ex => {
-            const slot = slotForExercise(ex.exerciseId);
-            return slot && swapCandidates(state.currentDay, ex.exerciseId).length > 1;
-        });
-        if (hint) hint.textContent = swappable ? 'Tap a name to swap' : '';
-
-        // Mangler der en programrække i det pas der står på skærmen (en gammel træning man
-        // retter, eller et udkast der blev skrevet før), kan den hentes tilbage her.
+        // Mangler der en programrække i det pas der står på skærmen, kan den hentes tilbage her.
         const removed = missingExerciseCount();
         const restore = document.getElementById('exercise-restore');
         if (restore) {
@@ -1233,21 +1171,20 @@
                 </button>`;
         }
 
-        list.innerHTML = state.exercises.map((ex, idx) => {
-            const exercise = getExerciseById(state.currentDay, ex.exerciseId);
-            if (!exercise) return '';
+        list.innerHTML = state.exercises.map((ex, idx) => cardMarkup(ex, idx)).join('');
+    }
 
-            const totalVolume = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-            const maxVolume = Math.max(...ex.sets.map(s => s.weight * s.reps), 0);
-            // Anbefalingen fra programmet. Den bliver stående, også når man retter
-            // antal sæt, vægt eller reps — det er hele pointen med den.
+    // Markuppen for ét kort — bruges både af listen og af renderCard.
+    function cardMarkup(ex, idx) {
+        const exercise = getExerciseById(state.currentDay, ex.exerciseId);
+        if (!exercise) return '';
+
+            // Anbefalingen bliver stående, også når man retter antal sæt, vægt eller reps.
             const plan = ex.plan
                 ? `${ex.plan.sets} × ${ex.plan.reps}${ex.plan.weight > 0 ? ' @ ' + ex.plan.weight + ' kg' : ''}`
                 : '';
 
-            // Navnet er et bytte, hvis øvelsen har noget at bytte til: samme
-            // muskelgruppe, minus det der allerede står i dagens træning. Samme liste
-            // som programrækken bruger, så de to steder altid viser det samme.
+            // Navnet er et bytte hvis øvelsen har noget at bytte til — samme liste som programrækken.
             const slot = slotForExercise(ex.exerciseId);
             const candidates = slot ? swapCandidates(state.currentDay, ex.exerciseId) : [];
             const swapOpen = !!slot && state.openSwap === slot;
@@ -1256,9 +1193,7 @@
                            aria-expanded="${swapOpen}" title="Change exercise">${exercise.name}<span class="swap-caret">▾</span></button>`
                 : `<div class="exercise-name">${exercise.name}</div>`;
 
-            // Klappet sammen: kortets krop (anbefaling, cue, opvarmning, sæt-felter og
-            // volumen) tegnes slet ikke — det er hele pointen, og derfor forsvinder
-            // felterne også for skærmlæsere og for tests der tæller dem.
+            // Klappet sammen tegnes kroppen slet ikke, så felterne er væk også for skærmlæsere og tests.
             const collapsedCard = isCollapsed(ex.exerciseId);
 
             return `
@@ -1284,7 +1219,7 @@
                                     title="${collapsedCard ? 'Expand exercise' : 'Collapse exercise'}">${collapsedCard ? '▸' : '▾'}</button>
                         </div>
                     </div>
-                    ${collapsedCard ? '' : `
+                    ${collapsedCard ? '' : `<div class="exercise-card-body"><div class="exercise-card-body-inner">
                     ${plan ? `<div class="exercise-target">🎯 Recommended: ${plan}</div>` : ''}
                     ${swapOpen ? renderSwapMenu(slot, exercise, candidates) : ''}
                     ${renderCueLine(exercise)}
@@ -1295,7 +1230,6 @@
                                 <th style="width:32px">#</th>
                                 <th>Weight (kg)</th>
                                 <th>Reps</th>
-                                <th style="text-align:right">Volume (kg)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1322,9 +1256,6 @@
                                                step="1"
                                                placeholder="0">
                                     </td>
-                                    <td class="volume-cell ${maxVolume > 0 && (set.weight * set.reps) === maxVolume ? 'high' : ''}">
-                                        ${set.weight > 0 && set.reps > 0 ? (set.weight * set.reps).toFixed(0) : '—'}
-                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -1337,13 +1268,21 @@
                             − Remove set
                         </button>
                     </div>
-                    <div class="exercise-volume">
-                        <span>Total volume</span>
-                        <span class="total">${totalVolume.toFixed(0)} kg</span>
-                    </div>`}
+                    </div></div>`}
                 </div>
             `;
-        }).join('');
+    }
+
+    // Tegner ét kort på ny; no-enter slår indtoningen fra, så det ikke både glider ind og folder ud.
+    function renderCard(exerciseId) {
+        const card = cardElementFor(exerciseId);
+        const idx = state.exercises.findIndex(e => e.exerciseId === exerciseId);
+        if (!card || idx === -1) return null;
+        card.insertAdjacentHTML('afterend', cardMarkup(state.exercises[idx], idx));
+        const fresh = card.nextElementSibling;
+        card.remove();
+        fresh.classList.add('no-enter');
+        return fresh;
     }
 
     function renderSaveBar() {
@@ -1365,27 +1304,19 @@
         }
 
         const exerciseCount = state.exercises.length;
-        const hasSets = state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
-        // Låst pas: samme dag+variant ligger allerede i ugen. Knappen er aktiv, så
-        // man kan se hvorfor den ikke virker — den viser fejlen i stedet for at gemme.
+        // Låst pas: knappen er aktiv, men viser fejlen i stedet for at gemme.
         const conflict = weekConflict();
 
         if (exerciseCount === 0) {
             info.innerHTML = 'No exercises in today&#39;s program';
             btn.disabled = true;
-        } else if (!hasSets) {
-            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · fill in the sets`;
-            btn.disabled = true;
         } else {
-            const totalVolume = state.exercises.reduce((sum, ex) =>
-                sum + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
-            );
-            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
-            btn.disabled = false;
+            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises`;
+            btn.disabled = !state.exercises.some(ex => ex.sets.some(s => s.weight > 0 && s.reps > 0));
         }
 
         if (conflict && btn.disabled === false) {
-            info.innerHTML = `🔒 ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${getCurrentVariant()} is already logged this week · tap Save to see the options`;
+            info.innerHTML = `🔒 Already logged this week`;
         }
     }
 
@@ -1394,27 +1325,21 @@
         renderExerciseList();
         renderSaveBar();
         renderSampleControls();
-        // Linjen hænger på passet, ikke på tastningen: den skal skifte med pas-skiftet.
-        updateDraftNote();
     }
 
     // ─── Ugen: hvad der er klaret, og hvad der mangler ────────────
-    // Låsen: man kan ikke gemme samme dag+variant to gange i samme uge. Man kan
-    // stadig se passet og rette tallene; det er først ved gem at det bremser, og
-    // "Log anyway" i bjælken lukker op hvis man bevidst vil køre et pas igen.
+    // Låsen bremser først ved gem; 'Log anyway' i bjælken lukker op.
     function weekConflict(today = getTodayStr()) {
         if (state.editing || state.allowDuplicateWeek) return null;
         const variant = getCurrentVariant();
         const found = weekDone(today)[programKey(state.currentDay, variant)];
         if (!found) return null;
-        // Samme dag: det er den træning man er ved at overskrive/rette (den adfærd er
-        // bekræftet ønsket). Låsen gælder kun et pas fra en anden dag i ugen.
+        // Samme dag = den træning man er ved at rette; låsen gælder kun et pas fra en anden dag i ugen.
         if (found.date === today) return null;
         return found;
     }
 
-    // Henter de programrækker tilbage man har fjernet fra dagens træning, på deres
-    // plads i programmet, uden at røre de tal der allerede er skrevet ind.
+    // Henter fjernede programrækker tilbage på deres plads uden at røre de indtastede tal.
     function restoreMissingExercises() {
         const variant = getCurrentVariant();
         const items = programItems(state.currentDay, variant);
@@ -1442,9 +1367,6 @@
     }
 
     // ─── Program handling (A/B) ───────────────────────────────────
-    // Lægger en øvelse ind i dagens træning: bruges når man henter en fjernet
-    // programrække tilbage, og fra "Næste uge"-listen. Der kan højst stå
-    // MAX_PER_DAY øvelser pr. dag — vil man have en anden, bytter man i stedet.
     function addExerciseToSession(exerciseId) {
         if (state.exercises.some(e => e.exerciseId === exerciseId)) {
             showToast('Exercise is already in today\'s workout', 'info');
@@ -1478,10 +1400,7 @@
         return true;
     }
 
-    // Bytter øvelsen i en programrække. Byttet huskes for dag+variant, og den
-    // øvelse der stod i rækken skiftes ud på samme plads i dagens træning — med
-    // de tal der hører til den nye øvelse. Har man fjernet rækken fra dagens
-    // træning, bliver den ikke lagt ind igen af et bytte.
+    // Bytter huskes for dag+variant, og den nye øvelse får sine egne tal.
     function swapExercise(slotId, exerciseId) {
         const variant = getCurrentVariant();
         const before = programItems(state.currentDay, variant)
@@ -1492,8 +1411,7 @@
             renderAll();
             return;
         }
-        // Hvad der faktisk står på kortet: normalt programmets øvelse, men i en ældre
-        // gemt træning kan det være den øvelse rækken senere er byttet væk fra.
+        // I en ældre gemt træning kan det være den øvelse rækken senere er byttet væk fra.
         let idx = state.exercises.findIndex(e => e.exerciseId === previousId);
         const onCard = idx >= 0 ? previousId : slotId;
         if (idx < 0) idx = state.exercises.findIndex(e => e.exerciseId === slotId);
@@ -1502,8 +1420,7 @@
             renderAll();
             return;
         }
-        // Ingen dubletter: en øvelse der allerede står i dagens træning kan ikke
-        // byttes ind (bytte-listen tilbyder den heller ikke).
+        // Ingen dubletter: en øvelse der allerede står i dagens træning kan ikke byttes ind.
         if (state.exercises.some(e => e.exerciseId === exerciseId)) {
             state.openSwap = null;
             renderAll();
@@ -1527,15 +1444,12 @@
         showToast(`${ex ? ex.name : 'Exercise'} swapped in — remembered for ${dayLabel} ${variant}`, 'success');
     }
 
-    // Kaldes ikke fra UI'et længere (✕-knappen er væk fra kortet — man springer en øvelse
-    // over ved at skrive 0 reps). Den bliver, fordi et pas godt kan mangle en programrække
-    // alligevel: en gammel træning man retter, eller et gammelt udkast. Det er den tilstand
-    // "hent tilbage"-linjen og testene arbejder på.
+    // Kaldes ikke fra UI'et længere (man springer en øvelse over med 0 reps), men bliver fordi et
+    // gammelt udkast eller en gammel træning godt kan mangle en programrække.
     function removeExercise(index) {
         const removed = state.exercises[index];
         state.exercises.splice(index, 1);
-        // En fjernet øvelse skal ikke ligge og være klappet sammen i listen til næste gang
-        // den kommer ind igen (man henter den fx tilbage med linjen over listen).
+        // En fjernet øvelse skal ikke ligge klappet sammen til næste gang den kommer ind igen.
         if (removed && isCollapsed(removed.exerciseId)) {
             state.collapsed = state.collapsed.filter(id => id !== removed.exerciseId);
             persistCollapsed();
@@ -1560,8 +1474,7 @@
         renderAll();
     }
 
-    // Man må gerne løfte færre sæt end programmet anbefaler — anbefalingen blir
-    // stående på kortet, mens antallet af sæt er ens eget.
+    // Man må gerne løfte færre sæt end programmet anbefaler; anbefalingen bliver stående.
     function removeSet(exIndex) {
         const ex = state.exercises[exIndex];
         if (!ex || ex.sets.length <= 1) return;
@@ -1575,14 +1488,10 @@
         if (!ex || !ex.sets[setIndex]) return;
         const numValue = field === 'weight' ? parseFloat(value) || 0 : parseInt(value) || 0;
         ex.sets[setIndex][field] = numValue;
-        // Det tastede skrives ned med det samme (debounced), så et genindlæsning
-        // midt i et sæt ikke koster tallene.
+        // Udkastet skrives ned med det samme (debounced), så en genindlæsning ikke koster tallene.
         scheduleDraftSave();
         renderSaveBar();
-        // Update volume cell in real-time
-        updateVolumeCell(exIndex, setIndex);
-        // Opvarmningen hænger på arbejdsvægten og skal følge med, uden at kortet
-        // tegnes forfra (det ville lukke ramp'en og stjæle fokus fra feltet)
+        // Opvarmningen følger arbejdsvægten uden at kortet tegnes forfra — det ville lukke ramp'en.
         updateWarmupBlock(exIndex);
     }
 
@@ -1604,29 +1513,11 @@
         }
     }
 
-    function updateVolumeCell(exIndex, setIndex) {
-        const ex = state.exercises[exIndex];
-        if (!ex) return;
-        const card = document.querySelector(`.exercise-card[data-index="${exIndex}"]`);
-        if (!card) return;
-        const td = card.querySelectorAll('.volume-cell')[setIndex];
-        if (!td) return;
-        const weight = ex.sets[setIndex].weight;
-        const reps = ex.sets[setIndex].reps;
-        td.textContent = (weight > 0 && reps > 0) ? (weight * reps).toFixed(0) : '—';
-        td.classList.toggle('high', false);
-        // Update total
-        const totalEl = card.querySelector('.exercise-volume .total');
-        const total = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-        totalEl.textContent = total.toFixed(0) + ' kg';
-    }
-
     function saveWorkout() {
         const today = getTodayStr();
         let workouts = loadWorkouts();
 
-        // Lås: samme dag+variant to gange i samme uge. Bremser her (efter tallene er
-        // skrevet ind), så man får en forklaring i stedet for bare at kunne gemme.
+        // Låsen bremser her, efter tallene er skrevet ind, så man får en forklaring i stedet for et nej.
         const conflict = weekConflict();
         if (conflict) {
             const next = nextSessionInWeek();
@@ -1665,7 +1556,6 @@
             saveWorkouts(res.workouts);
             // Træningen er gemt: udkastet er ikke længere noget man er i gang med.
             clearDraft();
-            // Og kortene folder ud igen til næste gang, ligesom udkastet.
             clearCollapsed();
             state.editing = null;
             state.programVariant = null;
@@ -1682,9 +1572,7 @@
             return;
         }
 
-        // Bevidst adfærd: gemmer man igen samme dag og dagstype, overskrives den
-        // gemte træning frem for at der laves en ny. Det er bekræftet ønsket —
-        // ret det ikke uden at spørge.
+        // Gemmer man igen samme dag og dagstype, overskrives den gemte træning — bekræftet ønsket.
         const existingIdx = workouts.findIndex(w => w.date === today && w.day === state.currentDay);
 
         const workoutData = {
@@ -1705,13 +1593,10 @@
 
         saveWorkouts(workouts);
         clearDraft();
-        // Sammenklapningen hører til det pas man lige har gemt: næste gang folder
-        // kortene ud igen, så man ikke skal lede efter felterne i det nye pas.
+        // Sammenklapningen hører til passet man lige har gemt: næste gang folder kortene ud igen.
         clearCollapsed();
-        // Efter et gem står man på det pas ugen kalder det næste — samme kilde som
-        // "next"-mærket i ugebjælken og "Go to X"-knappen, så de to ikke kan være
-        // uenige om hvor man er. Det flytter også dagen: Upper A → Lower A, ikke
-        // samme dags anden variant (Upper B), som er et andet pas længere fremme.
+        // Efter et gem står man på det pas ugen kalder det næste — samme kilde som 'next'-mærket i
+        // ugebjælken og 'Go to X'-knappen: Upper A → Lower A, ikke samme dags anden variant.
         const nextUp = nextSessionInWeek();
         if (nextUp) {
             const info = parseKey(nextUp);
@@ -1739,8 +1624,7 @@
         state.programVariant = workout.variant;
         state.sessionVariant = workout.variant;
 
-        // Indlæs øvelserne i editoren. Ukendte id'er (fx en øvelse der er fjernet
-        // fra databasen) springes over, så editoren ikke knækker.
+        // Ukendte id'er springes over, så editoren ikke knækker.
         const loaded = [];
         const skipped = [];
         for (const ex of workout.exercises) {
@@ -1758,8 +1642,7 @@
         state.exercises = loaded;
         // Rettetilstanden indlæses — man har ikke selv tastet noget endnu.
         state.touched = false;
-        // Kortene i den gemte træning åbnes alle sammen: sammenklapningen hører til det
-        // pas man stod i, ikke til en gammel træning man er gået ind for at rette.
+        // Kortene i den gemte træning åbnes alle sammen.
         state.collapsed = [];
         state.openSwap = null;
 
@@ -1777,8 +1660,7 @@
 
     function cancelEdit() {
         if (!state.editing) return;
-        // Rettelsen er opgivet med vilje: så skal den heller ikke lægges tilbage
-        // næste gang appen åbnes.
+        // Rettelsen er opgivet med vilje, så den heller ikke lægges tilbage næste gang.
         clearDraft();
         state.editing = null;
         state.programVariant = null;
@@ -1803,8 +1685,7 @@
                 </div>
             `;
         } else {
-            // Grupper pr. dato, og inden for datoen pr. træning (upper/lower) —
-            // så hver gemt træning har sin egen blok med sin egen Rediger-knap
+            // Grupper pr. dato og inden for datoen pr. træning, så hver har sin egen Rediger-knap.
             const grouped = new Map();
             for (const w of workouts) {
                 if (!grouped.has(w.date)) grouped.set(w.date, []);
@@ -1837,7 +1718,6 @@
                                         const exercise = getExerciseById(w.day, ex.exerciseId);
                                         if (!exercise) return '';
                                         const sets = ex.sets;
-                                        const totalVol = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
                                         const best = sets.reduce((b, s) => (!b || s.weight > b.weight) ? s : b, null);
                                         return `
                                             <div class="history-exercise">
@@ -1851,7 +1731,6 @@
                                                         </span>
                                                     `).join('')}
                                                 </div>
-                                                <div class="hist-volume">${totalVol.toFixed(0)} kg total</div>
                                             </div>
                                         `;
                                     }).join('')}
@@ -1873,16 +1752,7 @@
     }
 
     // ─── Coach notes (de ugentlige noter) ─────────────────────────
-    // Noterne ligger i en gist og ikke i localStorage, af to grunde: de er ikke
-    // træningsdata (de skal ikke kunne overskrives ved en fejl), og de skal kunne
-    // opdateres hver uge uden en ny version af appen. Derfor hentes de ved åbning.
-    // Gisten er "secret" = unlisted, ikke privat: URL'en virker uden login, og vi
-    // viser derfor ingen hemmeligheder i filen — kun træningsnoter.
-    //
-    // Vi henter gennem API'et og ikke gennem gist.githubusercontent.com: raw-links
-    // til den nyeste revision kan blive hængende i CDN'ens cache og vise den
-    // FORRIGE uges noter, og så ser opdateringen ud som om den fejlede. API-svaret
-    // er højst et minut gammelt, og filens indhold følger med i JSON'en.
+    // Hentes gennem gist-API'et, ikke raw-links: CDN-cachen kan vise den forrige uges noter.
     const NOTES_URL = 'https://api.github.com/gists/33bd4488e73c50f62617a8f96ffb208f';
     const NOTES_FILE = 'weekly-notes.md';
     const NOTES_UNAVAILABLE = 'Could not load the notes. Check your connection and try again.';
@@ -1897,9 +1767,7 @@
             .replace(/'/g, '&#39;');
     }
 
-    // Minimal markdown: overskrifter, punktopstilling, **fed** og `kode`.
-    // Rækkefølgen er vigtig — der escapes FØRST, så en hentet fil aldrig kan
-    // injicere HTML. Indholdet kommer fra nettet, ikke fra os selv.
+    // Minimal markdown; der escapes FØRST, så en hentet fil aldrig kan injicere HTML.
     function renderNotesMarkdown(markdown) {
         if (!markdown || !markdown.trim()) {
             return `<div class="notes-status">${NOTES_EMPTY}</div>`;
@@ -1940,9 +1808,7 @@
         return out.join('');
     }
 
-    // fetcher kan gives ind udefra, så testene kan bestemme svaret — og så den
-    // gren der betyder "miljøet har ingen fetch" kan prøves af i stedet for at
-    // ligge uverificeret hen.
+    // fetch kan gives ind udefra, så testene kan bestemme svaret.
     async function loadCoachNotes(fetcher = typeof fetch === 'function' ? fetch : null) {
         const content = document.getElementById('notes-content');
         if (!content) return '';
@@ -1995,18 +1861,15 @@
 
     // ─── Bootstrap / Init ─────────────────────────────────────────
     function init() {
-        // Dagen huskes mellem besøg. Den skiftes med ugebjælkens felter: der er ingen
-        // særskilt dag- eller A/B-vælger mere — "Lower A" ER valget af dag og variant.
+        // Dagen huskes mellem besøg; 'Lower A' ER valget af dag og variant.
         state.currentDay = loadCurrentDay();
 
-        // Event: ugebjælken. Felterne skifter pas, og advarslen kan sende en videre
-        // til det pas der mangler — eller lukke op for at gemme alligevel.
+        // Event: ugebjælken — felterne skifter pas, og advarslen kan sende en videre.
         document.getElementById('session-bar').addEventListener('click', (e) => {
             const chip = e.target.closest('.week-chip');
             if (chip) {
-                // Et tryk på det pas man allerede står på gør ingenting: det ville bare
-                // skrive "valgt" på noget man ikke har valgt. Sammenlign med det viste
-                // pas FØR dagen skiftes — ellers er det nye pas altid "det forslåede".
+                // Et tryk på det pas man allerede står på gør ingenting; sammenlign med det viste pas
+                // FØR dagen skiftes, ellers er det nye pas altid det forslåede.
                 if (chip.dataset.session === programKey(state.currentDay, getCurrentVariant())) return;
                 const info = parseKey(chip.dataset.session);
                 state.currentDay = info.day;
@@ -2015,8 +1878,7 @@
                 state.editing = null;
                 state.allowDuplicateWeek = false;
                 loadProgram();
-                // Har man tastet noget i det pas før, står det der stadig — udkastet
-                // hører til passet, ikke til den ene visning.
+                // Udkastet hører til passet, ikke til den ene visning.
                 restoreDraft();
                 renderAll();
                 return;
@@ -2060,14 +1922,28 @@
             const nameBtn = e.target.closest('.exercise-name-btn');
             if (nameBtn) {
                 const slot = nameBtn.dataset.swapSlot;
-                state.openSwap = state.openSwap === slot ? null : slot;
-                renderAll();
+                const id = (nameBtn.closest('.exercise-card') || { dataset: {} }).dataset.exerciseId;
+                // Er kortet ved at klappe sammen, gøres det færdigt først.
+                finishClose();
+                // Bytte-listen tegnes i kortets krop, så et klappet kort skal foldes ud først.
+                const wasCollapsed = !!id && isCollapsed(id);
+                const forrige = state.openSwap;
+                state.openSwap = (wasCollapsed || forrige !== slot) ? slot : null;
+                if (!id) { renderAll(); return; }
+                if (wasCollapsed) { openCard(id); return; }
+                if (!state.openSwap) { closeSwapMenu(nameBtn.closest('.exercise-card'), id); return; }
+                // Den nye liste foldes ud, og en liste på et andet kort lukkes med samme overgang.
+                if (forrige) {
+                    const andet = state.exercises.find(ex => ex.exerciseId !== id
+                        && slotForExercise(ex.exerciseId) === forrige);
+                    const andetKort = andet && cardElementFor(andet.exerciseId);
+                    if (andetKort) closeSwapMenu(andetKort, andet.exerciseId);
+                }
+                const fresh = renderCard(id);
+                unfoldElement(fresh && fresh.querySelector('.swap-menu'));
                 return;
             }
-            // Klap en øvelse sammen eller fold den ud — kortets eneste knap. Man fjerner
-            // ikke øvelser længere: springer man en over, skriver man 0 reps i dens sæt,
-            // og vil man have den af vejen, klapper man den sammen. Man er ikke altid
-            // færdig med programmerne i den rækkefølge de står i.
+            // Kortets eneste knap: man fjerner ikke øvelser, man skriver 0 reps eller klapper sammen.
             const collapseBtn = e.target.closest('.collapse-btn');
             if (collapseBtn) {
                 toggleCollapsed(collapseBtn.dataset.exerciseId);
@@ -2140,12 +2016,10 @@
         // Dagens program er dagens træning — det ligger klart ved åbning.
         loadProgram();
 
-        // Og det man tastede sidst lægges tilbage ovenpå, hvis appen blev lukket
-        // (eller genindlæst af telefonen) uden at træningen blev gemt.
+        // Det man tastede lægges tilbage ovenpå, hvis appen blev lukket uden at gemme.
         restoreDraft();
 
-        // Siden kan forsvinde uden varsel. Skriv det tastede ned med det samme i
-        // stedet for at vente på pausen i debouncen.
+        // Siden kan forsvinde uden varsel: skriv det tastede ned straks, ikke efter debouncen.
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) persistDraft();
         });
@@ -2156,10 +2030,7 @@
     }
 
     // ─── Del med AI-træner ─────────────────────────────────────────
-    // Discords grænse er 2000 tegn pr. besked, og den gamle eksport ramte
-    // ~8.000 tegn. Teksten bygges derfor uge for uge og holdes under CHAR_LIMIT,
-    // så én uge altid kan deles i én besked. All-time-bedste-sæt følger altid
-    // med i kompakt form, så trenden ikke går tabt når man kun deler én uge.
+    // Discords grænse er 2.000 tegn, så teksten bygges uge for uge under CHAR_LIMIT.
     const CHAR_LIMIT = 2000;
 
     const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -2227,8 +2098,7 @@
             .sort((a, b) => b.key.localeCompare(a.key));
     }
 
-    // Komprimerer gentagne sæt: "37.5×8 37.5×8 37.5×8" → "37.5×8 ×3".
-    // Tegnbudgettet er stramt, og ens sæt er meget almindelige.
+    // Komprimerer gentagne sæt: '37.5×8 37.5×8 37.5×8' → '37.5×8 ×3'.
     function formatSets(sets) {
         const out = [];
         for (const s of sets) {
@@ -2273,8 +2143,7 @@
     function shareScopeTitle(scope, selected) {
         if (scope === 'all') return 'ALL WEEKS';
         if (scope && scope.startsWith('week:')) return weekLabel(scope.slice(5)).toUpperCase();
-        // "Kun nyt" kan dække flere uger, så ugerne nævnes i titlen — ellers
-        // fremgår det ikke af eksporten hvilket tidsrum den dækker.
+        // 'Kun nyt' kan dække flere uger, så ugerne nævnes i titlen.
         const keys = groupByWeek(selected).map(w => w.key).sort();
         if (keys.length === 0) return `NEW SINCE LAST (${selected.length})`;
         const first = Number(keys[0].split('-W')[1]);
@@ -2307,8 +2176,7 @@
         lines.push(`${selected.length} workout${selected.length === 1 ? '' : 's'} · ${upper} Upper · ${lower} Lower · ${sets} sets · ${volume.toFixed(0)} kg`);
         lines.push('');
 
-        // "per hånd"/"per ben" er afgørende for at læse tallene rigtigt: 20 kg
-        // pr. hånd er ikke 20 kg total. Noten står kun for de øvelser der er med.
+        // 'per hånd'/'per ben' er afgørende: 20 kg pr. hånd er ikke 20 kg total.
         const loadNotes = new Map();
         for (const w of selected) {
             for (const ex of (w.exercises || [])) {
@@ -2335,9 +2203,7 @@
             }
         }
 
-        // Kort headline i stedet for en linje pr. øvelse: loggen ovenfor indeholder
-        // tallene, så fremgangen pr. øvelse kan regnes ud af den. En fuld liste
-        // ville duplikere loggen og koste ~400 tegn af budgettet.
+        // Kort headline i stedet for en linje pr. øvelse: loggen ovenfor har tallene.
         const inScope = collectExerciseSets(selected);
         if (inScope.size > 0) {
             let up = 0, down = 0, flat = 0;
@@ -2352,8 +2218,7 @@
             lines.push(`📈 Progress: ${parts.join(' · ')} (of ${inScope.size} exercises)`);
         }
 
-        // All-time bedste sæt i kompakt form på så få linjer som muligt: uden
-        // den ville en uge-eksport ikke kunne vise hvor man er henne over tid.
+        // All-time bedste sæt kompakt, så en uge-eksport viser hvor man er over tid.
         const allTime = collectExerciseSets(workouts);
         const bests = [];
         for (const [id, v] of allTime) {
@@ -2369,8 +2234,7 @@
         return lines.join('\n');
     }
 
-    // Den mest brugbare visning når vinduet åbnes: nyt hvis der er noget,
-    // ellers indeværende uge, ellers den nyeste uge med træninger.
+    // Ved åbning: nyt hvis der er noget, ellers indeværende uge, ellers den nyeste uge.
     function defaultShareScope(workouts, weeks) {
         if (workouts.some(w => !w.sharedAt)) return 'new';
         const current = isoWeekKey(isoDate(new Date()));
@@ -2404,8 +2268,7 @@
         return sel.value;
     }
 
-    // Tegnbudgettet vises for brugeren: Discords grænse er 2.000 tegn, så en
-    // eksport der er for lang opdages her og ikke først når beskeden afvises.
+    // Tegnbudgettet vises, så en for lang eksport opdages her og ikke først når beskeden afvises.
     function updateSharePreview(scope) {
         const text = generateShareText(scope);
         document.getElementById('share-text').value = text;
@@ -2434,8 +2297,7 @@
         document.getElementById('share-modal').classList.add('hidden');
     }
 
-    // Markerer de viste træninger som delt, så "Kun nyt siden sidst" ved hvad
-    // der er sendt. Markeringen er ufarlig: man kan altid vælge ugen igen.
+    // Markerer viste træninger som delt, så 'Kun nyt siden sidst' ved hvad der er sendt.
     function markShareScopeAsShared(scope) {
         const workouts = loadWorkouts();
         const weeks = groupByWeek(workouts);
