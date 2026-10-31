@@ -20,7 +20,7 @@ Mobile-first training log with no backend and no build step: plain HTML, CSS and
   Reverse Fly are reachable by swapping them into a row.
 - **The pass is the program:** the program rows are always the cards, in program order. Nothing is
   filtered and there is no "add exercise" — a different exercise is picked by **swapping** it into a row:
-  tap the name (▾) and choose among exercises sharing a muscle group (full match first, never one already
+  tap the name (▾) — on a folded card that unfolds it first — and choose among exercises sharing a muscle group (full match first, never one already
   in today's workout, never Romanian Deadlift). The new exercise brings **its own** numbers, and the swap
   is remembered for that pass. A pass with fewer rows than the program offers
   **↩︎ 1 exercise missing — restore**.

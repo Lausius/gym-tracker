@@ -563,21 +563,82 @@
         return true;
     }
 
-    // Klapper en øvelse sammen eller folder den ud igen. Skrives ned med det samme: et
-    // tryk er sjældent, og man skal ikke kunne tabe listen ved en genindlæsning.
-    function toggleCollapsed(exerciseId) {
-        if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
-        state.collapsed = isCollapsed(exerciseId)
-            ? state.collapsed.filter(id => id !== exerciseId)
-            : state.collapsed.concat([exerciseId]);
+    // Tilstanden: hvad der er klappet sammen. Skrives ned med det samme — et tryk er
+    // sjældent, og man skal ikke kunne tabe listen ved en genindlæsning.
+    function setCollapsed(exerciseId, collapsed) {
+        if (isCollapsed(exerciseId) === collapsed) return false;
+        state.collapsed = collapsed
+            ? state.collapsed.concat([exerciseId])
+            : state.collapsed.filter(id => id !== exerciseId);
         // Bytte-listen hører til kortets krop: klapper man sammen, lukkes den også.
-        if (isCollapsed(exerciseId)) {
+        if (collapsed) {
             const slot = slotForExercise(exerciseId);
             if (slot && state.openSwap === slot) state.openSwap = null;
         }
         persistCollapsed();
         renderAll();
         return true;
+    }
+
+    // Folder et klappet kort ud uden at skifte frem og tilbage. Bruges når man trykker på
+    // navnet for at bytte: bytte-listen tegnes i kortets krop, og et klappet kort har
+    // ingen krop — uden dette skete der ingenting på skærmen.
+    function expandCollapsed(exerciseId) {
+        if (!isCollapsed(exerciseId)) return false;
+        state.collapsed = state.collapsed.filter(id => id !== exerciseId);
+        persistCollapsed();
+        return true;
+    }
+
+    function cardElementFor(exerciseId) {
+        return document.querySelector(`#exercise-list .exercise-card[data-exercise-id="${exerciseId}"]`);
+    }
+
+    // Har man slået animationer fra i systemet, skifter tilstanden med det samme: man skal
+    // ikke vente på en overgang man ikke kan se.
+    function animationsOff() {
+        return typeof window.matchMedia === 'function'
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
+
+    // Klapper en øvelse sammen eller folder den ud igen. Sammenklapningen kører i to trin:
+    // kroppen foldes ud af skærmen først (animationen i styles.css), og først når den er
+    // færdig skiftes tilstanden. Ellers hoppede kortet på plads uden at man så hvorfor.
+    function toggleCollapsed(exerciseId) {
+        if (!state.exercises.some(e => e.exerciseId === exerciseId)) return false;
+        const card = isCollapsed(exerciseId) ? null : cardElementFor(exerciseId);
+        if (card && !animationsOff()) {
+            foldAway(card, exerciseId);
+            return true;
+        }
+        return setCollapsed(exerciseId, !isCollapsed(exerciseId));
+    }
+
+    // Fold-animationen: `collapsing` giver kroppen foldAway, og tilstanden skifter når
+    // animationen er kørt. Kortets egen slideIn må ikke tælle med, og et barns animation
+    // bobler op til kortet — derfor tjekkes både mål og navn.
+    let foldTimer = null;
+    function foldAway(card, exerciseId) {
+        if (foldTimer) { clearTimeout(foldTimer); foldTimer = null; }
+        let done = false;
+        const commit = (e) => {
+            // Kun selve fold-animationen tæller: kortets egen slideIn (og et barns unfold)
+            // må ikke skifte tilstanden før kroppen er foldet væk.
+            if (e && e.animationName !== 'foldAway') return;
+            if (done) return;
+            done = true;
+            if (foldTimer) { clearTimeout(foldTimer); foldTimer = null; }
+            card.removeEventListener('animationend', commit);
+            card.classList.remove('collapsing');
+            setCollapsed(exerciseId, true);
+        };
+        card.classList.add('collapsing');
+        card.addEventListener('animationend', commit);
+        // Sker der ingenting (ældre browser, fane i baggrunden, animation slået fra), folder
+        // timeouten kortet alligevel. Kort, men med luft til animationen på 160 ms — og under
+        // de 250 ms browser-suiten venter, så et manglende animationssvar ikke får
+        // sammenklapningen til at se ud som om den slet ikke skete.
+        foldTimer = setTimeout(commit, 220);
     }
 
     // Teksten på et sammenklappet kort: hvor mange af sættene der har tal, og volumen.
@@ -2060,7 +2121,12 @@
             const nameBtn = e.target.closest('.exercise-name-btn');
             if (nameBtn) {
                 const slot = nameBtn.dataset.swapSlot;
-                state.openSwap = state.openSwap === slot ? null : slot;
+                // Et klappet kort har ingen krop, og bytte-listen tegnes i kroppen. Trykket
+                // skal derfor folde kortet ud, ellers ser man ikke den liste man bad om.
+                const card = nameBtn.closest('.exercise-card');
+                const wasCollapsed = !!card && isCollapsed(card.dataset.exerciseId);
+                if (wasCollapsed) expandCollapsed(card.dataset.exerciseId);
+                state.openSwap = (wasCollapsed || state.openSwap !== slot) ? slot : null;
                 renderAll();
                 return;
             }

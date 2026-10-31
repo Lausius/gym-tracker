@@ -1290,6 +1290,98 @@ async function main() {
     await openSession('upperA');
     ok('Et gem rydder listen', (await antalKlappede()) === 0);
 
+    // ── Bytte på et klappet kort ──────────────────────────────────
+    // Bytte-listen tegnes i kortets krop, og et klappet kort har ingen krop: et tryk på
+    // navnet skal derfor folde kortet ud, ellers sker der ingenting på skærmen.
+    const kortTilstand = i => evaluate(`return (() => { const c = document.querySelector(${JSON.stringify(kort(i))});
+        if (!c) return null;
+        return { klappet: c.classList.contains("collapsed"),
+            menu: !!c.querySelector(".swap-menu"), valg: c.querySelectorAll(".swap-option").length,
+            felter: c.querySelectorAll(".set-weight").length }; })()`);
+    const bytteKort = await evaluate('return [...document.querySelectorAll("#exercise-list .exercise-card")].findIndex(c => c.querySelector(".exercise-name-btn"));');
+    const bytteNavn = kort(bytteKort) + ' .exercise-name-btn';
+    ok('Der er et kort med en bytte-liste at trykke på', bytteKort >= 0, `data-index: ${bytteKort}`);
+
+    await klap(bytteKort);
+    await evaluate(`document.querySelector(${JSON.stringify(bytteNavn)}).click(); return true;`);
+    await sleep(300);
+    const efterNavn = await kortTilstand(bytteKort);
+    ok('Et tryk på navnet på et klappet kort folder kortet ud og viser bytte-listen',
+        !!efterNavn && efterNavn.klappet === false && efterNavn.menu === true && efterNavn.valg > 1 && efterNavn.felter > 0,
+        JSON.stringify(efterNavn));
+
+    await evaluate(`document.querySelector(${JSON.stringify(bytteNavn)}).click(); return true;`);
+    await sleep(250);
+    const efterLuk = await kortTilstand(bytteKort);
+    ok('Bytte-listen kan lukkes igen uden at kortet klapper sammen af sig selv',
+        !!efterLuk && efterLuk.klappet === false && efterLuk.menu === false, JSON.stringify(efterLuk));
+
+    // ── Animationerne ────────────────────────────────────────────
+    // Overgangene måles som serier af skærmbilleder inde i siden (requestAnimationFrame) i
+    // stedet for et enkelt tryk efter et fast antal millisekunder: så betyder maskinens
+    // hastighed ikke noget for om der ER en overgang, kun hvad serierne indeholder.
+    // Sammenklapningen kører i to trin: kroppen foldes ud af skærmen, og først derefter
+    // skiftes tilstanden. Et hop på plads ville være det modsatte: klappet med det samme.
+    const foldSerie = await evaluate(`return new Promise(resolve => {
+        const vaelger = ${JSON.stringify(kort(0))};
+        const krop = c => [...c.children].filter(el => !el.classList.contains("exercise-card-header"));
+        const samples = [];
+        const t0 = performance.now();
+        document.querySelector(vaelger).querySelector(".collapse-btn").click();
+        const tick = () => {
+            // Kortet hentes på ny hver frame: tilstanden der skifter, tegner listen om, og en
+            // fastholdt knude står derefter tilbage med klasserne fra før.
+            const c = document.querySelector(vaelger);
+            samples.push({ collapsing: c.classList.contains("collapsing"), klappet: c.classList.contains("collapsed"),
+                folded: krop(c).map(el => getComputedStyle(el).animationName).includes("foldAway") });
+            if (performance.now() - t0 < 400) requestAnimationFrame(tick);
+            else resolve(samples);
+        };
+        requestAnimationFrame(tick);
+    })`);
+    const midtUnderFold = foldSerie.filter(s => s.collapsing);
+    const efterFold = await kortTilstand(0);
+    ok('Sammenklapningen folder kroppen ud af skærmen først og skifter derpå tilstand',
+        midtUnderFold.length > 0 && midtUnderFold.every(s => s.klappet === false && s.folded === true)
+        && foldSerie[foldSerie.length - 1].klappet === true && !!efterFold && efterFold.klappet === true,
+        JSON.stringify({ antalSamplinger: foldSerie.length, midtUnderFold: midtUnderFold.slice(0, 2), slut: foldSerie[foldSerie.length - 1] }));
+
+    // Delings-modalen toner ind og ud i stedet for at hoppe. Mens den toner ud, er den
+    // stadig tegnet (display), fordi display skifter til sidst (allow-discrete).
+    const indSerie = await evaluate(`return new Promise(resolve => {
+        const el = document.getElementById("share-modal");
+        const samples = [];
+        const t0 = performance.now();
+        document.getElementById("btn-share").click();
+        const tick = () => { samples.push(Number(getComputedStyle(el).opacity));
+            if (performance.now() - t0 < 400) requestAnimationFrame(tick); else resolve(samples); };
+        requestAnimationFrame(tick);
+    })`);
+    const udSerie = await evaluate(`return new Promise(resolve => {
+        const el = document.getElementById("share-modal");
+        const samples = [];
+        const t0 = performance.now();
+        document.getElementById("share-modal-close").click();
+        const tick = () => { samples.push({ o: Number(getComputedStyle(el).opacity), display: getComputedStyle(el).display });
+            if (performance.now() - t0 < 400) requestAnimationFrame(tick); else resolve(samples); };
+        requestAnimationFrame(tick);
+    })`);
+    const tonerUd = udSerie.filter(s => s.o > 0 && s.o < 1);
+    ok('Delings-modalen toner ind og ud i stedet for at hoppe',
+        indSerie.some(o => o > 0 && o < 1) && indSerie[indSerie.length - 1] === 1
+        && tonerUd.length > 0 && tonerUd.some(s => s.display !== 'none')
+        && udSerie[udSerie.length - 1].display === 'none',
+        JSON.stringify({ ind: indSerie.slice(0, 3), ud: udSerie.slice(0, 3), slut: udSerie[udSerie.length - 1] }));
+
+    // Har man slået bevægelse fra i systemet, sker skiftet med det samme — også i JS, der
+    // ikke venter på en animation man har bedt om at slippe for.
+    await S('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+    await evaluate(`document.querySelector(${JSON.stringify(kort(1) + ' .collapse-btn')}).click(); return true;`);
+    const udenBevægelse = await kortTilstand(1);
+    await S('Emulation.setEmulatedMedia', { features: [] });
+    ok('Er bevægelse slået fra i systemet, klapper kortet sammen med det samme',
+        !!udenBevægelse && udenBevægelse.klappet === true, JSON.stringify(udenBevægelse));
+
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);

@@ -66,8 +66,8 @@ vm.runInContext(
         DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
         draftKeyFor, clearDraft, scheduleDraftSave,
         COLLAPSE_KEY, loadCollapsed, collapsedIds, applyCollapsedState, isCollapsed,
-        persistCollapsed, clearCollapsed, toggleCollapsed, collapsedSummary,
-        renderExerciseList, removeExercise };
+        persistCollapsed, clearCollapsed, toggleCollapsed, setCollapsed, expandCollapsed,
+        collapsedSummary, renderExerciseList, removeExercise };
     `,
     ctx
 );
@@ -87,7 +87,8 @@ const {
     DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts, persistDraft, restoreDraft, draftIsDirty,
     draftKeyFor, clearDraft, scheduleDraftSave,
     COLLAPSE_KEY, loadCollapsed, collapsedIds, applyCollapsedState, isCollapsed,
-    persistCollapsed, clearCollapsed, toggleCollapsed, collapsedSummary,
+    persistCollapsed, clearCollapsed, toggleCollapsed, setCollapsed, expandCollapsed,
+    collapsedSummary,
     renderExerciseList, removeExercise,
 } = ctx.__app;
 
@@ -1288,6 +1289,14 @@ updateSet(i1, 2, 'reps', '0');
 ok('Et sæt uden reps tæller ikke med', collapsedSummary(state.exercises[i1]) === '2/3 sets · 1120 kg');
 ok('Man kan folde ud igen, og listen ryddes i browseren',
     toggleCollapsed(A1) && !isCollapsed(A1) && !loadCollapsed().upperA && kortet(A1).includes('set-weight'));
+
+// Et tryk på navnet på et klappet kort skal folde kortet ud: bytte-listen tegnes i kortets
+// krop, så uden det ville trykket ikke vise noget som helst.
+toggleCollapsed(A1);
+ok('Bytte på et klappet kort folder kortet ud, og den klappede liste ryddes',
+    isCollapsed(A1) && expandCollapsed(A1) === true && !isCollapsed(A1)
+    && !loadCollapsed().upperA && kortet(A1).includes('set-weight'));
+ok('At folde ud er uden virkning når kortet ikke er klappet', expandCollapsed(A1) === false);
 
 // Genindlæsning: telefonen smider siden væk midt i passet — det klappede skal stå klappet igen
 freshSession();

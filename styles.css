@@ -21,6 +21,9 @@
             --radius-sm: 8px;
             --shadow: 0 4px 20px rgba(0,0,0,0.3);
             --transition: 0.2s ease;
+            /* Gør height:auto animerbar, så <details>-blokke (opvarmningen) kan folde ud i
+               stedet for at hoppe. Browsere uden støtte folder uden overgang. */
+            interpolate-size: allow-keywords;
             --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
         html { font-size: 16px; -webkit-text-size-adjust: 100%; }
@@ -276,6 +279,27 @@
             font-size: 0.8rem;
             color: var(--text-dim);
             margin-top: 2px;
+            animation: unfold 0.18s ease both;
+        }
+
+        /* Kortets krop folder ud når det åbnes, og ud af skærmen før det klappes sammen.
+           Sammenklapningen er i to trin i JS (`toggleCollapsed`): classen .collapsing
+           sættes, animationen kører, og først derefter skiftes tilstanden — så kortet
+           ikke hopper på plads uden at man ser hvorfor. Alt er kort og dæmpet: det skal
+           føles som om listen reagerer, ikke som en overgang man venter på. */
+        .exercise-card:not(.collapsed) > *:not(.exercise-card-header) {
+            animation: unfold 0.18s ease both;
+        }
+        .exercise-card.collapsing > *:not(.exercise-card-header) {
+            animation: foldAway 0.16s ease both;
+        }
+        @keyframes unfold {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: none; }
+        }
+        @keyframes foldAway {
+            from { opacity: 1; transform: none; }
+            to { opacity: 0; transform: translateY(-4px); }
         }
 
         /* ===== TEKNIK-CUES ===== */
@@ -296,6 +320,16 @@
            kortet ikke vokser for hver øvelse. <details> er native og virker uden JS. */
         /* Tom når øvelsen er kropsvægt eller vægten er 0 — så fylder den intet */
         .warmup-holder:empty { display: none; }
+
+        /* <details> folder indholdet ud og sammen i browsere med ::details-content;
+           uden støtte sker skiftet bare uden overgang. */
+        .warmup-block::details-content {
+            block-size: 0;
+            overflow: hidden;
+            transition: block-size 0.2s ease, content-visibility 0.2s;
+            transition-behavior: allow-discrete;
+        }
+        .warmup-block[open]::details-content { block-size: auto; }
 
         .warmup-block {
             margin-bottom: 8px;
@@ -994,6 +1028,7 @@
             flex-direction: column;
             gap: 4px;
             margin-top: 6px;
+            animation: unfold 0.16s ease both;
         }
         .swap-option {
             display: flex;
@@ -1107,6 +1142,10 @@
             transition: opacity 0.25s ease;
         }
         .share-overlay:not(.hidden) { opacity: 1; pointer-events: all; }
+        /* allow-discrete lader display skifte til sidst, så den kan tone ud i stedet for
+           at forsvinde med det samme. */
+        .share-overlay { transition: opacity 0.2s ease, display 0.2s allow-discrete; }
+        @starting-style { .share-overlay:not(.hidden) { opacity: 0; } }
 
         .share-modal {
             position: fixed;
@@ -1126,6 +1165,12 @@
             transition: opacity 0.25s ease;
         }
         .share-modal:not(.hidden) { opacity: 1; pointer-events: all; }
+        .share-modal {
+            transition: opacity 0.2s ease, transform 0.2s ease, display 0.2s allow-discrete;
+        }
+        @starting-style {
+            .share-modal:not(.hidden) { opacity: 0; transform: translate(-50%, -50%) scale(0.97); }
+        }
 
         .share-modal-header {
             display: flex;
@@ -1257,6 +1302,18 @@
         @media (max-width: 380px) {
             .form-row { flex-direction: column; gap: 4px; }
             .form-row label { min-width: auto; }
+        }
+
+        /* ===== ANIMATIONER SLÅET FRA ===== */
+        /* Har man slået bevægelse fra i systemet, vises skiftet med det samme. JS'en gør
+           det samme for sammenklapningen (se animationsOff() i app.js): den venter ikke
+           på en animation nogen har bedt om at slippe for. */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
 
         /* ===== UTILITY ===== */
