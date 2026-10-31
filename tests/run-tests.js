@@ -1283,10 +1283,27 @@ ok('Det skrives ned på passet med den uge det hører til',
 // Facit står på det klappede kort — det er den eneste status man har, mens det er klappet
 const i1 = state.exercises.findIndex(e => e.exerciseId === A1);
 state.exercises[i1].sets.forEach((_, si) => { updateSet(i1, si, 'weight', '70'); updateSet(i1, si, 'reps', '8'); });
-ok('Det klappede kort viser hvor mange sæt der har tal, og hvor mange kg',
-    kortet(A1).includes('3/3 sets · 1680 kg'));
+ok('Det klappede kort viser hvor mange sæt der har tal — og ikke den samlede vægt',
+    kortet(A1).includes('3/3 sets') && !kortet(A1).includes('kg'));
 updateSet(i1, 2, 'reps', '0');
-ok('Et sæt uden reps tæller ikke med', collapsedSummary(state.exercises[i1]) === '2/3 sets · 1120 kg');
+ok('Et sæt uden reps tæller ikke med', collapsedSummary(state.exercises[i1]) === '2/3 sets');
+
+// Tekst der ikke sagde noget er væk: variant-hintet, "Tap a name to swap", den forældede
+// linje i den tomme liste og den samlede vægt under kortet.
+const alleKort = liste();
+const tomListe = (() => {
+    const gemt = state.exercises;
+    state.exercises = [];
+    renderExerciseList();
+    const html = liste();
+    state.exercises = gemt;
+    renderExerciseList();
+    return html;
+})();
+ok('Den samlede vægt under kortet er væk, og teksten der ikke sagde noget er væk med den',
+    !alleKort.includes('Total volume') && !alleKort.includes('exercise-volume')
+    && !alleKort.includes('Tap a name')
+    && tomListe.includes("No exercises in today's program") && !tomListe.includes('Pick another day'));
 ok('Man kan folde ud igen, og listen ryddes i browseren',
     toggleCollapsed(A1) && !isCollapsed(A1) && !loadCollapsed().upperA && kortet(A1).includes('set-weight'));
 

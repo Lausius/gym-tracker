@@ -660,30 +660,61 @@
         return true;
     }
 
+    // Folder et nyt element ud fra klappet form: klassen sættes mens elementet lige er
+    // indsat, og fjernes i næste skærmbillede, så browseren når at se starten. Uden det
+    // springer overgangen over, og elementet står bare der.
+    function unfoldElement(el) {
+        if (!el) return false;
+        el.classList.add('fold-start');
+        requestAnimationFrame(() => requestAnimationFrame(() => el.classList.remove('fold-start')));
+        return true;
+    }
+
     function openCard(exerciseId) {
         setCollapsedState(exerciseId, false);
         const fresh = renderCard(exerciseId);
-        const body = fresh && fresh.querySelector('.exercise-card-body');
-        if (body) {
-            // Kortet er nyt og folder derfor ud fra klappet form: klassen sættes, mens det
-            // indsættes, og fjernes i næste skærmbillede, så browseren når at se starten —
-            // ellers springer overgangen over.
-            body.classList.add('fold-start');
-            requestAnimationFrame(() => requestAnimationFrame(() => body.classList.remove('fold-start')));
-        }
+        unfoldElement(fresh && fresh.querySelector('.exercise-card-body'));
         return true;
     }
-    // Teksten på et sammenklappet kort: hvor mange af sættene der har tal, og volumen.
-    // Kortet viser ingen felter, så det er den eneste status man har mens det er klappet.
+
+    // Bytte-listen lukkes med en overgang, og kortet tegnes først om bagefter. Lukkede man
+    // den bare ved at tegne kortet på ny, forsvandt listen på et enkelt billede.
+    const swapCloses = new Set();
+
+    function finishSwapCloses() {
+        const closers = [...swapCloses];
+        swapCloses.clear();
+        closers.forEach(commit => commit());
+    }
+
+    function closeSwapMenu(card, exerciseId) {
+        const menu = card && card.querySelector('.swap-menu');
+        if (!menu) { renderCard(exerciseId); return false; }
+        let done = false;
+        const commit = () => {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            swapCloses.delete(commit);
+            renderCard(exerciseId);
+        };
+        menu.addEventListener('transitionend', (e) => { if (e.target === menu) commit(); }, { once: true });
+        menu.classList.add('closing');
+        const timer = setTimeout(commit, 220);
+        swapCloses.add(commit);
+        return true;
+    }
+    // Teksten på et sammenklappet kort: hvor mange af sættene der har tal. Kortet viser
+    // ingen felter, så det er den eneste status man har mens det er klappet. Den samlede
+    // vægt står der ikke: den sagde ikke noget om hvad man skulle løfte næste gang.
     // Bevidst ingen dom over om man er færdig: programmet forudfylder vægt og reps, så
     // "alle sæt har tal" er sandt fra første sekund og ville stå på hvert eneste kort.
     function collapsedSummary(ex) {
         const sets = ex.sets || [];
         if (sets.length === 0) return 'No sets';
         const logged = sets.filter(s => s.weight > 0 && s.reps > 0).length;
-        const volume = sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
         if (logged === 0) return 'No sets logged yet';
-        return `${logged}/${sets.length} sets · ${volume.toFixed(0)} kg`;
+        return `${logged}/${sets.length} sets`;
     }
 
     // ─── Toast System ─────────────────────────────────────────────
@@ -1215,7 +1246,6 @@
         const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
         const label = document.getElementById('session-label');
         const focusEl = document.getElementById('session-focus');
-        const hint = document.getElementById('variant-hint');
         const memory = document.getElementById('program-memory');
         const strip = document.getElementById('week-strip');
         const warning = document.getElementById('session-warning');
@@ -1223,7 +1253,6 @@
 
         if (label) label.textContent = `${dayLabel} ${variant}`;
         if (focusEl) focusEl.textContent = SESSION_FOCUS[key] || '';
-        if (hint) hint.textContent = state.programVariant ? 'chosen' : 'suggested';
 
         // Ugen: ét felt pr. pas, med ✓ og dato for dem der allerede ligger der.
         const done = weekDone();
@@ -1240,12 +1269,13 @@
             }).join('');
         }
 
-        // Hvor tallene kommer fra.
+        // Hvor tallene kommer fra. Linjen vises kun når der faktisk er noget at huske:
+        // bemærkningen om at programmet "er klar" sagde ikke noget man ikke kunne se.
         if (memory) {
-            memory.classList.remove('hidden');
+            memory.classList.toggle('hidden', !last);
             memory.textContent = last
                 ? `↩︎ Same exercises and weights as your ${dayLabel} ${variant} on ${formatDate(last.date)}.`
-                : `Your ${dayLabel} ${variant} program — ready to go.`;
+                : '';
         }
 
         // Lås: samme dag+variant to gange i samme uge. Man kan se passet, men ikke
@@ -1271,7 +1301,7 @@
     // swapCandidates), med den nuværende øverst markeret.
     function renderSwapMenu(slotId, ex, candidates) {
         return `
-            <div class="swap-menu" data-swap-slot="${slotId}">
+            <div class="swap-menu" data-swap-slot="${slotId}"><div class="swap-menu-inner">
                 ${candidates.map(c => `
                     <button class="swap-option${c.id === ex.id ? ' current' : ''}"
                             data-swap-slot="${slotId}" data-swap-id="${c.id}">
@@ -1279,40 +1309,28 @@
                         <span class="swap-option-meta">${c.equipment || ''}${c.loadNote ? ' · ' + c.loadNote : ''}</span>
                     </button>
                 `).join('')}
-            </div>
+            </div></div>
         `;
     }
 
     function renderExerciseList() {
         const list = document.getElementById('exercise-list');
         const count = document.getElementById('exercise-count');
-        const hint = document.getElementById('exercise-hint');
 
         if (state.exercises.length === 0) {
             list.innerHTML = `
                 <div class="no-exercises-msg">
                     <span class="emoji">🏋️</span>
                     <p>No exercises in today's program</p>
-                    <p style="font-size:0.8rem; margin-top:4px;">Pick another day above, or swap an exercise on the program list</p>
                 </div>
             `;
             count.textContent = '0';
-            if (hint) hint.textContent = '';
             const restoreEmpty = document.getElementById('exercise-restore');
             if (restoreEmpty) { restoreEmpty.classList.add('hidden'); restoreEmpty.innerHTML = ''; }
             return;
         }
 
         count.textContent = state.exercises.length;
-
-        // Hvorfor navnene kan trykkes på: det er ikke alle kort der har noget at bytte
-        // til (Leg Curl er alene i sin muskelgruppe), så hintet vises kun når mindst ét
-        // kort faktisk har en bytte-liste.
-        const swappable = state.exercises.some(ex => {
-            const slot = slotForExercise(ex.exerciseId);
-            return slot && swapCandidates(state.currentDay, ex.exerciseId).length > 1;
-        });
-        if (hint) hint.textContent = swappable ? 'Tap a name to swap' : '';
 
         // Mangler der en programrække i det pas der står på skærmen (en gammel træning man
         // retter, eller et udkast der blev skrevet før), kan den hentes tilbage her.
@@ -1336,7 +1354,6 @@
         const exercise = getExerciseById(state.currentDay, ex.exerciseId);
         if (!exercise) return '';
 
-            const totalVolume = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
             const maxVolume = Math.max(...ex.sets.map(s => s.weight * s.reps), 0);
             // Anbefalingen fra programmet. Den bliver stående, også når man retter
             // antal sæt, vægt eller reps — det er hele pointen med den.
@@ -1436,10 +1453,6 @@
                             − Remove set
                         </button>
                     </div>
-                    <div class="exercise-volume">
-                        <span>Total volume</span>
-                        <span class="total">${totalVolume.toFixed(0)} kg</span>
-                    </div>
                     </div></div>`}
                 </div>
             `;
@@ -1489,15 +1502,14 @@
             info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · fill in the sets`;
             btn.disabled = true;
         } else {
-            const totalVolume = state.exercises.reduce((sum, ex) =>
-                sum + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
-            );
-            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises · <strong>${totalVolume.toFixed(0)} kg</strong> total`;
+            // Den samlede vægt stod her før. Den er ikke med til at beslutte noget.
+            info.innerHTML = `<strong>${exerciseCount}</strong> of ${MAX_PER_DAY} exercises`;
             btn.disabled = false;
         }
 
+        // Kort, fordi advarslen i toppen allerede siger hvad der er sket og hvad man kan gøre.
         if (conflict && btn.disabled === false) {
-            info.innerHTML = `🔒 ${state.currentDay === 'upper' ? 'Upper' : 'Lower'} ${getCurrentVariant()} is already logged this week · tap Save to see the options`;
+            info.innerHTML = `🔒 Already logged this week`;
         }
     }
 
@@ -1727,10 +1739,6 @@
         const reps = ex.sets[setIndex].reps;
         td.textContent = (weight > 0 && reps > 0) ? (weight * reps).toFixed(0) : '—';
         td.classList.toggle('high', false);
-        // Update total
-        const totalEl = card.querySelector('.exercise-volume .total');
-        const total = ex.sets.reduce((sum, s) => sum + (s.weight * s.reps), 0);
-        totalEl.textContent = total.toFixed(0) + ' kg';
     }
 
     function saveWorkout() {
@@ -2182,18 +2190,18 @@
                 const forrige = state.openSwap;
                 state.openSwap = (wasCollapsed || forrige !== slot) ? slot : null;
                 if (!id) { renderAll(); return; }
-                if (wasCollapsed) {
-                    openCard(id);
-                } else {
-                    // Kun de kort der ændrer sig tegnes på ny: det man trykkede på, og det
-                    // hvis liste eventuelt stod åben i forvejen.
-                    renderCard(id);
-                    if (forrige) {
-                        const andet = state.exercises.find(ex => ex.exerciseId !== id
-                            && slotForExercise(ex.exerciseId) === forrige);
-                        if (andet) renderCard(andet.exerciseId);
-                    }
+                if (wasCollapsed) { openCard(id); return; }
+                if (!state.openSwap) { closeSwapMenu(nameBtn.closest('.exercise-card'), id); return; }
+                // Åbner: den nye liste foldes ud, og en liste der stod åben på et andet kort
+                // lukkes med samme overgang. Kun de kort tegnes på ny.
+                if (forrige) {
+                    const andet = state.exercises.find(ex => ex.exerciseId !== id
+                        && slotForExercise(ex.exerciseId) === forrige);
+                    const andetKort = andet && cardElementFor(andet.exerciseId);
+                    if (andetKort) closeSwapMenu(andetKort, andet.exerciseId);
                 }
+                const fresh = renderCard(id);
+                unfoldElement(fresh && fresh.querySelector('.swap-menu'));
                 return;
             }
             // Klap en øvelse sammen eller fold den ud — kortets eneste knap. Man fjerner

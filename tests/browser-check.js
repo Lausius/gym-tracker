@@ -168,9 +168,10 @@ async function main() {
         && (await evaluate('return document.getElementById("session-label").textContent')) === 'Upper A'
         && (await evaluate('return document.getElementById("session-focus").textContent.length')) > 3,
         JSON.stringify({ errors: pageErrors, focus: await evaluate('return document.getElementById("session-focus").textContent') }));
-    ok('Ingen historik → foreslår Upper A, og hintet siger "foreslået"', (await currentSession()) === 'upperA'
-        && (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested',
-        JSON.stringify({ current: await currentSession(), hint: await evaluate('return document.getElementById("variant-hint").textContent') }));
+    ok('Ingen historik → foreslår Upper A', (await currentSession()) === 'upperA',
+        JSON.stringify({ current: await currentSession() }));
+    ok('Teksten der ikke sagde noget er væk fra toppen og fra øvelses-overskriften',
+        (await evaluate('return document.getElementById("variant-hint") === null && document.getElementById("exercise-hint") === null')) === true);
     ok('Der er ingen dag-/A/B-vælger, "Tilføj alle" eller "Tilføj øvelse" tilbage', (await evaluate(`return document.getElementById("day-selector") === null && document.getElementById("variant-selector") === null && document.getElementById("first-use-banner") === null && document.getElementById("program-load") === null && document.getElementById("add-exercise-section") === null;`)) === true);
 
     // ─── 2. Programmet er dagens træning (ingen "tilføj"-knap) ─────
@@ -216,8 +217,7 @@ async function main() {
     // ─── 3. A/B-skift ─────────────────────────────────────────────
     console.log('\n── 3. Skift til B-varianten');
     await openSession('upperB');
-    ok('Skift til Upper B lægger B-programmet ind (hint: "valgt")', (await currentSession()) === 'upperB'
-        && (await evaluate('return document.getElementById("variant-hint").textContent')) === 'chosen'
+    ok('Skift til Upper B lægger B-programmet ind', (await currentSession()) === 'upperB'
         && (await evaluate(`return (() => { const cards = [...document.querySelectorAll("#exercise-list .exercise-card .exercise-name, #exercise-list .exercise-card .exercise-name-btn")].map(e => e.textContent.replace("\\u25be", "").trim()); const want = getProgram("upper", "B").map(i => ALL_EXERCISES.upper.find(e => e.id === i.exerciseId).name); return cards.length === want.length && cards.every((n, i) => n === want[i]); })()`)) === true,
         JSON.stringify({ current: await currentSession(), cards: await cardIds() }));
     ok('Der er ingen ↻-knap tilbage (A/B skiftes med ugebjælkens felter)',
@@ -268,10 +268,9 @@ async function main() {
     // ─── 5. Persistens + rotation efter reload ────────────────────
     console.log('\n── 5. Reload: persistens og A/B-rotation');
     await load(URL_UNDER_TEST);
-    ok('Data overlever reload, og man står stadig på ugens næste pas ("foreslået" igen)', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1
-        && (await currentSession()) === 'lowerA'
-        && (await evaluate('return document.getElementById("variant-hint").textContent')) === 'suggested',
-        JSON.stringify({ current: await currentSession(), hint: await evaluate('return document.getElementById("variant-hint").textContent') }));
+    ok('Data overlever reload, og man står stadig på ugens næste pas', (await evaluate('return JSON.parse(localStorage.getItem("gym_tracker_workouts")).length')) === 1
+        && (await currentSession()) === 'lowerA',
+        JSON.stringify({ current: await currentSession() }));
 
     // ─── 6. Historik, deling og regler ────────────────────────────
     console.log('\n── 6. Historik, deling og regler');
@@ -756,9 +755,9 @@ async function main() {
     // Pointen med funktionen: med historik kan man se virkningen med det samme i en
     // frisk browser — programmet åbner med sidste (eksempel-)uges vægte.
     await load(URL_UNDER_TEST);
-    const seededPrefill = await evaluate(`return (() => { const card = document.querySelector("#exercise-list .exercise-card"); return { entered: Number(card.querySelector(".set-weight").value), hint: document.getElementById("variant-hint").textContent }; })()`);
-    ok('Med eksempeldata åbner programmet med vægte fra historikken, og rotationen foreslår selv',
-        seededPrefill.entered > 0 && seededPrefill.hint === 'suggested', JSON.stringify(seededPrefill));
+    const seededPrefill = await evaluate(`return (() => { const card = document.querySelector("#exercise-list .exercise-card"); return { entered: Number(card.querySelector(".set-weight").value) }; })()`);
+    ok('Med eksempeldata åbner programmet med vægte fra historikken',
+        seededPrefill.entered > 0, JSON.stringify(seededPrefill));
 
     // Sikkerheden: så snart der ligger én rigtig træning, må knappen ikke kunne bruges
     await evaluate('localStorage.clear(); return true;');
@@ -866,11 +865,13 @@ async function main() {
     console.log('\n── 16. Programmet husker vægte og sæt fra sidste gang');
     await fresh('lowerB');
 
-    ok('Uden historik vises skabelonens tal, og linjen fortæller at det er programmet', (await evaluate(`
+    ok('Uden historik vises skabelonens tal, og huske-linjen er skjult (der er intet at huske)',
+        (await evaluate(`
         const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_curl");
         const plan = programItems("lower", "B").find(i => i.exerciseId === "leg_curl");
+        const memory = document.getElementById("program-memory");
         return card.querySelector(".exercise-target").textContent.includes("Recommended: " + plan.sets + " × " + plan.reps + " @ " + plan.weight + " kg")
-            && /Your Lower B program/.test(document.getElementById("program-memory").textContent);`)) === true,
+            && memory.classList.contains("hidden") && memory.textContent === "";`)) === true,
         await evaluate('return document.querySelector("#exercise-list .exercise-card .exercise-target").textContent.trim()'));
 
     // Kør en træning: ret vægten, sæt 0 reps på den sidste øvelse (sprunget over), gem
@@ -940,7 +941,7 @@ async function main() {
         return document.querySelector('#week-strip .week-chip[data-session="upperB"]').classList.contains("done")
             && !document.getElementById("session-warning").classList.contains("hidden")
             && /Upper B is already logged this week/.test(document.getElementById("session-warning").textContent)
-            && /already logged this week/.test(document.getElementById("save-info").textContent);`)) === true,
+            && /logged this week/.test(document.getElementById("save-info").textContent);`)) === true,
         JSON.stringify({
             warning: await evaluate('return document.getElementById("session-warning").innerText'),
             info: await evaluate('return document.getElementById("save-info").textContent'),
@@ -1217,7 +1218,7 @@ async function main() {
     await evaluate('localStorage.removeItem("gym_tracker_draft"); return true;');
     await openSession('upperA');
     ok('Passet er allerede gemt i ugen (ugen-låsen står i baren), og programmets vægt står i feltet før man taster',
-        /already logged this week/.test(await evaluate('return document.getElementById("save-info").textContent'))
+        /logged this week/.test(await evaluate('return document.getElementById("save-info").textContent'))
         && (await evaluate(`return document.querySelector("${firstWeight}").value;`)) === '72.5',
         String(await nulstilFelt()));
     await skriv(firstWeight, '70');
@@ -1260,11 +1261,11 @@ async function main() {
     ok('Et tryk klapper kortet sammen: navnet står, sæt-felterne er væk',
         (await viser(`c.classList.contains("collapsed") && c.querySelectorAll(".set-weight").length === 0
             && c.querySelectorAll(".sets-table").length === 0 && !!c.querySelector(".exercise-name, .exercise-name-btn")`)) === true);
-    ok('I stedet står der hvor mange sæt der har tal, og hvor mange kg',
+    ok('I stedet står der hvor mange sæt der har tal',
         (await viser(`(() => { const el = c.querySelector(".collapsed-summary"); if (!el) return false;
             const ex = state.exercises[0];
             const volume = ex.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
-            return el.textContent === ex.sets.length + "/" + ex.sets.length + " sets · " + volume.toFixed(0) + " kg"; })()`)) === true,
+            return el.textContent === ex.sets.length + "/" + ex.sets.length + " sets"; })()`)) === true,
         String(await viser('(c.querySelector(".collapsed-summary") || {}).textContent || "intet sammendrag"')));
     ok('Kun det ene kort er klappet sammen — de andre er urørt',
         (await antalKlappede()) === 1 && (await evaluate('return document.querySelectorAll("#exercise-list .sets-table").length')) > 0);
@@ -1325,6 +1326,32 @@ async function main() {
     const efterLuk = await kortTilstand(bytteKort);
     ok('Bytte-listen kan lukkes igen uden at kortet klapper sammen af sig selv',
         !!efterLuk && efterLuk.klappet === false && efterLuk.menu === false, JSON.stringify(efterLuk));
+
+    // Bytte-listen folder i højden i stedet for at stå der med det samme — og i stedet for
+    // at forsvinde på et blunk når man lukker den.
+    const menuSerie = klik => evaluate(`return new Promise(resolve => {
+        const vaelger = ${JSON.stringify(kort(bytteKort))};
+        const samples = [];
+        const t0 = performance.now();
+        ${klik}
+        const tick = () => {
+            const m = document.querySelector(vaelger + ' .swap-menu');
+            samples.push(m ? { hojde: Math.round(m.getBoundingClientRect().height), findes: true } : { hojde: null, findes: false });
+            if (performance.now() - t0 < 450) requestAnimationFrame(tick);
+            else resolve(samples);
+        };
+        requestAnimationFrame(tick);
+    })`);
+    const navnKlik = `document.querySelector(vaelger + ' .exercise-name-btn').click();`;
+    const aabneMenu = await menuSerie(navnKlik);
+    const lukkeMenu = await menuSerie(navnKlik);
+    const menuTrin = serie => [...new Set(serie.filter(x => x.findes).map(x => x.hojde))].length;
+    ok('Bytte-listen folder ud og sammen i højden i stedet for at stå der med det samme',
+        menuTrin(aabneMenu) >= 4 && menuTrin(lukkeMenu) >= 4
+        && !!aabneMenu.at(-1) && aabneMenu.at(-1).findes === true && aabneMenu.at(-1).hojde > 0
+        && !!lukkeMenu.at(-1) && lukkeMenu.at(-1).findes === false,
+        JSON.stringify({ aabneTrin: menuTrin(aabneMenu), lukkeTrin: menuTrin(lukkeMenu),
+            aabneSlut: aabneMenu.at(-1), lukkeSlut: lukkeMenu.at(-1) }));
 
     // ── Animationerne ────────────────────────────────────────────
     // Overgangene måles som serier af skærmbilleder inde i siden (requestAnimationFrame) i

@@ -162,13 +162,6 @@
         }
         /* Diskret hint i sektionshovedet: hvorfor et øvelsesnavn kan trykkes på.
            Skjules helt når ingen af kortene har noget at bytte til. */
-        .section-hint {
-            font-size: 0.68rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-        }
-        .section-hint:empty { display: none; }
-
         /* ===== EXERCISE LIST ===== */
         .exercise-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -497,22 +490,6 @@
             font-weight: 600;
             color: var(--accent);
             margin: 4px 0 0;
-        }
-
-        .exercise-volume {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8rem;
-            color: var(--text-dim);
-        }
-        .exercise-volume .total {
-            font-size: 1rem;
-            font-weight: 700;
-            color: var(--accent);
         }
 
         /* ===== ADD EXERCISE FORM ===== */
@@ -1040,14 +1017,27 @@
         .swap-caret { color: var(--text-dim); font-size: 0.7rem; }
         .exercise-name-btn.open .swap-caret { color: var(--accent); }
 
-        /* Byttelisten: kun øvelser i samme muskelgruppe, den nuværende markeret */
+        /* Byttelisten: kun øvelser i samme muskelgruppe, den nuværende markeret.
+           Den folder i højden ligesom kortets krop — en liste der bare stod der (eller
+           forsvandt på et blunk) så ud som om trykket ikke virkede. */
         .swap-menu {
+            display: grid;
+            grid-template-rows: 1fr;
+            transition: grid-template-rows 0.2s ease;
+            margin-top: 6px;
+        }
+        .swap-menu > .swap-menu-inner {
             display: flex;
             flex-direction: column;
             gap: 4px;
-            margin-top: 6px;
-            animation: unfold 0.16s ease both;
+            overflow: hidden;
+            min-height: 0;
+            transition: opacity 0.18s ease;
         }
+        .swap-menu.fold-start { grid-template-rows: 0fr; }
+        .swap-menu.fold-start > .swap-menu-inner { opacity: 0; }
+        .swap-menu.closing { grid-template-rows: 0fr; }
+        .swap-menu.closing > .swap-menu-inner { opacity: 0; }
         .swap-option {
             display: flex;
             flex-direction: column;
@@ -1073,12 +1063,6 @@
         }
         .swap-option-name { font-weight: 600; }
         .swap-option-meta { font-size: 0.68rem; color: var(--text-dim); }
-
-        .variant-hint {
-            font-size: 0.68rem;
-            color: var(--text-dim);
-            white-space: nowrap;
-        }
 
         /* Eksempeldata: bevidst nedtonet — det er et testværktøj, ikke en del af den
            daglige brug. Ligger nu på forsiden (ikke i en modal) og skjules helt, så
