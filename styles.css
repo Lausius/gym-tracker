@@ -21,8 +21,7 @@
             --radius-sm: 8px;
             --shadow: 0 4px 20px rgba(0,0,0,0.3);
             --transition: 0.2s ease;
-            /* Gør height:auto animerbar, så <details>-blokke (opvarmningen) kan folde ud i
-               stedet for at hoppe. Browsere uden støtte folder uden overgang. */
+            /* Gør height:auto animerbar, så <details> (opvarmningen) kan folde ud i stedet for at hoppe. */
             interpolate-size: allow-keywords;
             --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
         }
@@ -35,9 +34,7 @@
             min-height: 100dvh;
             line-height: 1.5;
             -webkit-font-smoothing: antialiased;
-            /* Et træk nedad fra toppen genindlæser ellers siden på telefonen — midt i
-               et sæt koster det det man har tastet. Indholdet i panelerne ruller
-               stadig videre op i siden; det er kun browserens eget træk der lukkes. */
+            /* Et træk nedad fra toppen genindlæser ellers siden på telefonen — midt i et sæt koster det det tastede. */
             overscroll-behavior-y: contain;
         }
         button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
@@ -159,8 +156,7 @@
             font-size: 0.75rem;
             color: var(--text);
         }
-        /* Diskret hint i sektionshovedet: hvorfor et øvelsesnavn kan trykkes på.
-           Skjules helt når ingen af kortene har noget at bytte til. */
+        /* Diskret hint om at et øvelsesnavn kan trykkes på; skjules når ingen kort har noget at bytte til. */
         /* ===== EXERCISE LIST ===== */
         .exercise-list { display: flex; flex-direction: column; gap: 10px; }
 
@@ -184,8 +180,7 @@
             gap: 10px;
             margin-bottom: 10px;
         }
-        /* min-width:0 + wrap på meta-linjen: mange tags (sammensat/redskab/muskel/
-           per hånd) må ombryde i stedet for at skubbe ✕-knappen og flyde ud af kortet */
+        /* min-width:0 + wrap: mange tags må ombryde i stedet for at skubbe ✕-knappen ud af kortet */
         .exercise-card-main {
             flex: 1 1 auto;
             min-width: 0;
@@ -194,9 +189,7 @@
             font-size: 1.05rem;
             font-weight: 600;
         }
-        /* Navnet på kortet er også en bytte-knap (samme mekanik som programrækken):
-           tryk for at vælge en anden øvelse i samme muskelgruppe. Størrelsen følger
-           .exercise-name, så kortet ser ens ud uanset om der kan byttes. */
+        /* Navnet er også en bytte-knap; størrelsen følger .exercise-name, så kortet ser ens ud. */
         .exercise-name-btn {
             display: inline-flex;
             align-items: center;
@@ -237,10 +230,7 @@
         .exercise-meta .tag.load { color: var(--warning); }
 
         /* ===== SAMMENKLAPNING AF ET KORT ===== */
-        /* Man er ikke altid færdig med øvelserne i den rækkefølge de står i: den man er
-           færdig med kan klappes sammen, så de resterende er til at finde. Det er kortets
-           eneste knap (✕-knappen er væk — man springer en øvelse over med 0 reps), og den
-           er 32px, så den kan rammes med en tommelfinger. */
+        /* Kortets eneste knap: klap en færdig øvelse sammen — 32px, så den kan rammes med en tommelfinger. */
         .exercise-card-actions {
             display: flex;
             align-items: flex-start;
@@ -263,8 +253,7 @@
             flex-shrink: 0;
         }
         .collapse-btn:hover { background: rgba(78,205,196,0.1); border-color: var(--accent); color: var(--accent); }
-        /* Det klappede kort er kun navnet og facit: ingen bund-margin under hovedet, og
-           mindre luft omkring, så listen af færdige øvelser ikke fylder mere end nødvendigt. */
+        /* Klappet kort er kun navn og facit: mindre luft, så listen af færdige øvelser ikke fylder mere. */
         .exercise-card.collapsed { padding: 10px 14px; }
         .exercise-card.collapsed .exercise-card-header { margin-bottom: 0; align-items: center; }
         .collapsed-summary {
@@ -274,22 +263,14 @@
             animation: unfold 0.18s ease both;
         }
 
-        /* Kortets krop folder ud når det åbnes, og ud af skærmen før det klappes sammen.
-           Sammenklapningen er i to trin i JS (`toggleCollapsed`): classen .collapsing
-           sættes, animationen kører, og først derefter skiftes tilstanden — så kortet
-           ikke hopper på plads uden at man ser hvorfor. Alt er kort og dæmpet: det skal
-           føles som om listen reagerer, ikke som en overgang man venter på. */
+        /* Kortets krop folder ud ved åbning og ud af skærmen før sammenklapningen; alt er kort og dæmpet. */
         @keyframes unfold {
             from { opacity: 0; transform: translateY(-4px); }
             to { opacity: 1; transform: none; }
         }
 
-        /* Kortets krop folder i HØJDEN — en gennemsigtig krop der forsvinder på et blunk er
-           netop det der ser hakkende ud. Kroppen er et grid med én række, så 1fr → 0fr kan
-           animeres uden at måle højder i JS, og indholdet klippes af overflow: hidden mens
-           det toner let ud. Kortet tegnes først om til den klappede form når overgangen er
-           kørt (se closeCard i app.js), og .closing sætter samtidig kortets klappede mål,
-           så der ikke hopper et par pixels til sidst. */
+        /* Kroppen folder i HØJDEN (grid 1fr → 0fr): en gennemsigtig krop der forsvinder på et blunk er
+           netop det der ser hakkende ud. Kortet tegnes om først når overgangen er kørt. */
         .exercise-card-body {
             display: grid;
             grid-template-rows: 1fr;
@@ -304,18 +285,14 @@
         .exercise-card.closing > .exercise-card-header { margin-bottom: 0; transition: margin-bottom 0.18s ease; }
         .exercise-card.closing > .exercise-card-body { grid-template-rows: 0fr; }
         .exercise-card.closing > .exercise-card-body > .exercise-card-body-inner { opacity: 0; }
-        /* Åbning: kroppen står i klappet form mens den indsættes, og folder ud i næste
-           skærmbillede (se openCard i app.js) — ellers springer overgangen over. */
+        /* Åbning: kroppen står klappet mens den indsættes og folder ud i næste skærmbillede. */
         .exercise-card-body.fold-start { grid-template-rows: 0fr; }
         .exercise-card-body.fold-start > .exercise-card-body-inner { opacity: 0; }
-        /* Et kort der tegnes på ny i stedet for at blive føjet til listen skal ikke også
-           glide ind: foldet er bevægelsen, ikke indtoningen. */
+        /* Et kort der tegnes på ny skal ikke også glide ind: foldet er bevægelsen. */
         .exercise-card.no-enter { animation: none; }
 
         /* ===== TEKNIK-CUES ===== */
-        /* Én linje pr. øvelse, altid synlig: pointen er at kunne læse den mens man
-           står med vægten, så den må ikke ligge bag en fold. Dæmpet farve og lille
-           skrift, så den ikke konkurrerer med vægt-felterne. */
+        /* Én linje pr. øvelse, altid synlig — den læses mens man står med vægten, ikke bag en fold. */
         .cue-line {
             font-size: 0.75rem;
             line-height: 1.35;
@@ -326,13 +303,11 @@
         }
 
         /* ===== OPVARMNING ===== */
-        /* Rampen regnes ud fra arbejdsvægten og er foldet sammen som standard, så
-           kortet ikke vokser for hver øvelse. <details> er native og virker uden JS. */
+        /* Rampen er foldet sammen som standard, så kortet ikke vokser for hver øvelse; <details> er native. */
         /* Tom når øvelsen er kropsvægt eller vægten er 0 — så fylder den intet */
         .warmup-holder:empty { display: none; }
 
-        /* <details> folder indholdet ud og sammen i browsere med ::details-content;
-           uden støtte sker skiftet bare uden overgang. */
+        /* <details> folder med ::details-content; uden støtte sker skiftet bare uden overgang. */
         .warmup-block::details-content {
             block-size: 0;
             overflow: hidden;
@@ -411,11 +386,8 @@
             width: 32px;
             text-align: center;
         }
-        /* iOS Safari zoomer ind på siden, når et felt får fokus og har en font-size under
-           16px. 16px er derfor et krav til ALLE redigerbare felter (også dem der ser små
-           ud i designet) — maximum-scale/user-scalable=no er ingen løsning: det slår
-           pinch-zoom fra for alle og ignoreres alligevel af nyere iOS. Se test 19 i
-           tests/browser-check.js, der måler den beregnede font-size på hvert synligt felt. */
+        /* iOS Safari zoomer ind når et felt under 16px får fokus — 16px er derfor et krav til ALLE
+           redigerbare felter; maximum-scale/user-scalable=no er ingen løsning (test 19 måler det). */
         .sets-table input[type="number"] {
             width: 100%;
             padding: 8px 10px;
@@ -635,8 +607,7 @@
             padding: 12px 16px;
         }
 
-        /* Coach notes — markdown fra nettet, vist som tekst. Ingen tabeller eller
-           billeder: indholdet skrives til mobilskærmen, ikke til en avis. */
+        /* Coach notes — markdown fra nettet, vist som tekst; ingen tabeller eller billeder. */
         .notes-status {
             text-align: center;
             padding: 40px 16px;
@@ -792,8 +763,7 @@
         }
 
         /* ===== DAGENS PAS (bjælke) ===== */
-        /* Navn, fokus, ugens fire pas og A/B. Øvelserne står kun på kortene
-           nedenfor, så bjælken er bevidst lav: to linjer og et felt pr. pas. */
+        /* Øvelserne står kun på kortene nedenfor, så bjælken er bevidst lav. */
         .session-bar {
             margin-top: 16px;
             padding: 12px 14px;
@@ -898,8 +868,7 @@
             gap: 8px;
             flex-shrink: 0;
         }
-        /* Fortæller at programmet er din egen sidste træning og ikke skabelonen.
-           Bevidst dæmpet — det er en forklaring, ikke en handling. */
+        /* Programmet er ens egen sidste træning, ikke skabelonen; bevidst dæmpet. */
         .program-memory {
             font-size: 0.72rem;
             color: var(--text-dim);
@@ -924,9 +893,8 @@
         .swap-caret { color: var(--text-dim); font-size: 0.7rem; }
         .exercise-name-btn.open .swap-caret { color: var(--accent); }
 
-        /* Byttelisten: kun øvelser i samme muskelgruppe, den nuværende markeret.
-           Den folder i højden ligesom kortets krop — en liste der bare stod der (eller
-           forsvandt på et blunk) så ud som om trykket ikke virkede. */
+        /* Byttelisten folder i højden som kortets krop — en liste der bare stod der (eller forsvandt
+           på et blunk) så ud som om trykket ikke virkede. */
         .swap-menu {
             display: grid;
             grid-template-rows: 1fr;
@@ -971,9 +939,7 @@
         .swap-option-name { font-weight: 600; }
         .swap-option-meta { font-size: 0.68rem; color: var(--text-dim); }
 
-        /* Eksempeldata: bevidst nedtonet — det er et testværktøj, ikke en del af den
-           daglige brug. Ligger nu på forsiden (ikke i en modal) og skjules helt, så
-           snart der ligger en rigtig træning. */
+        /* Eksempeldata: et testværktøj, ikke daglig brug; skjules helt når der ligger en rigtig træning. */
         .sample-section {
             margin-bottom: 16px;
             padding: 12px;
@@ -1051,8 +1017,7 @@
             transition: opacity 0.25s ease;
         }
         .share-overlay:not(.hidden) { opacity: 1; pointer-events: all; }
-        /* allow-discrete lader display skifte til sidst, så den kan tone ud i stedet for
-           at forsvinde med det samme. */
+        /* allow-discrete lader display skifte til sidst, så modalen kan tone ud. */
         .share-overlay { transition: opacity 0.2s ease, display 0.2s allow-discrete; }
         @starting-style { .share-overlay:not(.hidden) { opacity: 0; } }
 
@@ -1212,9 +1177,7 @@
         }
 
         /* ===== ANIMATIONER SLÅET FRA ===== */
-        /* Har man slået bevægelse fra i systemet, vises skiftet med det samme. JS'en gør
-           det samme for sammenklapningen (se animationsOff() i app.js): den venter ikke
-           på en animation nogen har bedt om at slippe for. */
+        /* Bevægelse slået fra i systemet: skiftet vises med det samme (samme i JS, animationsOff()). */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
                 animation-duration: 0.01ms !important;
