@@ -56,7 +56,7 @@ vm.runInContext(
         warmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine, NOTES_URL, NOTES_FILE,
         escapeHtml, renderNotesMarkdown, loadCoachNotes, DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts,
         persistDraft, restoreDraft, draftIsDirty, COLLAPSE_KEY, loadCollapsed, collapsedIds,
-        isCollapsed, toggleCollapsed, collapsedSummary, renderExerciseList};
+        isCollapsed, toggleCollapsed, collapsedSummary, renderExerciseList, zeroSetReps};
     `,
     ctx
 );
@@ -72,7 +72,7 @@ EXERCISES, ALL_EXERCISES, PROGRAMS, getProgram, getSuggestedVariant, getCurrentV
     warmupSets, renderWarmupBlock, CUES, exerciseCue, renderCueLine, NOTES_URL, NOTES_FILE,
     escapeHtml, renderNotesMarkdown, loadCoachNotes, DRAFT_KEY, DRAFT_DEBOUNCE, loadDrafts,
     persistDraft, restoreDraft, draftIsDirty, COLLAPSE_KEY, loadCollapsed, collapsedIds,
-    isCollapsed, toggleCollapsed, collapsedSummary, renderExerciseList
+    isCollapsed, toggleCollapsed, collapsedSummary, renderExerciseList, zeroSetReps
 } = ctx.__app;
 let pass = 0, fail = 0;
 function ok(name, cond, extra = '') {
@@ -83,6 +83,17 @@ const TODAY = '2026-10-08'; // torsdag i uge 41
 const seed = workouts => { store['gym_tracker_workouts'] = JSON.stringify(workouts); };
 const w = (id, date, day, variant) => ({ id, date, day, variant, exercises: [] });
 const idsOf = list => list.map(i => i.exerciseId).join(',');
+// Kort-markuppen læses gennem stubbens capturede element, så et tjek kan se hvad der tegnes.
+function liste() {
+    const captured = {};
+    const realGetById = document.getElementById;
+    document.getElementById = i => (captured[i] = captured[i] || makeEl(i));
+    renderExerciseList();
+    document.getElementById = realGetById;
+    return captured['exercise-list'].innerHTML;
+}
+const kortet = id => liste().split(/(?=<div class="exercise-card[" ])/)
+    .find(c => c.includes(`data-exercise-id="${id}"`)) || '';
 
 console.log('\n── 1. Program-integritet (alle øvelses-IDer findes på den rigtige dag)');
 ok('Hver programrække peger på en øvelse i dagens database, med sæt, reps, vægt og ingen dubletter',
@@ -148,7 +159,6 @@ ok('Gamle træninger uden variant → A, og tælles ikke som et klaret pas',
 
 console.log('\n── 3. Progressiv overload');
 store['gym_tracker_workouts'] = JSON.stringify([]);
-ok('Ingen historik → status "new"', calculateProgressiveOverload('bench_press', 'upper').status === 'new');
 const oneSession = (id, day, variant, weight, reps) => ({
     id, date: '2026-09-01', day, variant, exercises: [
         { exerciseId: 'bench_press', sets: Array.from({ length: 3 }, () => ({ weight, reps })) },
@@ -158,7 +168,8 @@ const sug = (list) => {
     store['gym_tracker_workouts'] = JSON.stringify(list);
     return calculateProgressiveOverload('bench_press', 'upper');
 };
-ok('60×8 → 62.5×8, 60×5 → 60×6 (vægt-op eller flere reps)',
+ok('Uden historik er status "new"; 60×8 → 62.5×8, 60×5 → 60×6 (vægt-op eller flere reps)',
+    calculateProgressiveOverload('bench_press', 'upper').status === 'new' &&
     sug([oneSession('w1', 'upper', 'A', 60, 8)]).suggestion === '62.5 kg × 8 reps' &&
     sug([oneSession('w1', 'upper', 'A', 60, 5)]).suggestion === '60 kg × 6 reps');
 ok('3 sessioner på 60 kg → stagnation med rep-fokus; 2 sessioner → stadig vægt-op',
@@ -171,14 +182,15 @@ store['gym_tracker_workouts'] = JSON.stringify([
     { id: 'w1', date: '2026-09-01', day: 'lower', variant: 'A', exercises: [
         { exerciseId: 'squat', sets: [{ weight: 100, reps: 5 }] }] },
 ]);
-ok('Lower-historik påvirker ikke upper-beregning',
-    calculateProgressiveOverload('squat', 'upper').status === 'new');
+const squatInUpper = calculateProgressiveOverload('squat', 'upper').status;
 store['gym_tracker_workouts'] = JSON.stringify([
     { id: 'w1', date: '2026-09-01', day: 'upper', variant: 'B', exercises: [
         { exerciseId: 'pull_up', sets: [{ weight: 0, reps: 8 }] }] },
 ]);
 const bwProg = calculateProgressiveOverload('pull_up', 'upper');
-ok('Kropsvægt (0 kg) giver et brugbart forslag', typeof bwProg.suggestion === 'string' && !bwProg.suggestion.includes('NaN'), `fik "${bwProg.suggestion}"`);
+ok('Kropsvægt (0 kg) giver et brugbart forslag, og lower-historik påvirker ikke upper-beregningen',
+    typeof bwProg.suggestion === 'string' && !bwProg.suggestion.includes('NaN') && squatInUpper === 'new',
+    `fik "${bwProg.suggestion}"`);
 
 console.log('\n── 4. Øvelsesdatabase');
 const allEx = [...EXERCISES.upper, ...EXERCISES.lower];
@@ -303,13 +315,13 @@ ok('Ens sæt komprimeres til ×N, forskellige komprimeres ikke',
     formatSets(sets([60, 8], [60, 8], [62.5, 7])) === '60×8 ×2 62.5×7');
 store['gym_tracker_workouts'] = JSON.stringify([...week40, ...week41]);
 const text40 = generateShareText('week:2026-W40');
-ok('En uge-eksport nævner kun den uge, med ugens træninger, overskrift, volumen og all-time-bedste',
+ok('En uge-eksport nævner kun den uge, med ugens træninger, overskrift, volumen og all-time-bedste — en anden uge giver en anden eksport',
     text40.includes('WEEK 40') && !text40.includes('WEEK 41') && !text40.includes('5.10') &&
     text40.includes('28.9 UPPER A') && text40.includes('29.9 LOWER A') &&
     /2 workouts · 1 Upper · 1 Lower/.test(text40) &&
-    text40.includes('🏆 Best ever') && /📈 Progress: \d+ up/.test(text40),
+    text40.includes('🏆 Best ever') && /📈 Progress: \d+ up/.test(text40) &&
+    generateShareText('week:2026-W41') !== text40,
     text40.split('\n')[0]);
-ok('En anden uge giver en anden eksport', generateShareText('week:2026-W41') !== text40);
 // Det vigtigste krav: en uge skal kunne sendes som ÉN Discord-besked (2.000 tegn).
 const heavyWeek = [weekFixture(0, 'upper', 'A'), weekFixture(0, 'lower', 'A'), weekFixture(0, 'upper', 'B'), weekFixture(0, 'lower', 'B')];
 store['gym_tracker_workouts'] = JSON.stringify([...heavyWeek, ...week41]);
@@ -330,10 +342,10 @@ ok('Deling markerer ugens træninger som delt i localStorage, deler ikke igen, o
         return !t.includes('28.9 UPPER A') && t.includes('5.10 UPPER B') && t.includes('NEW SINCE LAST (2)');
     })(), `markerede ${marked}`);
 store['gym_tracker_workouts'] = JSON.stringify([{ ...week40[0], sharedAt: 'x' }, week40[1]]);
-ok('En tom visning giver en forklarende tekst',
-    generateShareText('week:2026-W99').includes('No workouts in the selected period'));
+const tomUge = generateShareText('week:2026-W99').includes('No workouts in the selected period');
 store['gym_tracker_workouts'] = JSON.stringify([]);
-ok('Ingen træninger giver den gamle venlige besked', generateShareText('new').includes('No workouts saved yet'));
+ok('En tom visning giver en forklarende tekst, og uden træninger kommer den gamle venlige besked',
+    tomUge && generateShareText('new').includes('No workouts saved yet'));
 
 console.log('\n── 9. Sidste træning for en dag+variant');
 const ex = (id, sets = 3) => ({ exerciseId: id, sets: Array.from({ length: sets }, () => ({ weight: 60, reps: 8 })) });
@@ -359,13 +371,15 @@ ok('Kropsvægtøvelsen står i skabelonen med et vægt-mærke over 0, så den bl
 console.log('\n── 10. Eksempeldata (til at prøve appen uden at taste data ind)');
 const samples = buildSampleWorkouts(new Date(2026, 9, 2)); // fredag 2. oktober 2026
 const sampleVariant = k => samples.filter(x => x.day === (k.startsWith('upper') ? 'upper' : 'lower') && x.variant === k.slice(-1));
-ok('Tre hele uger (12 træninger, 4 varianter × 3) fordelt på tre ISO-uger omkring den givne dato, markeret som eksempel, øvelser og sæt følger programmet',
+ok('Tre hele uger (12 træninger, 4 varianter × 3) fordelt på tre ISO-uger omkring den givne dato, markeret som eksempel, øvelser og sæt følger programmet — og realWorkouts holder dem ude af rigtig historik',
     samples.length === 12 && ['upperA', 'upperB', 'lowerA', 'lowerB'].every(k => sampleVariant(k).length === 3) &&
     new Set(samples.map(x => isoWeekKey(x.date))).size === 3 &&
     isoWeekKey(samples[samples.length - 1].date) === isoWeekKey('2026-10-02') &&
     samples.every(isSampleWorkout) && samples.every(x => !x.sharedAt) &&
     samples.every(x => x.exercises.every(e => getProgram(x.day, x.variant).some(item => item.exerciseId === e.exerciseId) &&
-        e.sets.every(s => s.weight > 0 && s.reps > 0))),
+        e.sets.every(s => s.weight > 0 && s.reps > 0))) &&
+    realWorkouts(samples).length === 0 &&
+    realWorkouts([{ id: 'rigtig', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [] }, ...samples]).length === 1,
     `${samples.length}, ${[...new Set(samples.map(x => isoWeekKey(x.date)))].join(', ')}`);
 const weightOf = (x, id) => x.exercises.find(e => e.exerciseId === id).sets[0].weight;
 const firstUpperA = sampleVariant('upperA')[0], lastUpperA = sampleVariant('upperA').slice(-1)[0];
@@ -374,9 +388,6 @@ ok('Vægten stiger fra første til sidste uge, og ben stiger hurtigere end overk
     weightOf(lastUpperA, 'bench_press') > weightOf(firstUpperA, 'bench_press') &&
     (weightOf(lastLowerA, 'leg_press') - weightOf(firstLowerA, 'leg_press')) >
     (weightOf(lastUpperA, 'bench_press') - weightOf(firstUpperA, 'bench_press')));
-ok('realWorkouts filtrerer eksempeldata fra og tæller rigtige træninger',
-    realWorkouts(samples).length === 0 &&
-    realWorkouts([{ id: 'rigtig', date: '2026-09-28', day: 'upper', variant: 'A', exercises: [] }, ...samples]).length === 1);
 store['gym_tracker_workouts'] = JSON.stringify([]);
 
 console.log('\n── 11. Programmet er dagens træning (husk + byt)');
@@ -831,16 +842,6 @@ function freshSession() {
     state.editing = null; state.openSwap = null; state.collapsed = [];
     loadProgram();
 }
-function liste() {
-    const captured = {};
-    const realGetById = document.getElementById;
-    document.getElementById = i => (captured[i] = captured[i] || makeEl(i));
-    renderExerciseList();
-    document.getElementById = realGetById;
-    return captured['exercise-list'].innerHTML;
-}
-const kortet = id => liste().split(/(?=<div class="exercise-card[" ])/)
-    .find(c => c.includes(`data-exercise-id="${id}"`)) || '';
 freshSession();
 const liste0 = liste();
 ok('Hvert kort har en klap-knap, ingen ✕ tilbage, og intet kort er klappet fra starten',
@@ -881,7 +882,49 @@ ok('Et gem rydder listen, så næste pas åbner foldet ud',
 Object.keys(store).forEach(k => delete store[k]);
 state.exercises = []; state.collapsed = []; state.editing = null;
 }
-notesTests().then(draftTests).then(collapseTests).then(() => {
+// ─── 19. Spring et sæt over med ét tryk ─────────────────────────────
+// 0-knappen i sæt-rækken nulstiller reps, så et sæt eller en hel øvelse kan
+// springes over uden at slette tallet — og et sæt uden reps gemmes ikke.
+function zeroRepsTests() {
+const programA = programItems('upper', 'A');
+const FIRST = programA[0].exerciseId;
+const LAST = programA[programA.length - 1].exerciseId;
+function freshSession() {
+    Object.keys(store).forEach(k => delete store[k]);
+    state.currentDay = 'upper'; state.programVariant = 'A'; state.sessionVariant = null;
+    state.editing = null; state.allowDuplicateWeek = false;
+    loadProgram();
+}
+freshSession();
+const antalSaet = state.exercises.reduce((n, e) => n + e.sets.length, 0);
+const knapper = liste().split('class="zero-reps-btn"').length - 1;
+zeroSetReps(0, 1);
+const foerste = state.exercises[0];
+ok('Hvert sæt har en 0-knap, og et tryk nulstiller netop det sæt: vægten og de andre sæt står, og rækken markeres som sprunget over',
+    knapper === antalSaet && antalSaet > 0 &&
+    foerste.sets[1].reps === 0 && foerste.sets[1].weight > 0 &&
+    foerste.sets[0].reps > 0 && foerste.sets[2].reps > 0 &&
+    kortet(FIRST).split('class="skipped"').length - 1 === 1,
+    JSON.stringify({ knapper, antalSaet, saet: foerste.sets }));
+persistDraft(TODAY);
+loadProgram();
+ok('Det oversprungne sæt ligger i udkastet og står der igen efter en genindlæsning',
+    restoreDraft(TODAY) === true && state.exercises[0].sets[1].reps === 0 && state.exercises[0].sets[1].weight > 0);
+freshSession();
+const antal = state.exercises.length;
+zeroSetReps(0, 0);
+state.exercises[antal - 1].sets.forEach((_, si) => zeroSetReps(antal - 1, si));
+saveWorkout();
+const gemt = JSON.parse(store['gym_tracker_workouts'] || '[]');
+ok('Et sæt med 0 reps gemmes ikke med, og en øvelse hvor alle sæt er nulstillet ryger helt ud af loggen',
+    gemt.length === 1 && gemt[0].exercises.length === antal - 1 &&
+    gemt[0].exercises[0].exerciseId === FIRST && gemt[0].exercises[0].sets.length === programA[0].sets - 1 &&
+    !gemt[0].exercises.some(e => e.exerciseId === LAST),
+    JSON.stringify((gemt[0] || {}).exercises?.map(e => `${e.exerciseId}:${e.sets.length}`)));
+Object.keys(store).forEach(k => delete store[k]);
+state.exercises = []; state.editing = null;
+}
+notesTests().then(draftTests).then(collapseTests).then(zeroRepsTests).then(() => {
     console.log(`\n═══ ${pass} bestået, ${fail} fejlet ═══\n`);
     process.exit(fail === 0 ? 0 : 1);
 });

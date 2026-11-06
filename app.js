@@ -517,6 +517,11 @@
         return document.querySelector(`#exercise-list .exercise-card[data-exercise-id="${exerciseId}"]`);
     }
 
+    function setRowFor(exerciseId, setIndex) {
+        const card = cardElementFor(exerciseId);
+        return card ? card.querySelector(`tbody tr[data-set-index="${setIndex}"]`) : null;
+    }
+
     // Animationer slået fra i systemet: skift med det samme, ikke vent på en overgang man ikke ser.
     function animationsOff() {
         return typeof window.matchMedia === 'function'
@@ -1230,11 +1235,12 @@
                                 <th style="width:32px">#</th>
                                 <th>Weight (kg)</th>
                                 <th>Reps</th>
+                                <th style="width:36px"></th>
                             </tr>
                         </thead>
                         <tbody>
                             ${ex.sets.map((set, si) => `
-                                <tr>
+                                <tr class="${set.reps > 0 ? '' : 'skipped'}" data-set-index="${si}">
                                     <td class="set-num">${si + 1}</td>
                                     <td>
                                         <input type="number"
@@ -1255,6 +1261,10 @@
                                                min="0"
                                                step="1"
                                                placeholder="0">
+                                    </td>
+                                    <td class="set-zero">
+                                        <button class="zero-reps-btn" data-ex-index="${idx}" data-set-index="${si}"
+                                                aria-label="Set reps to 0" title="Set reps to 0">0</button>
                                     </td>
                                 </tr>
                             `).join('')}
@@ -1483,11 +1493,26 @@
         renderAll();
     }
 
+    // Ét tryk nulstiller reps i sættet, så et sæt eller en hel øvelse kan springes over uden at slette tallet.
+    function zeroSetReps(exIndex, setIndex) {
+        const ex = state.exercises[exIndex];
+        if (!ex || !ex.sets[setIndex]) return;
+        const card = cardElementFor(ex.exerciseId);
+        const input = card && card.querySelector(`tbody tr[data-set-index="${setIndex}"] .set-reps`);
+        if (input) input.value = '0';
+        updateSet(exIndex, setIndex, 'reps', 0);
+    }
+
     function updateSet(exIndex, setIndex, field, value) {
         const ex = state.exercises[exIndex];
         if (!ex || !ex.sets[setIndex]) return;
         const numValue = field === 'weight' ? parseFloat(value) || 0 : parseInt(value) || 0;
         ex.sets[setIndex][field] = numValue;
+        // Et sæt med 0 reps gemmes ikke med: rækken markeres, så man kan se at trykket landede.
+        if (field === 'reps') {
+            const row = setRowFor(ex.exerciseId, setIndex);
+            if (row) row.classList.toggle('skipped', numValue <= 0);
+        }
         // Udkastet skrives ned med det samme (debounced), så en genindlæsning ikke koster tallene.
         scheduleDraftSave();
         renderSaveBar();
@@ -1947,6 +1972,11 @@
             const collapseBtn = e.target.closest('.collapse-btn');
             if (collapseBtn) {
                 toggleCollapsed(collapseBtn.dataset.exerciseId);
+                return;
+            }
+            const zeroBtn = e.target.closest('.zero-reps-btn');
+            if (zeroBtn) {
+                zeroSetReps(parseInt(zeroBtn.dataset.exIndex), parseInt(zeroBtn.dataset.setIndex));
                 return;
             }
             const addSetBtn = e.target.closest('.add-set-btn');

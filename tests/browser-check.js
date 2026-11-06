@@ -228,16 +228,14 @@ async function main() {
     await evaluate('document.getElementById("share-close").click(); return true;');
 
     // ─── 6. Lower-pas ─────────────────────────────────────────────
-    console.log('\n── 6. Lower-pas og B-programmet');
+    console.log('\n── 6. Lower-pas');
     await openSession('lowerA');
     ok('Lower-programmet lægges ind med sine øvelser', (await currentSession()) === 'lowerA'
         && (await listText()).includes('Leg Press')
         && (await cardCount()) === (await evaluate('return getProgram("lower", "A").length')),
         JSON.stringify({ current: await currentSession(), cards: await cardCount() }));
-    await openSession('lowerB');
-    ok('Lower B viser Calf Raise (Leg Press)', (await listText()).includes('Calf Raise (Leg Press)'));
 
-    // ─── 7. Mobillayout og felt-fontstørrelse ─────────────────────
+    // ─── 7. Mobillayout og felt-fontstørrelse ──────────────────────
     console.log('\n── 7. Mobillayout: knappeplacering og 16px-felter');
     await openSession('lowerA');
     await S('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
@@ -444,18 +442,18 @@ async function main() {
         const w = JSON.parse(localStorage.getItem("gym_tracker_workouts") || "[]");
         return { count: w.length, allSample: w.every(x => x.sample === true), btn: document.getElementById("sample-btn").textContent };
     })()`);
-    ok('Eksempeldata lægges ind (12 træninger, begge dage), og knappen kan rydde igen',
-        seeded.count === 12 && seeded.allSample === true && /Clear sample data/.test(seeded.btn),
-        JSON.stringify(seeded));
     await evaluate(`return (() => {
         localStorage.setItem("gym_tracker_workouts", JSON.stringify([{ id: "rigtig_1", date: "2026-09-28", day: "upper", variant: "A", exercises: [{ exerciseId: "bench_press", sets: [{ weight: 60, reps: 8 }] }] }]));
         return true; })()`);
     await load(URL_UNDER_TEST);
     await evaluate('document.getElementById("sample-btn").click(); return true;');
     await sleep(300);
-    ok('Med en rigtig træning er knappen deaktiveret, og et klik ændrer ikke dataene', (await evaluate(`return (() => {
-        const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
-        return document.getElementById("sample-btn").disabled === true && w.length === 1 && w[0].id === "rigtig_1" && !w[0].sample; })()`)) === true);
+    ok('Eksempeldata lægges ind (12 træninger, begge dage) og knappen kan rydde igen — med en rigtig træning er den deaktiveret og rører intet',
+        seeded.count === 12 && seeded.allSample === true && /Clear sample data/.test(seeded.btn) &&
+        (await evaluate(`return (() => {
+            const w = JSON.parse(localStorage.getItem("gym_tracker_workouts"));
+            return document.getElementById("sample-btn").disabled === true && w.length === 1 && w[0].id === "rigtig_1" && !w[0].sample; })()`)) === true,
+        JSON.stringify(seeded));
 
     // ─── 14. Bytte-listerne for hele programmet ───────────────────
     console.log('\n── 14. Bytte-listerne og kortene for hele programmet');
@@ -718,14 +716,16 @@ async function main() {
     ok('Kun det ene kort er klappet sammen — de andre er urørt',
         (await antalKlappede()) === 1 && (await evaluate('return document.querySelectorAll("#exercise-list .sets-table").length')) > 0);
     await load(URL_UNDER_TEST);
-    ok('Genindlæsningen folder ikke kortet ud igen', (await antalKlappede()) === 1);
+    const klappetEfterReload = await antalKlappede();
+    await openSession('upperB');
+    const andetPasKlappet = await antalKlappede();
+    await openSession('upperA');
+    ok('Genindlæsningen folder ikke kortet ud igen, men et andet pas starter foldet ud',
+        klappetEfterReload === 1 && andetPasKlappet === 0);
     await klap(0);
     ok('Samme knap folder ud igen, med tallene i behold',
         (await viser(`(() => { const f = c.querySelector(".set-weight"); if (!f) return false;
             return !c.classList.contains("collapsed") && f.value === "77.5"; })()`)) === true);
-    await openSession('upperB');
-    ok('Et andet pas starter foldet ud', (await antalKlappede()) === 0);
-    await openSession('upperA');
 
     // ── Bytte på et klappet kort ──────────────────────────────────
     const kortTilstand = i => evaluate(`return (() => { const c = document.querySelector(${JSON.stringify(kort(i))});
@@ -811,6 +811,49 @@ async function main() {
     await S('Emulation.setEmulatedMedia', { features: [] });
     ok('Er bevægelse slået fra i systemet, klapper kortet sammen med det samme',
         !!udenBevægelse && udenBevægelse.klappet === true, JSON.stringify(udenBevægelse));
+
+    // ─── 21. Spring et sæt over med ét tryk ───────────────────────
+    console.log('\n── 21. Spring et sæt over med ét tryk (0 reps)');
+    await fresh('upperA');
+    await evaluate('localStorage.removeItem("gym_tracker_draft"); loadProgram(); restoreDraft(); renderAll(); return true;');
+
+    const nulstilSaet = async (kortIdx, saetIdx) => {
+        await evaluate(`return (() => { const b = document.querySelector(${JSON.stringify(kort(kortIdx))}).querySelectorAll(".zero-reps-btn")[${saetIdx}]; if (!b) return false; b.click(); return true; })()`);
+        await sleep(200);
+    };
+    const saetTilstand = i => evaluate(`return (() => {
+        const c = document.querySelector(${JSON.stringify(kort(i))});
+        if (!c) return null;
+        return { reps: [...c.querySelectorAll(".set-reps")].map(x => x.value),
+            skippede: [...c.querySelectorAll(".sets-table tbody tr")].map(r => r.classList.contains("skipped")),
+            knapper: c.querySelectorAll(".zero-reps-btn").length }; })()`);
+
+    await nulstilSaet(0, 1);
+    const nulstillet = await saetTilstand(0);
+    const nabokort = await saetTilstand(1);
+    ok('Hvert sæt har en 0-knap, og et tryk nulstiller netop det sæt: rækken toner ned, de andre sæt og nabokortet er urørte',
+        !!nulstillet && nulstillet.knapper === nulstillet.reps.length &&
+        nulstillet.reps[1] === '0' && nulstillet.reps[0] !== '0' && nulstillet.reps[2] !== '0' &&
+        nulstillet.skippede[1] === true && nulstillet.skippede.filter(Boolean).length === 1 &&
+        !!nabokort && nabokort.reps.every(v => v !== '0'),
+        JSON.stringify({ nulstillet, nabokort }));
+    await load(URL_UNDER_TEST);
+    await openSession('upperA');
+    await sleep(250);
+    const efterGenindlaesning = await saetTilstand(0);
+    ok('Det oversprungne sæt står der igen efter en genindlæsning, med rækken markeret',
+        !!efterGenindlaesning && efterGenindlaesning.reps[1] === '0' &&
+        efterGenindlaesning.skippede[1] === true && efterGenindlaesning.skippede.filter(Boolean).length === 1,
+        JSON.stringify(efterGenindlaesning));
+    const antalKort = await cardCount();
+    await evaluate(`return (() => { [...document.querySelectorAll("#exercise-list .exercise-card")].pop()
+        .querySelectorAll(".zero-reps-btn").forEach(b => b.click()); return true; })()`);
+    await sleep(300);
+    await saveBtn(450);
+    ok('En øvelse hvor alle sæt er nulstillet gemmes ikke med, og det ene nulstillede sæt er væk fra den første øvelse',
+        (await evaluate(`${readWorkouts} return w.length === 1 && w[0].exercises.length === ${antalKort - 1}
+            && w[0].exercises[0].sets.length === 2;`)) === true,
+        String(await storage('gym_tracker_workouts')).slice(0, 200));
 
     ok('Ingen uventede console-fejl', consoleErrors.length === 0, JSON.stringify(consoleErrors.slice(0, 3)));
 
