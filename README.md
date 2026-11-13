@@ -43,8 +43,9 @@ Mobile-first training log with no backend and no build step: plain HTML, CSS and
   `3/3 sets`, so the exercises left are easy to find. Folded cards are remembered per pass and
   per ISO week; saving clears them.
 - **Skipping a set or an exercise:** there is deliberately no ✕ button. The **0** button in the set's
-  rightmost column zeroes that set's reps — the row dims, and the value is kept if the page reloads. A set
-  only counts when both weight and reps are filled in, so zeroing every set drops that exercise from the log.
+  rightmost column zeroes that set's reps — the row dims and the reps field is left empty (a typed 0
+  clears itself too), so a rep count can be typed without deleting anything first. A set only counts
+  when both weight and reps are filled in, so zeroing every set drops that exercise from the log.
 - **Edit a saved workout:** ✏️ Edit loads it back in — fix the numbers or swap which exercise occupies a
   row (to drop one, tap its 0 buttons) — and **Update workout** overwrites it, keeping date, day and variant.
   **Cancel** writes nothing.

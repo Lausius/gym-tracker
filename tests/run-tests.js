@@ -900,12 +900,17 @@ const antalSaet = state.exercises.reduce((n, e) => n + e.sets.length, 0);
 const knapper = liste().split('class="zero-reps-btn"').length - 1;
 zeroSetReps(0, 1);
 const foerste = state.exercises[0];
-ok('Hvert sæt har en 0-knap, og et tryk nulstiller netop det sæt: vægten og de andre sæt står, og rækken markeres som sprunget over',
+const kortMarkup = kortet(FIRST);
+const repsFelter = [...kortMarkup.matchAll(/class="set-reps"[^>]*?value="([^"]*)"/g)].map(m => m[1]);
+ok('Hvert sæt har en 0-knap, og et tryk nulstiller netop det sæt: vægten og de andre sæt står, rækken markeres som sprunget over, og reps-feltet står tomt i stedet for et 0 man selv skal slette',
     knapper === antalSaet && antalSaet > 0 &&
     foerste.sets[1].reps === 0 && foerste.sets[1].weight > 0 &&
     foerste.sets[0].reps > 0 && foerste.sets[2].reps > 0 &&
-    kortet(FIRST).split('class="skipped"').length - 1 === 1,
-    JSON.stringify({ knapper, antalSaet, saet: foerste.sets }));
+    kortMarkup.split('class="skipped"').length - 1 === 1 &&
+    repsFelter.length === foerste.sets.length && repsFelter[1] === '' &&
+    repsFelter.filter(v => v === '').length === 1 &&
+    !/class="set-reps"[^>]*placeholder/.test(kortMarkup),
+    JSON.stringify({ knapper, antalSaet, saet: foerste.sets, repsFelter }));
 persistDraft(TODAY);
 loadProgram();
 ok('Det oversprungne sæt ligger i udkastet og står der igen efter en genindlæsning',
