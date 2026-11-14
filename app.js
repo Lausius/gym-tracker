@@ -1257,10 +1257,9 @@
                                                class="set-reps"
                                                data-ex-index="${idx}"
                                                data-set-index="${si}"
-                                               value="${set.reps}"
+                                               value="${set.reps > 0 ? set.reps : ''}"
                                                min="0"
-                                               step="1"
-                                               placeholder="0">
+                                               step="1">
                                     </td>
                                     <td class="set-zero">
                                         <button class="zero-reps-btn" data-ex-index="${idx}" data-set-index="${si}"
@@ -1493,13 +1492,14 @@
         renderAll();
     }
 
-    // Ét tryk nulstiller reps i sættet, så et sæt eller en hel øvelse kan springes over uden at slette tallet.
+    // Ét tryk nulstiller reps i sættet, så et sæt eller en hel øvelse kan springes over: rækken
+    // markeres, og feltet står tomt, så man kan taste antallet uden først at slette et 0.
     function zeroSetReps(exIndex, setIndex) {
         const ex = state.exercises[exIndex];
         if (!ex || !ex.sets[setIndex]) return;
         const card = cardElementFor(ex.exerciseId);
         const input = card && card.querySelector(`tbody tr[data-set-index="${setIndex}"] .set-reps`);
-        if (input) input.value = '0';
+        if (input) input.value = '';
         updateSet(exIndex, setIndex, 'reps', 0);
     }
 
@@ -2002,6 +2002,8 @@
                 const exIdx = parseInt(repsInput.dataset.exIndex);
                 const setIdx = parseInt(repsInput.dataset.setIndex);
                 updateSet(exIdx, setIdx, 'reps', repsInput.value);
+                // 0 reps betyder sprunget over: feltet står tomt, så antallet kan tastes uden at slette et 0.
+                if (repsInput.value === '0') repsInput.value = '';
             }
         });
 

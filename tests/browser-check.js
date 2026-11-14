@@ -831,18 +831,28 @@ async function main() {
     await nulstilSaet(0, 1);
     const nulstillet = await saetTilstand(0);
     const nabokort = await saetTilstand(1);
-    ok('Hvert sæt har en 0-knap, og et tryk nulstiller netop det sæt: rækken toner ned, de andre sæt og nabokortet er urørte',
+    // Taster man selv et 0, skal feltet stå tomt bagefter — uden at resten af sættet ændres.
+    const tastetNul = await evaluate(`return (() => {
+        const f = document.querySelector(${JSON.stringify(kort(0))}).querySelectorAll(".set-reps")[0];
+        if (!f) return null;
+        const foer = f.value;
+        f.value = "0"; f.dispatchEvent(new Event("input", { bubbles: true }));
+        const efter = f.value;
+        f.value = foer; f.dispatchEvent(new Event("input", { bubbles: true }));
+        return { foer, efter, tilbage: f.value }; })()`);
+    ok('Hvert sæt har en 0-knap, og et 0 bliver ikke stående: et tryk nulstiller netop det sæt (rækken toner ned, de andre sæt og nabokortet er urørte), og et tastet 0 forsvinder af sig selv',
         !!nulstillet && nulstillet.knapper === nulstillet.reps.length &&
-        nulstillet.reps[1] === '0' && nulstillet.reps[0] !== '0' && nulstillet.reps[2] !== '0' &&
+        nulstillet.reps[1] === '' && nulstillet.reps[0] !== '' && nulstillet.reps[2] !== '' &&
         nulstillet.skippede[1] === true && nulstillet.skippede.filter(Boolean).length === 1 &&
-        !!nabokort && nabokort.reps.every(v => v !== '0'),
-        JSON.stringify({ nulstillet, nabokort }));
+        !!nabokort && nabokort.reps.every(v => v !== '') &&
+        !!tastetNul && tastetNul.foer !== '0' && tastetNul.efter === '' && tastetNul.tilbage === tastetNul.foer,
+        JSON.stringify({ nulstillet, nabokort, tastetNul }));
     await load(URL_UNDER_TEST);
     await openSession('upperA');
     await sleep(250);
     const efterGenindlaesning = await saetTilstand(0);
-    ok('Det oversprungne sæt står der igen efter en genindlæsning, med rækken markeret',
-        !!efterGenindlaesning && efterGenindlaesning.reps[1] === '0' &&
+    ok('Det oversprungne sæt står der igen efter en genindlæsning, med rækken markeret og feltet tomt',
+        !!efterGenindlaesning && efterGenindlaesning.reps[1] === '' &&
         efterGenindlaesning.skippede[1] === true && efterGenindlaesning.skippede.filter(Boolean).length === 1,
         JSON.stringify(efterGenindlaesning));
     const antalKort = await cardCount();
