@@ -473,14 +473,14 @@ store['gym_tracker_program_swaps'] = JSON.stringify({});
 loadProgram();
 const beforeSwap = state.exercises.map(e => e.exerciseId);
 swapExercise('calf_raise', 'calf_raise_leg_press');
-ok('En fuld dag afviser flere øvelser, og et bytte sætter den nye øvelse på pladsen, huskes for passet, rammer ikke det andet',
-    rejected === false && state.exercises.length === MAX_PER_DAY &&
-    state.exercises[beforeSwap.indexOf('calf_raise')].exerciseId === 'calf_raise_leg_press' &&
-    JSON.parse(store['gym_tracker_program_swaps'] || '{}').lowerA.calf_raise === 'calf_raise_leg_press' &&
-    idsOf(programItems('lower', 'B')) === idsOf(getProgram('lower', 'B')));
+const afterSwap = state.exercises.map(e => e.exerciseId);
 // Bytte til en øvelse der allerede står i dagens træning afvises (ingen dubletter)
 swapExercise('hip_thrust', 'leg_press');
-ok('Bytte til en øvelse der allerede er i dagens træning afvises',
+ok('En fuld dag afviser flere øvelser, og et bytte sætter den nye øvelse på pladsen, huskes for passet og rammer ikke det andet — en øvelse der allerede står i dagens træning afvises',
+    rejected === false && state.exercises.length === MAX_PER_DAY &&
+    afterSwap[beforeSwap.indexOf('calf_raise')] === 'calf_raise_leg_press' &&
+    JSON.parse(store['gym_tracker_program_swaps'] || '{}').lowerA.calf_raise === 'calf_raise_leg_press' &&
+    idsOf(programItems('lower', 'B')) === idsOf(getProgram('lower', 'B')) &&
     state.exercises.filter(e => e.exerciseId === 'leg_press').length === 1 &&
     state.exercises.some(e => e.exerciseId === 'hip_thrust'));
 // Slotten findes ud fra øvelsen — også efter et bytte.
@@ -524,6 +524,19 @@ ok('Efter byttet står den nye øvelses vægt og reps i felterne og i anbefaling
     extCard.plan.weight === 70 && extCard.plan.reps === 12 &&
     !state.exercises.some(e => e.sets.some(s => s.weight === 225)),
     JSON.stringify(extCard && extCard.sets));
+// Viser en gammel træning både slottets skabelon-øvelse og den øvelse rækken er byttet til, er de to
+// kort enige om slotten — og så skal byttet ramme det kort man trykkede på, ikke det andet.
+store['gym_tracker_program_swaps'] = JSON.stringify({ upperB: { chest_supported_row: 'lat_extension' } });
+state.currentDay = 'upper';
+state.programVariant = 'B';
+loadProgram();
+state.exercises.unshift({ exerciseId: 'chest_supported_row', plan: null, sets: [], targetReps: 12 });
+swapExercise('chest_supported_row', 'cable_row', 'chest_supported_row');
+ok('Med begge øvelser på skærmen rammer byttet kortet man trykkede på, og den anden bliver stående',
+    state.exercises[0].exerciseId === 'cable_row' &&
+    state.exercises.some(e => e.exerciseId === 'lat_extension') &&
+    JSON.parse(store['gym_tracker_program_swaps']).upperB.chest_supported_row === 'cable_row',
+    JSON.stringify(idsOf(state.exercises)));
 store['gym_tracker_workouts'] = JSON.stringify([]);
 store['gym_tracker_program_swaps'] = JSON.stringify({});
 state.exercises = [];
@@ -728,12 +741,13 @@ function freshSession() {
     loadProgram();
 }
 freshSession();
-ok('Et urørt program giver ikke et udkast; et tastet tal gør det beskidt og skriver det ned på det pas man står i',
-    draftIsDirty() === false && persistDraft(TODAY) === false && !loadDrafts().upperA &&
-    (updateSet(0, 0, 'weight', '62.5'), updateSet(0, 0, 'reps', '6'),
-        draftIsDirty() === true && persistDraft(TODAY) === true));
+const urørt = draftIsDirty() === false && persistDraft(TODAY) === false && !loadDrafts().upperA;
+updateSet(0, 0, 'weight', '62.5');
+updateSet(0, 0, 'reps', '6');
+const tastet = draftIsDirty() === true && persistDraft(TODAY) === true;
 const draft = loadDrafts().upperA;
-ok('Udkastet husker ugen, rummer hele passet og det tastede tal — uden afledte felter',
+ok('Et urørt program giver ikke et udkast; et tastet tal gør det beskidt og skriver hele passet ned uden afledte felter',
+    urørt && tastet &&
     draft && draft.week === isoWeekKey(TODAY) &&
     draft.exercises.length === programItems('upper', 'A').length &&
     draft.exercises.find(e => e.exerciseId === A0).sets[0].weight === 62.5 &&
@@ -746,6 +760,20 @@ ok('Udkastet lægges tilbage ved åbning, med det tastede tal og hele passet i p
     restoreDraft(TODAY) === true && fieldOf(A0).weight === 62.5 && fieldOf(A0).reps === 6 &&
     state.exercises.map(e => e.exerciseId).join(',') === programItems('upper', 'A').map(i => i.exerciseId).join(','),
     String(fieldOf(A0).weight));
+// Et byt efter et tastet tal må ikke fortrydes af udkastet: det skrives med det samme.
+freshSession();
+updateSet(0, 0, 'weight', '62.5');
+persistDraft(TODAY);
+swapExercise(A0, 'chest_press_machine', A0);
+const efterByt = loadDrafts().upperA.exercises[0].exerciseId;
+loadProgram();
+const genaabnet = restoreDraft(TODAY);
+ok('Et byt efter et tastet tal skrives i udkastet med det samme, så kortet ikke skifter tilbage ved åbning',
+    efterByt === 'chest_press_machine' && genaabnet === true &&
+    state.exercises[0].exerciseId === 'chest_press_machine' &&
+    JSON.parse(store['gym_tracker_program_swaps']).upperA[A0] === 'chest_press_machine',
+    JSON.stringify({ efterByt, genaabnet, first: state.exercises[0].exerciseId, swaps: store['gym_tracker_program_swaps'] }));
+store['gym_tracker_program_swaps'] = JSON.stringify({}); // ryd op til næste tjek
 // Et udkast fra en tidligere uge hører til et pas der er begyndt forfra
 const stale = loadDrafts();
 stale.upperA.week = '2026-W40';
