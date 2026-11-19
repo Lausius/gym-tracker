@@ -1410,20 +1410,22 @@
     }
 
     // Bytter huskes for dag+variant, og den nye øvelse får sine egne tal.
-    function swapExercise(slotId, exerciseId) {
+    // Byttet rammer det kort man trykkede på: en gemt træning eller et gammelt udkast kan vise en anden
+    // øvelse på slottets plads end programmet gør, og opslaget på programmets øvelse ramte så et andet kort.
+    function swapExercise(slotId, exerciseId, cardId) {
         const variant = getCurrentVariant();
         const before = programItems(state.currentDay, variant)
             .find(i => (i.swappedFrom || i.exerciseId) === slotId);
-        const previousId = before ? before.exerciseId : null;
-        if (!previousId) {
+        if (!before) {
             state.openSwap = null;
             renderAll();
             return;
         }
-        // I en ældre gemt træning kan det være den øvelse rækken senere er byttet væk fra.
-        let idx = state.exercises.findIndex(e => e.exerciseId === previousId);
-        const onCard = idx >= 0 ? previousId : slotId;
+        // Kortet der blev trykket på; ellers den øvelse slottet har, ellers slottets skabelon-id.
+        let idx = cardId ? state.exercises.findIndex(e => e.exerciseId === cardId) : -1;
+        if (idx < 0) idx = state.exercises.findIndex(e => e.exerciseId === before.exerciseId);
         if (idx < 0) idx = state.exercises.findIndex(e => e.exerciseId === slotId);
+        const onCard = idx >= 0 ? state.exercises[idx].exerciseId : slotId;
         if (onCard === exerciseId) {
             state.openSwap = null;
             renderAll();
@@ -1440,7 +1442,7 @@
         setSwap(state.currentDay, variant, slotId, exerciseId);
 
         if (idx >= 0) {
-            const item = programItems(state.currentDay, variant).find(i => i.exerciseId === exerciseId);
+            const item = programItems(state.currentDay, variant).find(i => (i.swappedFrom || i.exerciseId) === slotId);
             if (item) {
                 state.exercises[idx] = sessionEntryFor(item, lastWorkoutFor(state.currentDay, variant));
             }
@@ -1941,7 +1943,10 @@
             // Bytte-listen kan åbnes fra øvelseskortet, ikke kun fra programrækken.
             const swapOption = e.target.closest('.swap-option');
             if (swapOption) {
-                swapExercise(swapOption.dataset.swapSlot, swapOption.dataset.swapId);
+                // Kortet man trykkede på er målet for byttet, ikke den øvelse programmets række har.
+                const kort = swapOption.closest('.exercise-card');
+                swapExercise(swapOption.dataset.swapSlot, swapOption.dataset.swapId,
+                    kort && kort.dataset.exerciseId);
                 return;
             }
             const nameBtn = e.target.closest('.exercise-name-btn');

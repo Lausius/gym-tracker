@@ -644,12 +644,34 @@ async function main() {
     })()`);
     await sleep(250);
     await evaluate(`return (() => { const card = [...document.querySelectorAll("#exercise-list .exercise-card")].find(c => c.dataset.exerciseId === "leg_press"); const btn = card && card.querySelector(".exercise-name-btn"); if (btn) btn.click(); return true; })()`);
-    ok('Leg Press har stadig en bytte-knap under redigering, med Bulgarian Split Squat i listen', editSwap === true, JSON.stringify(await cardIds()));
     await pickSwap('leg_press', 'bulgarian_split');
     await sleep(300);
     await saveBtn(400);
-    ok('Opdateringen gemmer den byttede øvelse i den gemte træning', (await evaluate(`${readWorkouts} return w.length === 1 && w[0].exercises.some(e => e.exerciseId === "bulgarian_split") && !w[0].exercises.some(e => e.exerciseId === "leg_press");`)) === true,
+    ok('Leg Press har stadig en bytte-knap under redigering, og opdateringen gemmer den byttede øvelse i den gemte træning',
+        editSwap === true
+        && (await evaluate(`${readWorkouts} return w.length === 1 && w[0].exercises.some(e => e.exerciseId === "bulgarian_split") && !w[0].exercises.some(e => e.exerciseId === "leg_press");`)) === true,
         await evaluate('return JSON.stringify((JSON.parse(localStorage.getItem("gym_tracker_workouts")||"[]")[0]||{}).exercises?.map(e=>e.exerciseId))'));
+
+    // Viser en gemt træning både slottets skabelon-øvelse og den øvelse rækken er byttet til, hører de
+    // to kort til samme slot — og så skal et byt ramme det kort man trykkede på, ikke det andet.
+    await fresh('upperB');
+    await pickSwap('face_pull', 'lat_extension');
+    await saveBtn();
+    await openSession('upperB');
+    await pickSwap('lat_extension', 'face_pull');
+    await pickSwap('chest_supported_row', 'lat_extension');
+    await evaluate('document.getElementById("btn-history").click(); return true;');
+    await sleep(250);
+    await evaluate('document.querySelector("#history-content .history-edit-btn").click(); return true;');
+    await sleep(350);
+    const foerByt = await cardIds();
+    await pickSwap('chest_supported_row', 'cable_row');
+    const efterByt = await cardIds();
+    ok('Bytter man på skabelon-øvelsen mens den gamle træning viser begge øvelser, ændrer det kortet man trykkede på, og det andet står uændret',
+        foerByt[0] === 'chest_supported_row' && foerByt[2] === 'lat_extension'
+        && efterByt.length === foerByt.length && efterByt[0] === 'cable_row' && efterByt[2] === 'lat_extension'
+        && (await evaluate(`return JSON.parse(localStorage.getItem("gym_tracker_program_swaps") || "{}").upperB.chest_supported_row === "cable_row";`)) === true,
+        JSON.stringify({ foerByt, efterByt }));
 
     // ─── 19. Det tastede huskes hvis appen genindlæses ────────────
     console.log('\n── 19. Det tastede huskes hvis appen genindlæses');
