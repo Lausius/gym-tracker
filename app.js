@@ -365,17 +365,32 @@
         return true;
     }
 
-    function persistDraft(today = getTodayStr()) {
-        if (!draftIsDirty()) return false;
-        const drafts = loadDrafts();
-        drafts[draftKeyFor()] = {
-            week: isoWeekKey(today), // ugen er enheden: et udkast hører til ugens pas
+    // Ét udkast pr. pas: ugen det hører til, hvilken træning man retter, og de tal man har tastet.
+    function draftEntry(weekKey) {
+        return {
+            week: weekKey, // ugen er enheden: et udkast hører til ugens pas
             editingId: state.editing ? state.editing.id : null,
             exercises: state.exercises.map(ex => ({
                 exerciseId: ex.exerciseId,
                 sets: ex.sets.map(s => ({ weight: s.weight, reps: s.reps })),
             })),
         };
+    }
+
+    function persistDraft(today = getTodayStr()) {
+        if (!draftIsDirty()) return false;
+        const drafts = loadDrafts();
+        drafts[draftKeyFor()] = draftEntry(isoWeekKey(today));
+        return saveDrafts(drafts);
+    }
+
+    // Et byt skifter hvilke øvelser der står på kortene. Et udkast skrevet før byttet må ikke lægge
+    // den gamle øvelse tilbage ved næste åbning, så det skrives med det samme — med sin egen uge.
+    function refreshDraft() {
+        const drafts = loadDrafts();
+        const key = draftKeyFor();
+        if (!drafts[key]) return false;
+        drafts[key] = draftEntry(drafts[key].week);
         return saveDrafts(drafts);
     }
 
@@ -1448,6 +1463,8 @@
             }
         }
         state.openSwap = null;
+        // Kortene skiftede øvelse: et udkast skrevet før byttet ville lægge den gamle tilbage.
+        refreshDraft();
         const ex = getExerciseById(state.currentDay, exerciseId);
         const dayLabel = state.currentDay === 'upper' ? 'Upper' : 'Lower';
         scheduleDraftSave();

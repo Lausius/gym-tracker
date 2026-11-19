@@ -294,6 +294,8 @@ async function main() {
         && menu.current === 'bench_press' && menu.slot === 'bench_press'
         && menu.ids.every(id => id === 'bench_press' || !menu.inSession.includes(id)),
         JSON.stringify(menu));
+    await skriv('#exercise-list .exercise-card[data-exercise-id="bench_press"] .set-weight', '70');
+    await sleep(500);
     await pickSwap('bench_press', 'chest_press_machine');
     await sleep(300);
     ok('Kortet viser den nye øvelse på samme plads, med programmets anbefaling og ingen dubletter', (await evaluate(`return (() => {
@@ -301,7 +303,7 @@ async function main() {
         return ids[0] === "chest_press_machine" && new Set(ids).size === ids.length
             && /Recommended: \\d+ × \\d+/.test(document.querySelector('#exercise-list .exercise-card[data-exercise-id="chest_press_machine"] .exercise-target').textContent); })()`)) === true,
         JSON.stringify({ ids: await cardIds() }));
-    ok('Byttet gemmes, overlever en reload, og gælder kun Upper A', (await evaluate(`const s = JSON.parse(localStorage.getItem("gym_tracker_program_swaps") || "{}"); return s.upperA && s.upperA.bench_press === "chest_press_machine";`)) === true);
+    ok('Byttet gemmes, overlever en reload (også når man har tastet et tal på kortet først), og gælder kun Upper A', (await evaluate(`const s = JSON.parse(localStorage.getItem("gym_tracker_program_swaps") || "{}"); return s.upperA && s.upperA.bench_press === "chest_press_machine";`)) === true);
     await load(URL_UNDER_TEST);
     const byttet = (await cardIds())[0] === 'chest_press_machine';
     await openSession('upperB');
